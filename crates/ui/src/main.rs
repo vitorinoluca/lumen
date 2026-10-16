@@ -178,6 +178,59 @@ fn finding_height(f: &security::Finding) -> f32 {
     28.0 + 30.0 + lines(&f.detail) * 16.0 + decoded + 44.0 + 12.0
 }
 
+/// Arma la lista de Optimizar a partir de los tres orígenes (modos, privacidad, servicios).
+/// Muestra pocas cosas: lo delicado queda en "avanzadas" y lo crítico (que no se puede tocar) no se muestra.
+fn rebuild_opt(ui: &Main) {
+    use slint::Model;
+    let row = |r: &ServiceRow, kind: i32, src: usize| OptRow {
+        header: false,
+        title: r.title.clone(),
+        desc: r.desc.clone(),
+        tag: r.tag.clone(),
+        enabled: r.enabled,
+        locked: r.locked,
+        kind,
+        src: src as i32,
+    };
+    let header = |t: &str| OptRow { header: true, title: t.into(), desc: "".into(), tag: "".into(), enabled: false, locked: false, kind: 0, src: 0 };
+    let (profiles, privacy, services): (Vec<ServiceRow>, Vec<ServiceRow>, Vec<ServiceRow>) = (ui.get_profiles().iter().collect(), ui.get_privacy().iter().collect(), ui.get_services().iter().collect());
+    let level = |r: &ServiceRow| r.level.to_string();
+
+    let mut rows = vec![header("Modos")];
+    rows.extend(profiles.iter().enumerate().map(|(i, r)| row(r, 2, i)));
+    rows.push(header("Privacidad"));
+    rows.extend(privacy.iter().enumerate().map(|(i, r)| row(r, 0, i)));
+    rows.push(header("Servicios que casi nadie usa"));
+    let safe: Vec<(usize, &ServiceRow)> = services.iter().enumerate().filter(|(_, r)| level(r) == "seguro").collect();
+    rows.extend(safe.iter().map(|(i, r)| row(r, 1, *i)));
+    let careful: Vec<(usize, &ServiceRow)> = services.iter().enumerate().filter(|(_, r)| level(r) == "depende").collect();
+    if ui.get_show_advanced() && !careful.is_empty() {
+        rows.push(header("Avanzado: pueden cambiar cómo usás la PC"));
+        rows.extend(careful.iter().map(|(i, r)| row(r, 1, *i)));
+    }
+
+    let total = (privacy.len() + safe.len()) as i32;
+    let done = (privacy.iter().filter(|r| r.enabled).count() + safe.iter().filter(|(_, r)| r.enabled).count()) as i32;
+    let height: f32 = rows.iter().map(|r| if r.header { 44.0 } else { 56.0 }).sum::<f32>() + if careful.is_empty() { 0.0 } else { 40.0 };
+    ui.set_opt_rows(ModelRc::new(VecModel::from(rows)));
+    ui.set_opt_h(height);
+    ui.set_opt_total(total);
+    ui.set_opt_done(done);
+    ui.set_opt_advanced(careful.len() as i32);
+}
+
+/// Resumen de "aplicar las recomendadas", en una frase.
+fn recommended_summary(applied: usize, need_admin: usize, warn: &str) -> String {
+    let mut msg = if applied == 0 { "No se aplicó ningún cambio.".to_string() } else { format!("Listo: {applied} mejoras aplicadas.") };
+    if need_admin > 0 {
+        msg += &format!(" {need_admin} necesitan abrir lumen como administrador.");
+    }
+    if !warn.is_empty() {
+        msg += &format!(" {warn}");
+    }
+    msg
+}
+
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
 fn size(b: u64) -> String {
     match b {
@@ -309,6 +362,7 @@ fn main() {
                 })
                 .collect();
             ui.set_privacy(ModelRc::new(VecModel::from(rows)));
+            rebuild_opt(&ui);
         }
     };
     ui.on_toggle_privacy({
@@ -644,6 +698,7 @@ fn main() {
                 row(profiles::BATTERY, "Plan de ahorro de energía para que la batería dure más.".into(), "seguro"),
             ];
             ui.set_profiles(ModelRc::new(VecModel::from(rows)));
+            rebuild_opt(&ui);
         }
     };
     ui.on_toggle_profile({
@@ -701,6 +756,7 @@ fn main() {
                 })
                 .collect();
             ui.set_services(ModelRc::new(VecModel::from(rows)));
+            rebuild_opt(&ui);
         }
     };
     // Desactivar un servicio es un cambio grande: antes se crea un punto de restauración (en un hilo,
@@ -747,6 +803,74 @@ fn main() {
             };
             ui.set_status(service_msg(res, &warn).into());
             reload();
+        }
+    });
+
+    ui.on_rebuild_opt({
+        let weak = ui.as_weak();
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                rebuild_opt(&ui);
+            }
+        }
+    });
+
+    // Aplicar las recomendadas: la privacidad al instante; los servicios (necesitan administrador)
+    // después de crear un punto de restauración.
+    let batch = Rc::new(Cell::new((0usize, 0usize))); // (aplicadas, necesitan administrador)
+    ui.on_apply_recommended({
+        let (weak, journal, svcs, batch, reload_priv, reload_svc) = (ui.as_weak(), journal.clone(), svcs.clone(), batch.clone(), load_privacy.clone(), load_services.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let admin = restore::is_admin();
+            let (mut applied, mut need_admin) = (0, 0);
+            {
+                let mut j = journal.borrow_mut();
+                for s in privacy::SETTINGS.iter().filter(|s| !s.is_off()) {
+                    if s.hive == Hive::Machine && !admin {
+                        need_admin += 1;
+                    } else if j.apply(&format!("Privacidad: {}", s.name), s.turn_off()).is_ok() {
+                        applied += 1;
+                    } else {
+                        need_admin += 1;
+                    }
+                }
+            }
+            let pending = svcs.borrow().iter().filter(|s| s.level == services::Level::Safe && s.enabled()).count();
+            batch.set((applied, need_admin));
+            reload_priv();
+            if pending == 0 || !admin {
+                ui.set_status(recommended_summary(applied, need_admin + pending, "").into());
+                reload_svc();
+                return;
+            }
+            ui.set_status("Creando un punto de restauración, puede tardar unos segundos…".into());
+            let weak = weak.clone();
+            thread::spawn(move || {
+                let warn = match restore::create("aplicar las mejoras recomendadas") {
+                    Ok(()) => String::new(),
+                    Err(e) => format!("Sin punto de restauración ({e}); los cambios igual se pueden volver atrás."),
+                };
+                let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_apply_recommended_services(warn.into()));
+            });
+        }
+    });
+    ui.on_apply_recommended_services({
+        let (weak, journal, svcs, batch, reload_svc) = (ui.as_weak(), journal.clone(), svcs.clone(), batch.clone(), load_services.clone());
+        move |warn| {
+            let Some(ui) = weak.upgrade() else { return };
+            let (mut applied, mut need_admin) = batch.get();
+            let names: Vec<String> = svcs.borrow().iter().filter(|s| s.level == services::Level::Safe && s.enabled()).map(|s| s.name.clone()).collect();
+            for name in names {
+                let done = services::disable_action(&name).is_some_and(|a| journal.borrow_mut().apply(&format!("Desactivar servicio: {name}"), a).is_ok());
+                if done {
+                    applied += 1;
+                } else {
+                    need_admin += 1;
+                }
+            }
+            ui.set_status(recommended_summary(applied, need_admin, &warn).into());
+            reload_svc();
         }
     });
 
@@ -882,9 +1006,11 @@ fn main() {
             Some(1) => refresh(),
             Some(2) => load_startup(),
             Some(3) => load_disk(),
-            Some(4) => load_privacy(),
-            Some(5) => load_services(),
-            Some(6) => load_profiles(),
+            Some(4) => {
+                load_privacy();
+                load_services();
+                load_profiles();
+            }
             Some(7) => load_apps(),
             _ => {}
         }
