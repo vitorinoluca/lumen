@@ -31,6 +31,11 @@ fn reg_text(path: &str, name: &str) -> String {
     RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(path).and_then(|k| k.get_value::<String, _>(name)).unwrap_or_default().trim().to_string()
 }
 
+/// Número de compilación de Windows (0 si no se pudo leer). Mica necesita 22621 o más (Windows 11 22H2).
+pub fn windows_build() -> u32 {
+    reg_text(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuildNumber").parse().unwrap_or(0)
+}
+
 /// GPU con más memoria de video registrada (evita elegir la integrada si hay una dedicada).
 fn gpu() -> (String, u64) {
     let class = r"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";

@@ -132,11 +132,14 @@ fn apply_theme(ui: &Main, mode: i32) {
         2 => Some(WinTheme::Dark),
         _ => None, // None = que la barra siga a Windows
     };
+    let mica = !ui.global::<Theme>().get_solid();
     ui.window().with_winit_window(|w| {
         use slint::winit_030::winit::platform::windows::{BackdropType, WindowExtWindows};
         w.set_theme(t);
-        w.set_transparent(true);
-        w.set_system_backdrop(BackdropType::MainWindow);
+        if mica {
+            w.set_transparent(true);
+            w.set_system_backdrop(BackdropType::MainWindow);
+        }
     });
 }
 
@@ -415,6 +418,7 @@ fn main() {
     ui.global::<I18n>().on_translate(|s, _| i18n::t(s.as_str()).into());
     apply_language(&ui, &cfg.language);
     ui.global::<Theme>().set_mode(theme_index(&cfg.theme));
+    ui.global::<Theme>().set_solid(hardware::windows_build() < 22621);
     // La ventana recién existe con el bucle de eventos andando: el tema de la barra se aplica un instante después.
     {
         let (weak, mode) = (ui.as_weak(), theme_index(&cfg.theme));

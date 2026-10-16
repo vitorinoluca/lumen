@@ -18,6 +18,8 @@ export struct CleanRow { name: string, desc: string, size: string }
 export global Theme {
     // 0 = como Windows, 1 = claro, 2 = oscuro
     in-out property <int> mode: 0;
+    // Sin Mica (Windows 10 o 11 viejo) la ventana no puede ser transparente: se pinta un fondo sólido.
+    in-out property <bool> solid: false;
     out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
     out property <color> text: dark ? #f5f5f7 : #1a1a1c;
     out property <color> muted: dark ? #ffffff9e : #0000009e;
@@ -34,6 +36,7 @@ export global Theme {
     out property <color> danger: dark ? #ff8f85 : #c42b1c;
     // Lo único opaco: los diálogos, para que el texto se lea siempre.
     out property <color> pop: dark ? #2a2a2e : #fbfbfb;
+    out property <color> backdrop: dark ? #1c1c1f : #f3f3f5;
     out property <length> radius: 6px;
 }
 
@@ -619,7 +622,7 @@ export component Main inherits Window {
     min-width: 720px;
     min-height: 460px;
     // Transparente: Rust le pone el material de Windows (Mica) por detrás.
-    background: transparent;
+    background: Theme.solid ? Theme.backdrop : transparent;
     default-font-family: "Segoe UI Variable Text";
 
     in property <float> cpu;
