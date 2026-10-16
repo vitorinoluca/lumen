@@ -6,9 +6,10 @@ use lumen_core::{
     startup::{self, Source},
     disk,
     power, privacy, profiles, restore, services,
+    uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
-use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
+use std::{cell::{Cell, RefCell}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
 slint::include_modules!();
 
@@ -168,6 +169,113 @@ fn main() {
             ui.set_status(res.err().map(|e| format!("No se pudo: {e}")).unwrap_or_default().into());
             drop(j);
             reload();
+        }
+    });
+
+    // Programas: desinstalar corre en un hilo (el instalador del programa puede tardar). Los restos
+    // quedan pendientes hasta que el usuario los confirme.
+    let apps = Rc::new(RefCell::new(Vec::<uninstall::App>::new()));
+    let pending: Arc<Mutex<(String, Vec<Leftover>)>> = Arc::default();
+    let last_ids = Rc::new(RefCell::new(Vec::<usize>::new()));
+    let load_apps = {
+        let (weak, apps) = (ui.as_weak(), apps.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            *apps.borrow_mut() = uninstall::list();
+            let rows: Vec<AppRow> = apps
+                .borrow()
+                .iter()
+                .map(|a| AppRow {
+                    name: a.name.clone().into(),
+                    detail: [a.publisher.as_str(), a.version.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ").into(),
+                    size: if a.size_kb > 0 { mb(a.size_kb * 1024) } else { String::new() }.into(),
+                })
+                .collect();
+            ui.set_apps(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    ui.on_apps_reload(load_apps.clone());
+    ui.on_uninstall({
+        let (weak, apps, pending) = (ui.as_weak(), apps.clone(), pending.clone());
+        move |i| {
+            let Some(ui) = weak.upgrade() else { return };
+            let app = apps.borrow()[i as usize].clone();
+            ui.set_status("Creando punto de restauración…".into());
+            ui.set_leftovers(ModelRc::new(VecModel::from(Vec::<DiskRow>::new())));
+            ui.set_can_undo_leftovers(false);
+            let (weak, pending) = (weak.clone(), pending.clone());
+            thread::spawn(move || {
+                let warn = match restore::create(&format!("desinstalar {}", app.name)) {
+                    Ok(()) => String::new(),
+                    Err(e) => format!("Sin punto de restauración ({e}). "),
+                };
+                let msg = format!("{warn}Se abrió el desinstalador de {}. Seguí los pasos de su ventana.", app.name);
+                let _ = weak.upgrade_in_event_loop(move |ui| ui.set_status(msg.into()));
+                let res = uninstall::run_uninstall(&app);
+                let found = uninstall::leftovers(&app);
+                let rows: Vec<(String, String)> = found
+                    .iter()
+                    .map(|l| {
+                        let (kind, path) = l.describe();
+                        (path, kind.to_string())
+                    })
+                    .collect();
+                *pending.lock().unwrap() = (app.name.clone(), found);
+                let done = match (res, rows.len()) {
+                    (Err(e), _) => format!("No se pudo abrir el desinstalador: {e}"),
+                    (Ok(()), 0) => format!("Listo. No quedaron restos de {}.", app.name),
+                    (Ok(()), n) => format!("Terminó el desinstalador. Encontramos {n} restos."),
+                };
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
+                    ui.set_leftovers(ModelRc::new(VecModel::from(rows)));
+                    ui.set_status(done.into());
+                    ui.invoke_apps_reload();
+                });
+            });
+        }
+    });
+    ui.on_clean_leftovers({
+        let (weak, pending, journal, last_ids) = (ui.as_weak(), pending.clone(), journal.clone(), last_ids.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let (name, found) = std::mem::take(&mut *pending.lock().unwrap());
+            let (mut ids, mut errors) = (vec![], vec![]);
+            for l in &found {
+                match uninstall::clean_leftover(&mut journal.borrow_mut(), &name, l, &disk::stash_root()) {
+                    Ok(id) => ids.push(id),
+                    Err(e) => errors.push(e.to_string()),
+                }
+            }
+            let mut msg = format!("{} restos movidos a la reserva. Se pueden devolver.", ids.len());
+            if let Some(e) = errors.first() {
+                msg = format!("{msg} No se pudieron limpiar {}: {e}", errors.len());
+            }
+            ui.set_can_undo_leftovers(!ids.is_empty());
+            *last_ids.borrow_mut() = ids;
+            ui.set_leftovers(ModelRc::new(VecModel::from(Vec::<DiskRow>::new())));
+            ui.set_status(msg.into());
+        }
+    });
+    ui.on_undo_leftovers({
+        let (weak, journal, last_ids) = (ui.as_weak(), journal.clone(), last_ids.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let failed = last_ids.borrow().iter().rev().filter(|&&id| journal.borrow_mut().revert(id).is_err()).count();
+            last_ids.borrow_mut().clear();
+            ui.set_can_undo_leftovers(false);
+            let msg = if failed == 0 { "Restos devueltos a su lugar.".to_string() } else { format!("{failed} restos no se pudieron devolver.") };
+            ui.set_status(msg.into());
+        }
+    });
+    ui.on_dismiss_leftovers({
+        let (weak, pending) = (ui.as_weak(), pending.clone());
+        move || {
+            pending.lock().unwrap().1.clear();
+            if let Some(ui) = weak.upgrade() {
+                ui.set_leftovers(ModelRc::new(VecModel::from(Vec::<DiskRow>::new())));
+                ui.set_status("Dejamos los restos como estaban.".into());
+            }
         }
     });
 
@@ -371,13 +479,14 @@ fn main() {
     });
 
     ui.on_opened({
-        let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, weak) = (
+        let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, load_apps, weak) = (
             refresh.clone(),
             load_startup.clone(),
             load_disk.clone(),
             load_privacy.clone(),
             load_services.clone(),
             load_profiles.clone(),
+            load_apps.clone(),
             ui.as_weak(),
         );
         move || match weak.upgrade().map(|u| u.get_page()) {
@@ -387,6 +496,7 @@ fn main() {
             Some(4) => load_privacy(),
             Some(5) => load_services(),
             Some(6) => load_profiles(),
+            Some(7) => load_apps(),
             _ => {}
         }
     });

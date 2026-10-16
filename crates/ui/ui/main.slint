@@ -3,6 +3,7 @@ import { Palette, ListView } from "std-widgets.slint";
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
 export struct ServiceRow { title: string, desc: string, level: string, enabled: bool, locked: bool }
+export struct AppRow { name: string, detail: string, size: string }
 export struct DiskRow { name: string, size: string }
 
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
@@ -39,6 +40,7 @@ component Icon inherits Path {
         kind == "disk" ? "M4 14 H20 V19 H4 Z M4 14 L7 5 H17 L20 14 M16 16.5 H16.5" :
         kind == "sliders" ? "M4 7 H20 M4 12 H20 M4 17 H20 M9 5 V9 M15 10 V14 M8 15 V19" :
         kind == "bolt" ? "M13 3 L5 14 H12 L11 21 L19 10 H12 Z" :
+        kind == "box" ? "M3 7 L12 3 L21 7 V17 L12 21 L3 17 Z M3 7 L12 11 L21 7 M12 11 V21" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -141,6 +143,11 @@ export component Main inherits Window {
     in property <[StartupRow]> privacy;
     in property <[ServiceRow]> services;
     in property <[StartupRow]> profiles;
+    in property <[AppRow]> apps;
+    in property <[DiskRow]> leftovers;
+    in-out property <bool> can-undo-leftovers;
+    in-out property <int> confirm-app: -1;
+    in-out property <string> confirm-app-name;
     in-out property <string> status;
     in property <[DiskRow]> targets;
     in property <[DiskRow]> space-map;
@@ -152,8 +159,8 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
-    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "bolt", "shield"];
-    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Seguridad"];
+    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "bolt", "box", "shield"];
+    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Programas", "Seguridad"];
 
     callback sort(int);
     callback kill(int);
@@ -162,6 +169,11 @@ export component Main inherits Window {
     callback toggle-privacy(int, bool);
     callback toggle-service(int, bool);
     callback toggle-profile(int, bool);
+    callback uninstall(int);
+    callback apps-reload();
+    callback clean-leftovers();
+    callback undo-leftovers();
+    callback dismiss-leftovers();
     callback disable-service(int, string);
     callback clean(int);
     callback undo-clean();
@@ -364,7 +376,62 @@ export component Main inherits Window {
             }
         }
 
-        if page > 6: VerticalLayout {
+        if page == 7: VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "\{apps.length} programas instalados"; sub: "Se abre el desinstalador de cada programa. Después te mostramos lo que haya quedado, sin borrar nada solo."; }
+            if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            if confirm-app >= 0: Rectangle {
+                border-width: 1px;
+                border-color: Theme.line;
+                border-radius: Theme.radius;
+                height: 44px;
+                HorizontalLayout {
+                    padding: 8px;
+                    spacing: 12px;
+                    Text { text: "Desinstalar \{confirm-app-name}. Antes se crea un punto de restauración si lumen corre como administrador."; font-size: 12px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                    Btn { text: "Desinstalar"; clicked => { uninstall(confirm-app); confirm-app = -1; } }
+                    Btn { text: "Cancelar"; clicked => { confirm-app = -1; } }
+                }
+            }
+            if leftovers.length > 0: VerticalLayout {
+                spacing: 6px;
+                Text { text: "Quedaron \{leftovers.length} restos. Revisalos antes de limpiar:"; font-size: 14px; color: Theme.text; }
+                for l in leftovers: HorizontalLayout {
+                    spacing: 12px;
+                    Text { text: l.size; width: 64px; font-size: 12px; color: Theme.muted; }
+                    Text { text: l.name; font-size: 12px; color: Theme.text; overflow: elide; horizontal-stretch: 1; }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Btn { text: "Mover a la reserva"; strong: true; clicked => { clean-leftovers(); } }
+                    Btn { text: "Dejarlos"; clicked => { dismiss-leftovers(); } }
+                }
+            }
+            if can-undo-leftovers: Btn { text: "Deshacer limpieza de restos"; clicked => { undo-leftovers(); } }
+            ListView {
+                for a[i] in apps: Rectangle {
+                    height: 40px;
+                    background: app-ta.has-hover ? Theme.hover : transparent;
+                    app-ta := TouchArea { }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        padding-left: 4px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            Text { text: a.name; font-size: 14px; color: Theme.text; overflow: elide; }
+                            Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
+                        }
+                        Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
+                        Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover; clicked => { confirm-app-name = a.name; confirm-app = i; } }
+                    }
+                }
+            }
+        }
+
+        if page > 7: VerticalLayout {
             padding: 24px;
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }
