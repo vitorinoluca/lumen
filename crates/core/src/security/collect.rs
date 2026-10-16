@@ -15,8 +15,8 @@ pub enum Kind {
 impl Kind {
     pub fn label(self) -> &'static str {
         match self {
-            Kind::RunKey => "Inicio (registro)",
-            Kind::StartupFolder => "Carpeta Inicio",
+            Kind::RunKey => "Arranque automático",
+            Kind::StartupFolder => "Arranque automático (carpeta Inicio)",
             Kind::Task => "Tarea programada",
             Kind::Service => "Servicio",
         }
@@ -230,7 +230,7 @@ pub fn winlogon_findings(shell: &str, userinit: &str, windir: &str) -> Vec<Findi
             out.push(Finding {
                 key: format!("winlogon:{}", name.to_lowercase()),
                 severity: Severity::High,
-                title: format!("Winlogon: «{name}» fue modificado"),
+                title: format!("Cambió cómo inicia Windows (Winlogon: {name})"),
                 detail: format!("Valor actual: {value}\nValor esperado: {restore}"),
                 decoded: None,
                 fix: Some(Fix::RegText { hive: Hive::Machine, path: WINLOGON.into(), name: name.into(), restore: Some(restore) }),
@@ -253,7 +253,7 @@ fn ifeo_findings() -> Vec<Finding> {
             out.push(Finding {
                 key: format!("ifeo:{view}:{}", exe.to_lowercase()),
                 severity: Severity::High,
-                title: format!("{exe} se reemplaza por otro programa (IFEO)"),
+                title: format!("{exe} se abre con otro programa en su lugar"),
                 detail: format!("Cada vez que se abre {exe}, Windows ejecuta: {dbg}"),
                 decoded: None,
                 fix: Some(Fix::RegText { hive: Hive::Machine, path: format!(r"{path}\{exe}"), name: "Debugger".into(), restore: None }),
@@ -280,7 +280,7 @@ pub fn wmi_findings(json: &str) -> Vec<Finding> {
             Some(Finding {
                 key: format!("wmi:{kind}:{}", name.to_lowercase()),
                 severity: Severity::High,
-                title: format!("WMI: {what} «{name}»"),
+                title: format!("Elemento oculto de Windows (WMI): {what} «{name}»"),
                 detail: if detail.is_empty() { "Sin detalle".into() } else { detail },
                 decoded: None,
                 fix: None,

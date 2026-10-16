@@ -137,6 +137,19 @@ pub fn update() -> io::Result<usize> {
     Ok(db.len())
 }
 
+/// La lista se renueva sola, pero no más de una vez por semana: es chica (unos 160 KB) y cambia poco.
+const MAX_AGE_SECS: u64 = 7 * 24 * 3600;
+
+/// Actualiza la lista si falta o tiene más de una semana. Ok(true) si se descargó una nueva.
+/// Se llama al revisar la PC: es el pedido del usuario, no corre en segundo plano.
+pub fn ensure_fresh() -> io::Result<bool> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    if Db::load().is_some_and(|d| now.saturating_sub(d.updated_secs) < MAX_AGE_SECS) {
+        return Ok(false);
+    }
+    update().map(|_| true)
+}
+
 // ------------------------------------------------------------- caché de hashes
 
 #[derive(Serialize, Deserialize, Default)]
@@ -242,7 +255,7 @@ pub fn check_files(db: &Db, files: &[DriverFile], cache: &mut Cache) -> Vec<Find
             key,
             severity,
             title: format!("Driver {kind} conocido: {file}"),
-            detail: format!("{}\nCoincide con «{}» de LOLDrivers (SHA-256 {}…)\n{why}", f.path.display(), info.name, &sha[..16]),
+            detail: format!("{}\nFigura en la lista pública de drivers peligrosos (LOLDrivers) como «{}».\n{why}", f.path.display(), info.name),
             decoded: None,
             fix,
         });
@@ -250,15 +263,16 @@ pub fn check_files(db: &Db, files: &[DriverFile], cache: &mut Cache) -> Vec<Find
     out
 }
 
-/// Revisa los drivers instalados con la base descargada. Devuelve los hallazgos y un aviso sobre la base.
+/// Revisa los drivers instalados contra la lista. Devuelve los hallazgos y un aviso en lenguaje simple.
 pub fn check() -> (Vec<Finding>, String) {
     let Some(db) = Db::load() else {
-        return (vec![], "Para revisar drivers vulnerables, descargá la base de hashes con «Actualizar base de hashes».".into());
+        return (vec![], "No pude revisar los drivers: hace falta conexión a internet una vez para bajar la lista de drivers peligrosos conocidos.".into());
     };
+    let files = driver_files();
     let mut cache = Cache::load();
-    let findings = check_files(&db, &driver_files(), &mut cache);
+    let findings = check_files(&db, &files, &mut cache);
     cache.save();
-    (findings, format!("Base de hashes de LOLDrivers: {} hashes.", db.len()))
+    (findings, format!("Revisé {} drivers contra la lista de drivers peligrosos conocidos.", files.len()))
 }
 
 #[cfg(test)]
@@ -342,6 +356,19 @@ mod tests {
         let m = f.iter().find(|x| x.title.contains("mal.sys")).unwrap();
         assert_eq!(m.severity, Severity::High);
         assert!(m.fix.is_none(), "un driver de arranque no se puede apagar desde acá");
+        let _ = fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn fresh_database_is_not_downloaded_again() {
+        // sin conexión ni archivos: si la lista está al día no se toca la red
+        let d = temp("fresh");
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let db = Db::from_entries(vec![(SHA_ABC.into(), Info { name: "x".into(), malicious: false })], now);
+        let back = Db::from_tsv(&db.to_tsv()).unwrap();
+        assert!(now.saturating_sub(back.updated_secs) < MAX_AGE_SECS);
+        let old = Db::from_tsv(&Db::from_entries(vec![], now - MAX_AGE_SECS - 10).to_tsv()).unwrap();
+        assert!(now.saturating_sub(old.updated_secs) >= MAX_AGE_SECS);
         let _ = fs::remove_dir_all(d);
     }
 

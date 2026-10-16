@@ -151,7 +151,7 @@ pub fn reverse_shells(procs: &[Proc], conns: &[Conn], sigs: &HashMap<PathBuf, Si
         }
         let s = stem(&p.name);
         let (severity, why) = if SHELLS.contains(&s.as_str()) {
-            (Severity::High, format!("{} tiene una conexión saliente. Los intérpretes de comandos casi nunca la necesitan: es lo típico de una reverse shell.", p.name))
+            (Severity::High, format!("{} tiene una conexión saliente. Los intérpretes de comandos casi nunca la necesitan: es lo que usan los atacantes para controlar una PC a distancia.", p.name))
         } else if p.path.as_ref().is_some_and(|x| in_user_area(x)) && !p.path.as_ref().and_then(|x| sigs.get(x)).is_some_and(Sig::is_valid) {
             (Severity::Medium, format!("{} no está firmado, vive en una carpeta de usuario y se conecta al exterior.", p.name))
         } else {

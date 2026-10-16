@@ -83,10 +83,6 @@ fn is_user_path(p: &str) -> bool {
     ["\\users\\", "\\appdata\\", "\\temp\\", "\\programdata\\"].iter().any(|d| l.contains(d))
 }
 
-fn short(sha: &str) -> String {
-    sha.chars().take(16).collect()
-}
-
 /// Lo nuevo o modificado respecto de la línea base. Alta no corresponde acá: una entrada común
 /// es media si no está firmada o vive en una carpeta de usuario, y baja si la firma un editor válido.
 pub fn persistence_findings(scanned: &[Scanned], base: &Baseline) -> Vec<Finding> {
@@ -101,9 +97,6 @@ pub fn persistence_findings(scanned: &[Scanned], base: &Baseline) -> Vec<Finding
             };
             let severity = if r.valid && !is_user_path(&r.path) { Severity::Low } else { Severity::Medium };
             let mut detail = format!("{}\n{}\nFirma: {}", e.location, e.command, r.sig);
-            if !r.sha256.is_empty() {
-                detail.push_str(&format!("\nSHA-256: {}…", short(&r.sha256)));
-            }
             if !e.trigger.is_empty() {
                 detail.push_str(&format!("\nDisparador: {}", e.trigger));
             }
@@ -203,7 +196,7 @@ pub fn scan() -> ScanResult {
             if !base.exclusions_known {
                 // Primera vez que se pueden leer: lo que ya había queda como línea base.
                 if !result.first_run && !list.is_empty() {
-                    result.notes.push(format!("Se guardaron {} exclusiones de Defender que ya existían como línea base.", list.len()));
+                    result.notes.push(format!("Guardé las {} exclusiones de Defender que ya existían, para avisarte solo de las nuevas.", list.len()));
                 }
                 base.exclusions = list;
                 base.exclusions_known = true;
@@ -212,14 +205,14 @@ pub fn scan() -> ScanResult {
                 result.findings.extend(list.iter().filter(|x| !base.exclusions.contains(x)).map(|x| analyze::exclusion_finding(x)));
             }
         }
-        None => result.notes.push("Para revisar las exclusiones de Defender, lumen tiene que abrirse como administrador.".into()),
+        None => result.notes.push("Para ver las exclusiones de Defender (lo que Defender no analiza), abrí lumen como administrador.".into()),
     }
 
     // 6. Línea base del primer escaneo.
     if result.first_run {
         base.created_secs = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
         base.entries = result.records.clone();
-        result.notes.push(format!("Primera revisión: se guardó la línea base con {} entradas. Desde ahora lumen avisa solo de lo nuevo o modificado.", result.entries));
+        result.notes.push(format!("Primera revisión: guardé cómo está tu PC ahora ({} elementos que arrancan solos). Desde ahora te aviso solo de lo que sea nuevo o cambie.", result.entries));
         changed = true;
     }
     if changed {
