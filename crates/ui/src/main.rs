@@ -26,7 +26,7 @@ fn show(ui: &Main, s: &Snapshot) {
     ui.set_ram_text(format!("{} / {}", gb(s.ram_used), gb(s.ram_total)).into());
     ui.set_disk(frac(s.disk_used, s.disk_total));
     ui.set_disk_text(format!("{} / {}", gb(s.disk_used), gb(s.disk_total)).into());
-    ui.set_net_text(format!("↓ {} KB/s  ↑ {} KB/s", s.net_rx / 1024, s.net_tx / 1024).into());
+    ui.set_net_text(format!("{} KB/s bajada, {} KB/s subida", s.net_rx / 1024, s.net_tx / 1024).into());
 }
 
 fn main() {

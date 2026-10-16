@@ -1,15 +1,106 @@
-import { Button, ProgressIndicator, ListView, Switch } from "std-widgets.slint";
+import { Palette, ListView } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
-
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
-
 export struct DiskRow { name: string, size: string }
+
+// Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
+global Theme {
+    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    out property <color> bg: dark ? #1c1c1e : #f7f7f8;
+    out property <color> side: dark ? #232326 : #eeeef0;
+    out property <color> line: dark ? #38383c : #dcdce0;
+    out property <color> text: dark ? #ececee : #1d1d1f;
+    out property <color> muted: dark ? #9a9aa0 : #6b6b72;
+    out property <color> hover: dark ? #2c2c30 : #e4e4e8;
+    out property <color> accent: dark ? #4fb39d : #2a7a68;
+    out property <color> danger: dark ? #e5736a : #b3261e;
+    out property <length> radius: 4px;
+}
+
+// Botón plano: borde fino, sin relleno.
+component Btn inherits Rectangle {
+    in property <string> text;
+    in property <bool> strong: false;
+    callback clicked;
+    height: 28px;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: strong ? Theme.accent : Theme.line;
+    background: ta.has-hover ? Theme.hover : transparent;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        Text { text: root.text; font-size: 12px; color: root.strong ? Theme.accent : Theme.text; vertical-alignment: center; }
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component Toggle inherits Rectangle {
+    in-out property <bool> checked;
+    callback toggled(bool);
+    width: 30px;
+    height: 16px;
+    border-radius: 8px;
+    background: checked ? Theme.accent : Theme.line;
+    Rectangle {
+        x: root.checked ? 16px : 2px;
+        y: 2px;
+        width: 12px;
+        height: 12px;
+        border-radius: 6px;
+        background: white;
+    }
+    TouchArea { clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
+}
+
+component Bar inherits Rectangle {
+    in property <float> value;
+    height: 4px;
+    border-radius: 2px;
+    background: Theme.line;
+    Rectangle { x: 0; width: parent.width * Math.min(1, Math.max(0, root.value)); border-radius: 2px; background: Theme.accent; }
+}
+
+// Dato grande con etiqueta chica y barra fina.
+component Stat inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <float> fraction: -1;
+    spacing: 4px;
+    Text { text: label; font-size: 12px; color: Theme.muted; }
+    Text { text: value; font-size: 22px; color: Theme.text; }
+    if fraction >= 0: Bar { value: fraction; }
+}
+
+component NavItem inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    callback clicked;
+    height: 32px;
+    border-radius: Theme.radius;
+    background: active ? Theme.hover : (ta.has-hover ? Theme.hover.with-alpha(0.5) : transparent);
+    Rectangle { x: 0; y: 8px; width: 2px; height: 16px; background: active ? Theme.accent : transparent; }
+    Text { x: 12px; text: root.text; font-size: 14px; color: Theme.text; vertical-alignment: center; }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component Head inherits VerticalLayout {
+    in property <string> title;
+    in property <string> sub;
+    spacing: 2px;
+    Text { text: title; font-size: 22px; color: Theme.text; }
+    Text { text: sub; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+}
 
 export component Main inherits Window {
     title: "lumen";
-    preferred-width: 900px;
-    preferred-height: 600px;
+    preferred-width: 920px;
+    preferred-height: 620px;
+    min-width: 640px;
+    min-height: 420px;
+    background: Theme.bg;
+    default-font-family: "Segoe UI";
 
     in property <float> cpu;
     in property <float> ram;
@@ -26,137 +117,153 @@ export component Main inherits Window {
     in-out property <string> disk-status;
     in-out property <bool> confirm-purge;
     in-out property <int> page: 0;
-    // pid pendiente de confirmar para finalizar (-1 = ninguno)
+    // pid pendiente de confirmar para cerrar (-1 = ninguno)
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
-    property <[string]> pages: ["Monitor", "Procesos", "Inicio", "Disco", "Seguridad"];
+    in-out property <string> sort-label: "uso de CPU";
+    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Seguridad"];
 
     callback sort(int);
     callback kill(int);
     callback opened();
+    callback toggle-startup(int, bool);
     callback clean(int);
     callback undo-clean();
     callback purge();
     callback scan-map();
-    callback toggle-startup(int, bool);
     changed page => { opened(); }
 
     HorizontalLayout {
         Rectangle {
-            width: 160px;
-            background: #1e1e24;
+            width: 168px;
+            background: Theme.side;
+            Rectangle { x: parent.width - 1px; width: 1px; background: Theme.line; }
             VerticalLayout {
-                padding: 8px;
-                spacing: 4px;
+                padding: 12px;
+                spacing: 2px;
                 alignment: start;
-                for name[i] in pages: Button {
-                    text: name;
-                    primary: i == page;
-                    clicked => { page = i; }
-                }
+                Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
+                Rectangle { height: 12px; }
+                for name[i] in pages: NavItem { text: name; active: i == page; clicked => { page = i; } }
             }
         }
+
         if page == 0: VerticalLayout {
-            padding: 24px;
-            spacing: 6px;
+            padding: 32px;
+            spacing: 24px;
             alignment: start;
-            Text { text: "CPU  \{Math.round(cpu * 100)}%"; font-size: 16px; }
-            ProgressIndicator { progress: cpu; }
-            Text { text: "RAM  " + ram-text; font-size: 16px; }
-            ProgressIndicator { progress: ram; }
-            Text { text: "Disco  " + disk-text; font-size: 16px; }
-            ProgressIndicator { progress: disk; }
-            Text { text: "Red  " + net-text; font-size: 16px; }
+            Head { title: "Estado de la PC"; sub: "Se actualiza cada segundo."; }
+            Stat { label: "Procesador"; value: "\{Math.round(cpu * 100)} %"; fraction: cpu; }
+            Stat { label: "Memoria"; value: ram-text; fraction: ram; }
+            Stat { label: "Disco"; value: disk-text; fraction: disk; }
+            Stat { label: "Red"; value: net-text; }
         }
+
         if page == 1: VerticalLayout {
-            padding: 12px;
-            spacing: 6px;
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "\{procs.length} procesos"; sub: "Ordenados por " + sort-label + "."; }
             HorizontalLayout {
-                spacing: 6px;
-                Text { text: "Ordenar por:"; vertical-alignment: center; }
-                Button { text: "CPU"; clicked => { sort(0); } }
-                Button { text: "Memoria"; clicked => { sort(1); } }
-                Button { text: "Nombre"; clicked => { sort(2); } }
+                spacing: 8px;
+                alignment: start;
+                Btn { text: "Por CPU"; clicked => { sort-label = "uso de CPU"; sort(0); } }
+                Btn { text: "Por memoria"; clicked => { sort-label = "memoria"; sort(1); } }
+                Btn { text: "Por nombre"; clicked => { sort-label = "nombre"; sort(2); } }
             }
             if kill-pid >= 0: Rectangle {
-                background: #5a2a2a;
-                height: 40px;
+                border-width: 1px;
+                border-color: Theme.line;
+                border-radius: Theme.radius;
+                height: 44px;
                 HorizontalLayout {
-                    padding: 6px;
-                    spacing: 8px;
-                    Text { text: "¿Finalizar \{kill-name}? No se puede deshacer."; vertical-alignment: center; color: white; }
-                    Button { text: "Finalizar"; clicked => { kill(kill-pid); kill-pid = -1; } }
-                    Button { text: "Cancelar"; clicked => { kill-pid = -1; } }
+                    padding: 8px;
+                    spacing: 12px;
+                    Text { text: "Cerrar \{kill-name}. Perdés lo que no hayas guardado y no se puede deshacer."; font-size: 12px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                    Btn { text: "Cerrar proceso"; clicked => { kill(kill-pid); kill-pid = -1; } }
+                    Btn { text: "Cancelar"; clicked => { kill-pid = -1; } }
                 }
             }
             ListView {
                 for p in procs: Rectangle {
-                    height: 26px;
+                    height: 28px;
+                    background: ta.has-hover ? Theme.hover : transparent;
+                    ta := TouchArea { }
                     HorizontalLayout {
-                        spacing: 8px;
-                        Text { text: p.name; width: 180px; overflow: elide; vertical-alignment: center; }
-                        Text { text: p.cpu; width: 50px; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: p.mem; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: p.path; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; color: #888; }
-                        Button { text: "×"; width: 28px; clicked => { kill-name = p.name; kill-pid = p.pid; } }
+                        spacing: 12px;
+                        padding-left: 4px;
+                        Text { text: p.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
+                        Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
+                        Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover; clicked => { kill-name = p.name; kill-pid = p.pid; } }
                     }
                 }
             }
         }
+
         if page == 2: VerticalLayout {
-            padding: 12px;
-            spacing: 6px;
-            Text { text: status; color: #c9a227; }
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "\{startup.length} apps arrancan con Windows"; sub: "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."; }
+            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
             ListView {
                 for e[i] in startup: Rectangle {
-                    height: 34px;
+                    height: 36px;
+                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
                     HorizontalLayout {
-                        spacing: 8px;
-                        Switch { checked: e.enabled; toggled => { toggle-startup(i, self.checked); } }
-                        Text { text: e.name; width: 160px; overflow: elide; vertical-alignment: center; }
-                        Text { text: e.scope; width: 70px; vertical-alignment: center; color: #888; }
-                        Text { text: e.command; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; color: #888; }
+                        spacing: 12px;
+                        padding-left: 4px;
+                        Toggle { y: 10px; checked: e.enabled; toggled(on) => { toggle-startup(i, on); } }
+                        Text { text: e.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
+                        Text { text: e.scope; width: 56px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+                        Text { text: e.command; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
                     }
                 }
             }
         }
+
         if page == 3: VerticalLayout {
-            padding: 12px;
-            spacing: 6px;
-            Text { text: "Limpieza (se mueve a una reserva, se puede deshacer)"; font-size: 16px; }
-            Text { text: disk-status; color: #c9a227; }
-            for t[i] in targets: HorizontalLayout {
-                spacing: 8px;
-                Text { text: t.name; width: 200px; vertical-alignment: center; }
-                Text { text: t.size; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
-                Button { text: "Limpiar"; clicked => { clean(i); } }
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "Disco"; sub: "Limpiar mueve los archivos a una reserva. Se pueden devolver hasta que la vacíes."; }
+            if disk-status != "": Text { text: disk-status; font-size: 12px; color: Theme.muted; }
+            for t[i] in targets: Rectangle {
+                height: 36px;
+                Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+                HorizontalLayout {
+                    spacing: 12px;
+                    Text { text: t.name; horizontal-stretch: 1; font-size: 14px; color: Theme.text; vertical-alignment: center; }
+                    Text { text: t.size; width: 80px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                    Btn { y: 4px; text: "Limpiar"; clicked => { clean(i); } }
+                }
             }
             HorizontalLayout {
                 spacing: 8px;
-                Text { text: "En reserva: " + stash-text; vertical-alignment: center; }
-                Button { text: "Deshacer última limpieza"; clicked => { undo-clean(); } }
-                if !confirm-purge: Button { text: "Vaciar reserva"; clicked => { confirm-purge = true; } }
-                if confirm-purge: Button { text: "¿Seguro? No se puede deshacer"; primary: true; clicked => { confirm-purge = false; purge(); } }
+                Text { text: "En reserva: " + stash-text; font-size: 12px; color: Theme.muted; vertical-alignment: center; horizontal-stretch: 1; }
+                Btn { text: "Deshacer última limpieza"; clicked => { undo-clean(); } }
+                if !confirm-purge: Btn { text: "Vaciar reserva"; clicked => { confirm-purge = true; } }
+                if confirm-purge: Btn { text: "Confirmar: no se puede deshacer"; strong: true; clicked => { confirm-purge = false; purge(); } }
             }
             Rectangle { height: 8px; }
             HorizontalLayout {
                 spacing: 8px;
-                Text { text: "Espacio por carpeta (tu usuario)"; font-size: 16px; vertical-alignment: center; }
-                Button { text: "Analizar"; clicked => { scan-map(); } }
+                Text { text: "Qué ocupa más en tu usuario"; font-size: 14px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; }
+                Btn { text: "Analizar"; clicked => { scan-map(); } }
             }
             ListView {
                 for m in space-map: HorizontalLayout {
-                    spacing: 8px;
-                    Text { text: m.size; width: 90px; horizontal-alignment: right; }
-                    Text { text: m.name; overflow: elide; }
+                    spacing: 12px;
+                    height: 24px;
+                    Text { text: m.size; width: 80px; font-size: 12px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                    Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
                 }
             }
         }
-        if page > 3: Text {
-            text: pages[page];
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            font-size: 24px;
+
+        if page > 3: VerticalLayout {
+            padding: 24px;
+            alignment: start;
+            Head { title: pages[page]; sub: "Todavía no está disponible."; }
         }
     }
 }
