@@ -134,12 +134,13 @@ fn load_security(weak: slint::Weak<Main>) {
                 .map(|t| SecRow {
                     icon: "shield".into(),
                     title: if t.name.is_empty() { "Detección sin nombre".to_string() } else { t.name.clone() }.into(),
+                    // Dos líneas: la ruta arriba y el resto abajo, para que nada quede cortado.
                     sub: format!(
-                        "{} · {} · gravedad {} · {}",
+                        "{}\n{} · gravedad {} · {}",
                         t.file(),
                         fmt_date(&t.time),
                         severity(t.severity),
-                        if t.active { "sigue activa: abrí Seguridad de Windows" } else { "Defender ya actuó sobre ella" }
+                        if t.active { "sigue activa: abrí Seguridad de Windows" } else { "ya no figura como activa" }
                     )
                     .into(),
                     alert: t.active || t.severity >= 4,

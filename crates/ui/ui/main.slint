@@ -692,7 +692,7 @@ export component Main inherits Window {
             if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
             Scroll {
                 vertical-stretch: 1;
-                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 80px;
+                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px;
                 VerticalLayout {
                     alignment: start;
                     spacing: 12px;
