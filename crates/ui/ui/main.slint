@@ -57,6 +57,7 @@ component Icon inherits Path {
 component Btn inherits Rectangle {
     in property <string> text;
     in property <bool> strong: false;
+    out property <bool> hovered: ta.has-hover;
     callback clicked;
     height: 28px;
     border-radius: Theme.radius;
@@ -378,7 +379,7 @@ export component Main inherits Window {
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover; clicked => { kill-name = p.name; kill-pid = p.pid; } }
+                        close-btn := Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } }
                     }
                 }
             }
@@ -508,7 +509,7 @@ export component Main inherits Window {
                             Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
                         }
                         Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
-                        Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover; clicked => { confirm-app-name = a.name; confirm-app = i; } }
+                        un-btn := Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } }
                     }
                 }
             }
