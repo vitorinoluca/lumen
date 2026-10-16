@@ -65,6 +65,23 @@ fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
     }
 }
 
+/// Actualiza el modelo fila por fila sin recrearlo: las filas que ya existen conservan su estado
+/// (hover, botones) y la lista no salta al principio. Solo se agregan o quitan las que sobran o faltan.
+fn sync_rows<T: Clone + 'static>(model: &VecModel<T>, rows: Vec<T>) {
+    use slint::Model;
+    let keep = model.row_count().min(rows.len());
+    while model.row_count() > rows.len() {
+        model.remove(model.row_count() - 1);
+    }
+    for (i, r) in rows.into_iter().enumerate() {
+        if i < keep {
+            model.set_row_data(i, r);
+        } else {
+            model.push(r);
+        }
+    }
+}
+
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
 fn size(b: u64) -> String {
     match b {
@@ -103,9 +120,11 @@ fn main() {
 
     // Procesos: solo se refresca mientras la página está abierta.
     let procs = Rc::new(std::cell::RefCell::new(Processes::default()));
+    let procs_model = Rc::new(VecModel::<Row>::default());
+    ui.set_procs(ModelRc::from(procs_model.clone()));
     let sort = Rc::new(Cell::new(SortBy::Cpu));
     let refresh = {
-        let (weak, procs, sort) = (ui.as_weak(), procs.clone(), sort.clone());
+        let (weak, procs, sort, model) = (ui.as_weak(), procs.clone(), sort.clone(), procs_model.clone());
         move || {
             let Some(ui) = weak.upgrade() else { return };
             if ui.get_page() != 1 {
@@ -123,7 +142,7 @@ fn main() {
                     path: p.path.map(|p| p.display().to_string()).unwrap_or_default().into(),
                 })
                 .collect();
-            ui.set_procs(ModelRc::new(VecModel::from(rows)));
+            sync_rows(&model, rows);
         }
     };
     let timer = Timer::default();
@@ -644,7 +663,19 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::size;
+    use super::{size, sync_rows};
+    use slint::{Model, VecModel};
+
+    #[test]
+    fn sync_rows_grows_shrinks_and_updates_in_place() {
+        let m = VecModel::from(vec![1, 2, 3]);
+        sync_rows(&m, vec![9, 8, 7, 6]);
+        assert_eq!(m.iter().collect::<Vec<_>>(), [9, 8, 7, 6]);
+        sync_rows(&m, vec![5]);
+        assert_eq!(m.iter().collect::<Vec<_>>(), [5]);
+        sync_rows(&m, vec![]);
+        assert_eq!(m.row_count(), 0);
+    }
 
     #[test]
     fn size_uses_gb_from_one_gb_and_mb_below() {
