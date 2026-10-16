@@ -11,7 +11,10 @@ use std::{
 const EN_PO: &str = include_str!("../lang/en/LC_MESSAGES/lumen.po");
 
 static ENGLISH: AtomicBool = AtomicBool::new(false);
-static DICT: OnceLock<(HashMap<String, String>, Vec<(String, String)>)> = OnceLock::new();
+/// Frases exactas y moldes con `{}`.
+type Dict = (HashMap<String, String>, Vec<(String, String)>);
+
+static DICT: OnceLock<Dict> = OnceLock::new();
 
 pub fn set_english(on: bool) {
     ENGLISH.store(on, Ordering::Relaxed);
@@ -22,7 +25,7 @@ fn unquote(s: &str) -> String {
 }
 
 /// Lee el .po: (frases exactas, moldes con `{}`).
-fn parse(po: &str) -> (HashMap<String, String>, Vec<(String, String)>) {
+fn parse(po: &str) -> Dict {
     let (mut exact, mut templates) = (HashMap::new(), Vec::new());
     let mut id: Option<String> = None;
     for line in po.lines() {
