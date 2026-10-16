@@ -57,9 +57,21 @@ pub fn stash_root() -> PathBuf {
     PathBuf::from(env::var_os("APPDATA").unwrap_or_default()).join("lumen").join("stash")
 }
 
+/// Resultado de limpiar una carpeta.
+#[derive(Debug, Default)]
+pub struct Cleaned {
+    pub moved: usize,
+    /// Elementos que estaban en uso y se dejaron.
+    pub skipped: usize,
+    /// Bytes que pasaron a la reserva.
+    pub bytes: u64,
+    /// Id en el journal, para poder deshacerlo.
+    pub id: Option<usize>,
+}
+
 /// Mueve el contenido de `dir` a la reserva y lo registra en el journal.
-/// Lo que está en uso se omite. Devuelve (movidos, omitidos).
-pub fn clean(journal: &mut Journal, label: &str, dir: &Path, stash: &Path) -> io::Result<(usize, usize)> {
+/// Lo que está en uso se omite.
+pub fn clean(journal: &mut Journal, label: &str, dir: &Path, stash: &Path) -> io::Result<Cleaned> {
     let batch = stash.join(SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis()).to_string());
     fs::create_dir_all(&batch)?;
     let (mut moved, mut skipped) = (vec![], 0);
@@ -71,12 +83,31 @@ pub fn clean(journal: &mut Journal, label: &str, dir: &Path, stash: &Path) -> io
         }
     }
     let n = moved.len();
-    if n > 0 {
-        journal.record(&format!("Limpiar {label}"), Action::Stash { items: moved })?;
-    } else {
+    if n == 0 {
         let _ = fs::remove_dir(&batch);
+        return Ok(Cleaned { skipped, ..Default::default() });
     }
-    Ok((n, skipped))
+    let bytes = dir_size(&batch);
+    let id = journal.record(&format!("Limpiar {label}"), Action::Stash { items: moved })?;
+    Ok(Cleaned { moved: n, skipped, bytes, id: Some(id) })
+}
+
+/// La reserva se vacía sola: borra los lotes con más de `days` días. Devuelve los bytes liberados.
+/// El nombre de cada lote termina en el momento en que se creó (milisegundos).
+pub fn purge_older_than(stash: &Path, days: u64) -> u64 {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis());
+    let limit = days as u128 * 86_400_000;
+    let mut freed = 0;
+    for e in fs::read_dir(stash).into_iter().flatten().flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let digits: String = name.chars().rev().take_while(char::is_ascii_digit).collect::<String>().chars().rev().collect();
+        let Ok(created) = digits.parse::<u128>() else { continue };
+        if now.saturating_sub(created) > limit {
+            freed += dir_size(&e.path());
+            let _ = fs::remove_dir_all(e.path());
+        }
+    }
+    freed
 }
 
 /// Borra definitivamente la reserva. NO se puede deshacer. Devuelve los bytes liberados.
@@ -91,6 +122,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn old_batches_are_purged_and_recent_ones_kept() {
+        let base = env::temp_dir().join(format!("lumen-old-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+        let (old, old_left, recent) = (base.join("100"), base.join("restos-200"), base.join(now.to_string()));
+        for d in [&old, &old_left, &recent] {
+            fs::create_dir_all(d).unwrap();
+            fs::write(d.join("a.tmp"), vec![0; 10]).unwrap();
+        }
+        fs::create_dir_all(base.join("sin-fecha")).unwrap(); // no es un lote: no se toca
+        assert_eq!(purge_older_than(&base, 7), 20);
+        assert!(!old.exists() && !old_left.exists());
+        assert!(recent.exists() && base.join("sin-fecha").exists());
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
     fn clean_revert_and_purge() {
         let base = env::temp_dir().join(format!("lumen-disk-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
@@ -102,8 +150,8 @@ mod tests {
         assert_eq!(space_map(&dir)[0].1, 50);
 
         let mut j = Journal::open(base.join("j.json")).unwrap();
-        let (moved, skipped) = clean(&mut j, "test", &dir, &stash).unwrap();
-        assert_eq!((moved, skipped), (2, 0));
+        let c = clean(&mut j, "test", &dir, &stash).unwrap();
+        assert_eq!((c.moved, c.skipped, c.bytes, c.id), (2, 0, 150, Some(0)));
         assert_eq!(dir_size(&dir), 0);
 
         j.revert(0).unwrap();

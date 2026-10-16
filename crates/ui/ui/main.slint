@@ -321,14 +321,18 @@ component ScanButton inherits Rectangle {
     in property <bool> busy: false;
     in property <bool> compact: false;
     in property <string> progress;
+    in property <string> label: "Analizar";
+    in property <string> busy-label: "Analizando";
+    in property <bool> enabled: true;
     callback clicked;
     property <angle> spin;
+    opacity: enabled ? 1.0 : 0.45;
     width: size;
     height: size;
     border-radius: size / 2;
     border-width: compact ? 2px : 3px;
     border-color: Theme.accent;
-    background: busy ? Theme.card : (ta.has-hover ? Theme.accent.with-alpha(0.14) : Theme.card);
+    background: busy ? Theme.card : ((ta.has-hover && enabled) ? Theme.accent.with-alpha(0.14) : Theme.card);
     // La rotación la mueve un temporizador: sigue girando todo el tiempo que dure el análisis.
     Timer {
         interval: 80ms;
@@ -356,7 +360,7 @@ component ScanButton inherits Rectangle {
         padding-right: root.compact ? 8px : 32px;
         spacing: 8px;
         Text {
-            text: root.busy ? "Analizando" : "Analizar";
+            text: root.busy ? root.busy-label : root.label;
             font-size: root.compact ? 12px : (root.busy ? 20px : 28px);
             font-weight: 600;
             color: Theme.accent;
@@ -370,7 +374,17 @@ component ScanButton inherits Rectangle {
             wrap: word-wrap;
         }
     }
-    ta := TouchArea { mouse-cursor: root.busy ? MouseCursor.default : MouseCursor.pointer; clicked => { root.clicked(); } }
+    ta := TouchArea { enabled: root.enabled; mouse-cursor: (root.busy || !root.enabled) ? MouseCursor.default : MouseCursor.pointer; clicked => { root.clicked(); } }
+}
+
+// Acción secundaria: solo texto, para lo que no es el camino principal.
+component TextLink inherits Rectangle {
+    in property <string> text;
+    callback clicked;
+    height: 24px;
+    width: t.preferred-width;
+    t := Text { text: root.text; font-size: 12px; color: ta.has-hover ? Theme.accent : Theme.muted; vertical-alignment: center; }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 component Sep inherits Rectangle {
@@ -532,11 +546,16 @@ export component Main inherits Window {
     in-out property <int> confirm-app: -1;
     in-out property <string> confirm-app-name;
     in-out property <string> status;
-    in property <[DiskRow]> targets;
     in property <[DiskRow]> space-map;
-    in property <string> stash-text;
-    in-out property <string> disk-status;
-    in-out property <bool> confirm-purge;
+    // Limpieza de disco: una sola acción. 0 = listo para limpiar, 1 = limpiando, 2 = limpiado (se puede deshacer), 3 = terminado.
+    in property <bool> disk-loading;
+    in property <bool> disk-nothing;
+    in property <string> disk-total;
+    in property <string> disk-parts;
+    in property <string> disk-old;
+    in-out property <int> disk-phase: 0;
+    in-out property <string> disk-result;
+    in-out property <bool> show-map;
     in-out property <int> page: 0;
     // pid pendiente de confirmar para cerrar (-1 = ninguno)
     in-out property <int> kill-pid: -1;
@@ -563,7 +582,8 @@ export component Main inherits Window {
     callback undo-leftovers();
     callback dismiss-leftovers();
     callback disable-service(int, string);
-    callback clean(int);
+    callback clean-all();
+    callback disk-reset();
     callback undo-clean();
     callback purge();
     callback scan-map();
@@ -681,43 +701,70 @@ export component Main inherits Window {
         if page == 3: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Disco"; sub: "Limpiar mueve los archivos a una reserva. Se pueden devolver hasta que la vacíes."; }
-            if disk-status != "": Text { text: disk-status; font-size: 12px; color: Theme.muted; }
-            for t[i] in targets: Rectangle {
-                height: 36px;
-                Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+            Head { title: "Limpieza de disco"; sub: "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."; }
+
+            // Antes de limpiar: cuánto se puede liberar y el botón.
+            if disk-phase < 2: VerticalLayout {
+                vertical-stretch: 1;
+                alignment: center;
+                spacing: 16px;
+                Text {
+                    text: disk-loading ? "Calculando…" : (disk-nothing ? "No hay nada para limpiar" : "Podés liberar \{disk-total}");
+                    font-size: 22px;
+                    color: Theme.text;
+                    horizontal-alignment: center;
+                }
                 HorizontalLayout {
-                    spacing: 12px;
-                    Text { text: t.name; horizontal-stretch: 1; font-size: 14px; color: Theme.text; vertical-alignment: center; }
-                    Text { text: t.size; width: 80px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                    VerticalLayout { alignment: center; Btn { text: "Limpiar"; clicked => { clean(i); } } }
+                    alignment: center;
+                    ScanButton {
+                        size: 200px;
+                        label: "Limpiar";
+                        busy-label: "Limpiando";
+                        busy: disk-phase == 1;
+                        enabled: !disk-loading && !disk-nothing;
+                        clicked => { if (disk-phase == 0) { clean-all(); } }
+                    }
+                }
+                if !disk-loading && !disk-nothing: Text { text: disk-parts; font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
+                if disk-old != "": Text { text: disk-old; font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
+            }
+
+            // Después: qué pasó y, si se puede, deshacerlo.
+            if disk-phase >= 2: VerticalLayout {
+                vertical-stretch: 1;
+                alignment: center;
+                spacing: 14px;
+                Text { text: disk-result; font-size: 22px; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
+                if disk-phase == 2: Text {
+                    text: "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.";
+                    font-size: 12px;
+                    color: Theme.muted;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    if disk-phase == 2: Btn { text: "Deshacer"; clicked => { undo-clean(); } }
+                    if disk-phase == 2: Btn { text: "Borrar ahora"; strong: true; clicked => { purge(); } }
+                    if disk-phase == 3: Btn { text: "Volver"; clicked => { disk-reset(); } }
                 }
             }
-            HorizontalLayout {
-                spacing: 8px;
-                Text { text: "En reserva: " + stash-text; font-size: 12px; color: Theme.muted; vertical-alignment: center; horizontal-stretch: 1; }
-                Btn { text: "Deshacer última limpieza"; clicked => { undo-clean(); } }
-                if !confirm-purge: Btn { text: "Vaciar reserva"; clicked => { confirm-purge = true; } }
-                if confirm-purge: Btn { text: "Confirmar: no se puede deshacer"; strong: true; clicked => { confirm-purge = false; purge(); } }
-            }
-            Rectangle { height: 8px; }
-            HorizontalLayout {
-                spacing: 8px;
-                Text { text: "Qué ocupa más en tu usuario"; font-size: 14px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; }
-                Btn { text: "Analizar"; clicked => { scan-map(); } }
-            }
-            Scroll {
+
+            // Lo secundario, discreto y al final.
+            TextLink { text: show-map ? "Ocultar qué ocupa más espacio" : "Ver qué ocupa más espacio en tu usuario"; clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
+            if show-map: Scroll {
+                height: 190px;
                 content-h: space-map.length * 24px;
-                vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
-                for m in space-map: HorizontalLayout {
-                    spacing: 12px;
-                    height: 24px;
-                    Text { text: m.size; width: 80px; font-size: 12px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                    Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
+                    for m in space-map: HorizontalLayout {
+                        spacing: 12px;
+                        height: 24px;
+                        Text { text: m.size; width: 80px; font-size: 12px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
+                    }
                 }
-            }
             }
         }
 
