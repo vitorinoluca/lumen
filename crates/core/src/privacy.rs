@@ -17,14 +17,14 @@ pub struct Setting {
 const CDM: &str = r"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
 
 pub const SETTINGS: &[Setting] = &[
-    Setting { name: "ID de publicidad", desc: "Evita que las apps te sigan con un identificador para mostrarte anuncios.", hive: Hive::User, path: r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo", value: "Enabled", off: 0 },
-    Setting { name: "Sugerencias en Inicio y Configuración", desc: "Quita las sugerencias y promociones que Windows muestra en Inicio y Configuración.", hive: Hive::User, path: CDM, value: "SubscribedContent-338388Enabled", off: 0 },
-    Setting { name: "Consejos y trucos de Windows", desc: "Deja de mostrar notificaciones con consejos y novedades.", hive: Hive::User, path: CDM, value: "SubscribedContent-338389Enabled", off: 0 },
-    Setting { name: "Apps sugeridas en Inicio", desc: "Quita las apps promocionadas del menú Inicio.", hive: Hive::User, path: CDM, value: "SystemPaneSuggestionsEnabled", off: 0 },
-    Setting { name: "Experiencias personalizadas con datos de diagnóstico", desc: "Windows no usa tus datos de diagnóstico para personalizar anuncios y consejos.", hive: Hive::User, path: r"Software\Microsoft\Windows\CurrentVersion\Privacy", value: "TailoredExperiencesWithDiagnosticDataEnabled", off: 0 },
-    Setting { name: "Búsqueda web de Bing en el menú Inicio", desc: "El buscador de Inicio busca solo en tu PC, sin enviar lo que escribís a Bing.", hive: Hive::User, path: r"Software\Policies\Microsoft\Windows\Explorer", value: "DisableSearchBoxSuggestions", off: 1 },
-    Setting { name: "Telemetría de Windows", desc: "Reduce los datos de uso y diagnóstico que Windows envía a Microsoft.", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", value: "AllowTelemetry", off: 0 },
-    Setting { name: "Historial de actividades", desc: "Windows deja de guardar un historial de lo que hacés en la PC.", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\System", value: "EnableActivityFeed", off: 0 },
+    Setting { name: "Desactivar el ID de publicidad", desc: "Evita que las apps te sigan con un identificador para mostrarte anuncios.", hive: Hive::User, path: r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo", value: "Enabled", off: 0 },
+    Setting { name: "Desactivar las sugerencias en Inicio y Configuración", desc: "Quita las sugerencias y promociones que Windows muestra en Inicio y Configuración.", hive: Hive::User, path: CDM, value: "SubscribedContent-338388Enabled", off: 0 },
+    Setting { name: "Desactivar los consejos y trucos de Windows", desc: "Deja de mostrar notificaciones con consejos y novedades.", hive: Hive::User, path: CDM, value: "SubscribedContent-338389Enabled", off: 0 },
+    Setting { name: "Desactivar las apps sugeridas en Inicio", desc: "Quita las apps promocionadas del menú Inicio.", hive: Hive::User, path: CDM, value: "SystemPaneSuggestionsEnabled", off: 0 },
+    Setting { name: "Desactivar la personalización con datos de diagnóstico", desc: "Windows no usa tus datos de diagnóstico para personalizar anuncios y consejos.", hive: Hive::User, path: r"Software\Microsoft\Windows\CurrentVersion\Privacy", value: "TailoredExperiencesWithDiagnosticDataEnabled", off: 0 },
+    Setting { name: "Desactivar la búsqueda web de Bing en Inicio", desc: "El buscador de Inicio busca solo en tu PC, sin enviar lo que escribís a Bing.", hive: Hive::User, path: r"Software\Policies\Microsoft\Windows\Explorer", value: "DisableSearchBoxSuggestions", off: 1 },
+    Setting { name: "Desactivar la telemetría de Windows", desc: "Reduce los datos de uso y diagnóstico que Windows envía a Microsoft.", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", value: "AllowTelemetry", off: 0 },
+    Setting { name: "Desactivar el historial de actividades", desc: "Windows deja de guardar un historial de lo que hacés en la PC.", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\System", value: "EnableActivityFeed", off: 0 },
 ];
 
 impl Setting {

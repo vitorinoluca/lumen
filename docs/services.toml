@@ -6,144 +6,144 @@
 
 [[service]]
 name = "DiagTrack"
-title = "Telemetría de Windows"
+title = "Desactivar la telemetría de Windows"
 desc = "Envía datos de uso y diagnóstico a Microsoft."
 level = "safe"
 
 [[service]]
 name = "dmwappushservice"
-title = "Mensajes push de telemetría"
+title = "Desactivar los mensajes push de telemetría"
 desc = "Acompaña a la telemetría. No hace falta para nada más."
 level = "safe"
 
 [[service]]
 name = "MapsBroker"
-title = "Mapas descargados"
+title = "Desactivar las descargas de mapas"
 desc = "Actualiza mapas sin conexión. Solo lo usa la app Mapas."
 level = "safe"
 
 [[service]]
 name = "Fax"
-title = "Fax"
+title = "Desactivar el fax"
 desc = "Permite enviar y recibir fax. Casi nadie lo usa."
 level = "safe"
 
 [[service]]
 name = "RetailDemo"
-title = "Modo demostración de tienda"
+title = "Desactivar el modo demostración de tienda"
 desc = "Solo sirve en equipos de exhibición."
 level = "safe"
 
 [[service]]
 name = "WMPNetworkSvc"
-title = "Compartir biblioteca multimedia"
+title = "Desactivar compartir la biblioteca multimedia"
 desc = "Comparte música y videos con otros equipos de la red."
 level = "safe"
 
 [[service]]
 name = "XblAuthManager"
-title = "Xbox: autenticación"
+title = "Desactivar Xbox: inicio de sesión"
 desc = "Inicio de sesión de Xbox. Desactivalo solo si no jugás juegos de Microsoft Store o Game Pass."
 level = "caution"
 
 [[service]]
 name = "XblGameSave"
-title = "Xbox: partidas guardadas"
+title = "Desactivar Xbox: partidas guardadas"
 desc = "Sincroniza partidas guardadas de la nube. Solo para juegos de Xbox."
 level = "caution"
 
 [[service]]
 name = "XboxNetApiSvc"
-title = "Xbox: red"
+title = "Desactivar Xbox: red"
 desc = "Conexión de red de Xbox. Solo para juegos de Xbox."
 level = "caution"
 
 [[service]]
 name = "SysMain"
-title = "Precarga de programas (SysMain)"
+title = "Desactivar la precarga de programas (SysMain)"
 desc = "Acelera la apertura de programas en discos mecánicos. En un SSD casi no aporta."
 level = "caution"
 
 [[service]]
 name = "WSearch"
-title = "Búsqueda de Windows"
+title = "Desactivar la búsqueda de Windows"
 desc = "Indexa archivos para buscar rápido. Si lo desactivás, buscar archivos se vuelve más lento."
 level = "caution"
 
 [[service]]
 name = "Spooler"
-title = "Cola de impresión"
+title = "Desactivar la cola de impresión"
 desc = "Necesario para imprimir. Si no tenés impresora, se puede desactivar."
 level = "caution"
 
 [[service]]
 name = "bthserv"
-title = "Servicio de Bluetooth"
+title = "Desactivar el Bluetooth"
 desc = "Necesario para auriculares, mouse y teclados Bluetooth."
 level = "caution"
 
 [[service]]
 name = "wuauserv"
-title = "Windows Update"
+title = "Desactivar Windows Update"
 desc = "Descarga e instala actualizaciones. Desactivarlo te deja sin parches de seguridad."
 level = "caution"
 
 [[service]]
 name = "WinDefend"
-title = "Antivirus de Microsoft Defender"
+title = "Desactivar el antivirus de Microsoft Defender"
 desc = "Protección contra virus en tiempo real."
 level = "critical"
 
 [[service]]
 name = "mpssvc"
-title = "Firewall de Windows"
+title = "Desactivar el Firewall de Windows"
 desc = "Bloquea conexiones no deseadas."
 level = "critical"
 
 [[service]]
 name = "BFE"
-title = "Motor de filtrado base"
+title = "Desactivar el motor de filtrado base"
 desc = "Lo necesita el firewall y otras funciones de red."
 level = "critical"
 
 [[service]]
 name = "RpcSs"
-title = "Llamada a procedimiento remoto (RPC)"
+title = "Desactivar la llamada a procedimiento remoto (RPC)"
 desc = "Windows entero depende de este servicio."
 level = "critical"
 
 [[service]]
 name = "DcomLaunch"
-title = "Lanzador de procesos DCOM"
+title = "Desactivar el lanzador de procesos DCOM"
 desc = "Windows entero depende de este servicio."
 level = "critical"
 
 [[service]]
 name = "EventLog"
-title = "Registro de eventos de Windows"
+title = "Desactivar el registro de eventos de Windows"
 desc = "Guarda los errores del sistema; varios servicios lo necesitan."
 level = "critical"
 
 [[service]]
 name = "Dhcp"
-title = "Cliente DHCP"
+title = "Desactivar el cliente DHCP"
 desc = "Sin él no obtenés dirección de red ni internet."
 level = "critical"
 
 [[service]]
 name = "Dnscache"
-title = "Cliente DNS"
+title = "Desactivar el cliente DNS"
 desc = "Traduce nombres de sitios web a direcciones."
 level = "critical"
 
 [[service]]
 name = "PlugPlay"
-title = "Plug and Play"
+title = "Desactivar Plug and Play"
 desc = "Detecta los dispositivos que conectás."
 level = "critical"
 
 [[service]]
 name = "CryptSvc"
-title = "Servicios criptográficos"
+title = "Desactivar los servicios criptográficos"
 desc = "Verifica firmas de archivos y certificados."
 level = "critical"

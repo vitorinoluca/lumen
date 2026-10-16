@@ -705,9 +705,9 @@ export component Main inherits Window {
             spacing: 12px;
             Head {
                 title: "Optimizar";
-                sub: page == 4 ? "Apagá lo que Windows comparte o muestra de más. Cada ajuste se puede volver atrás."
-                   : (page == 5 ? "Programas que Windows corre por detrás. Desactivar necesita administrador y rige desde el próximo arranque."
-                   : "Cambian el plan de energía de Windows. Al apagarlos vuelve el plan anterior.");
+                sub: page == 4 ? "Encendé un interruptor para desactivar eso en Windows. Se puede volver atrás cuando quieras."
+                   : (page == 5 ? "Encendé un interruptor para desactivar ese servicio. Necesita administrador y rige desde el próximo arranque."
+                   : "Encendé un interruptor para activar el modo. Al apagarlo vuelve el plan anterior.");
             }
             Tabs { items: ["Privacidad", "Servicios", "Perfiles"]; current: page - 4; picked(i) => { status = ""; page = 4 + i; } }
             if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }

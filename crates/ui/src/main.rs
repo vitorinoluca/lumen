@@ -619,7 +619,7 @@ fn main() {
             let active = power::active().unwrap_or_default();
             let j = journal.borrow();
             let row = |label: &str, desc: String, level: &str| ServiceRow {
-                title: label.into(),
+                title: format!("Activar el {}", label.to_lowercase()).into(),
                 desc: desc.into(),
                 level: level.into(),
                 tag: "".into(),
@@ -684,7 +684,7 @@ fn main() {
                     }
                     .into(),
                     tag: "".into(),
-                    enabled: s.enabled(),
+                    enabled: !s.enabled(), // encendido = ya está desactivado
                     locked: s.locked(),
                 })
                 .collect();
@@ -698,7 +698,7 @@ fn main() {
         move |i, on| {
             let Some(ui) = weak.upgrade() else { return };
             let name = svcs.borrow()[i as usize].name.clone();
-            if !on {
+            if on {
                 ui.set_status("Creando punto de restauración, puede tardar unos segundos…".into());
                 let weak = weak.clone();
                 thread::spawn(move || {
