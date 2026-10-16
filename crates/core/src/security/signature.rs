@@ -133,6 +133,8 @@ mod tests {
         // notepad.exe se firma por catálogo en muchas versiones: no debe salir como "sin firma".
         let p = PathBuf::from(std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into())).join(r"System32\notepad.exe");
         let sigs = signatures(std::slice::from_ref(&p));
-        assert!(sigs.get(&p).is_some_and(Sig::is_valid), "{:?}", sigs.get(&p));
+        // Si falla, mostrar qué responde PowerShell en esta máquina (sirve para diagnosticar el CI).
+        let raw = || ps::run(&format!("Test-Path -LiteralPath {0}; Get-AuthenticodeSignature -LiteralPath {0} | Select-Object Status, StatusMessage | ConvertTo-Json -Compress", ps::quote(&p.to_string_lossy())));
+        assert!(sigs.get(&p).is_some_and(Sig::is_valid), "{:?} | PowerShell: {:?}", sigs.get(&p), raw());
     }
 }
