@@ -100,10 +100,12 @@ fn severity(n: u8) -> &'static str {
     }
 }
 
+const CONSULTING: &str = "Consultando a Windows Defender…";
+
 /// Consulta a Defender en un hilo y arma las tarjetas. Nunca dice que la PC esté limpia.
 fn load_security(weak: slint::Weak<Main>) {
     if let Some(ui) = weak.upgrade() {
-        ui.set_sec_status("Consultando a Windows Defender…".into());
+        ui.set_sec_status(CONSULTING.into());
     }
     thread::spawn(move || {
         let st = defender::status();
@@ -148,7 +150,11 @@ fn load_security(weak: slint::Weak<Main>) {
                 .collect();
             ui.set_sec_cards(ModelRc::new(VecModel::from(cards)));
             ui.set_threats(ModelRc::new(VecModel::from(threats)));
-            ui.set_sec_status(note.into());
+            // No pisar el aviso de otra operación (revisión, descarga): solo se escribe si esto trae algo
+            // que decir o si lo que había era el propio "Consultando…".
+            if !note.is_empty() || ui.get_sec_status() == CONSULTING {
+                ui.set_sec_status(note.into());
+            }
         });
     });
 }
