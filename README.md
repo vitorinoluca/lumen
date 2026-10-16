@@ -25,3 +25,6 @@ cargo run --release                  # abrir la app
 cargo clippy --all-targets -- -D warnings && cargo test
 powershell scripts/check-limits.ps1  # tamaño, RAM y arranque (lo corre el CI)
 ```
+
+## Licencia
+MIT
