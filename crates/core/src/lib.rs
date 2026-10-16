@@ -12,3 +12,4 @@ pub mod uninstall;
 pub mod hardware;
 pub mod icons;
 pub mod defender;
+pub mod ps;

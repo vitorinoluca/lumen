@@ -1,6 +1,7 @@
 //! Capa 1 de la revisión de seguridad: Windows Defender, que ya viene con Windows.
 //! Se consulta con PowerShell (`Get-MpComputerStatus`, `Get-MpThreatDetection`, `Start-MpScan`).
 //! lumen solo informa lo que Defender registra: no es un antivirus ni afirma que la PC esté limpia.
+use crate::ps::{self, flag, rows, text};
 use serde_json::Value;
 use std::{io, os::windows::process::CommandExt, process::Command};
 
@@ -37,37 +38,6 @@ impl Threat {
         let path = first.strip_prefix("file:_").or_else(|| first.strip_prefix("webfile:_")).unwrap_or(first);
         path.split('|').next().unwrap_or("").to_string()
     }
-}
-
-/// Ejecuta un script de PowerShell sin ventana y devuelve su salida.
-fn ps(script: &str) -> io::Result<String> {
-    let out = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .creation_flags(0x0800_0000)
-        .output()?;
-    if out.status.success() {
-        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-    } else {
-        let err = String::from_utf8_lossy(&out.stderr);
-        Err(io::Error::other(err.lines().find(|l| !l.trim().is_empty()).unwrap_or("error de PowerShell").trim().to_string()))
-    }
-}
-
-/// PowerShell devuelve un objeto si hay uno solo y una lista si hay varios: se normaliza a lista.
-fn rows(json: &str) -> Vec<Value> {
-    match serde_json::from_str::<Value>(json) {
-        Ok(Value::Array(a)) => a,
-        Ok(v @ Value::Object(_)) => vec![v],
-        _ => vec![],
-    }
-}
-
-fn text(v: &Value, k: &str) -> String {
-    v.get(k).and_then(Value::as_str).unwrap_or("").to_string()
-}
-
-fn flag(v: &Value, k: &str) -> bool {
-    v.get(k).and_then(Value::as_bool).unwrap_or(false)
 }
 
 pub fn parse_status(json: &str, av_json: &str) -> Option<Status> {
@@ -118,13 +88,13 @@ const THREATS_SCRIPT: &str = "$t = @{}; Get-MpThreat -ErrorAction SilentlyContin
     time=$(if ($_.InitialDetectionTime) { $_.InitialDetectionTime.ToString('o') } else { '' }) } } | ConvertTo-Json -Compress";
 
 pub fn status() -> io::Result<Status> {
-    let main = ps(STATUS_SCRIPT)?;
-    let av = ps(AV_SCRIPT).unwrap_or_default();
+    let main = ps::run(STATUS_SCRIPT)?;
+    let av = ps::run(AV_SCRIPT).unwrap_or_default();
     parse_status(&main, &av).ok_or_else(|| io::Error::other("Defender no devolvió su estado"))
 }
 
 pub fn threats() -> io::Result<Vec<Threat>> {
-    Ok(parse_threats(&ps(THREATS_SCRIPT)?))
+    Ok(parse_threats(&ps::run(THREATS_SCRIPT)?))
 }
 
 /// Abre la app Seguridad de Windows, donde se ve el historial y se resuelven las detecciones.
@@ -134,7 +104,7 @@ pub fn open_app() -> io::Result<()> {
 
 /// Análisis rápido de Defender. Puede tardar varios minutos: llamarlo desde un hilo.
 pub fn quick_scan() -> io::Result<()> {
-    ps("Start-MpScan -ScanType QuickScan -ErrorAction Stop").map(|_| ())
+    ps::run("Start-MpScan -ScanType QuickScan -ErrorAction Stop").map(|_| ())
 }
 
 #[cfg(test)]
