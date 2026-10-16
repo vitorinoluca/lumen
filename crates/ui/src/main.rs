@@ -269,7 +269,8 @@ fn friendly(e: &std::io::Error) -> String {
 fn finding_height(f: &security::Finding) -> f32 {
     let lines = |t: &str| t.lines().map(|l| l.chars().count() / 85 + 1).sum::<usize>() as f32;
     let decoded = f.decoded.as_deref().map_or(0.0, |d| 52.0 + lines(d) * 16.0);
-    28.0 + 30.0 + lines(&f.detail) * 16.0 + decoded + 44.0 + 12.0
+    // Relleno 28, título 20 + 8, botones 28 + 8, y 12 de aire entre tarjetas (medido en pantalla).
+    28.0 + 28.0 + lines(&f.detail) * 16.0 + decoded + 36.0 + 12.0
 }
 
 /// Arma la lista de Optimizar a partir de los tres orígenes (modos, privacidad, servicios).
