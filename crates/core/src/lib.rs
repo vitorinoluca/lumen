@@ -15,3 +15,4 @@ pub mod defender;
 pub mod ps;
 pub mod security;
 pub mod hashdb;
+pub mod config;
