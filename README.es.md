@@ -5,8 +5,8 @@
 Optimizador de PC para Windows, liviano y honesto. Un solo `.exe` portable (~8 MB), ~6 MB de RAM privada, abre en ~35 ms.
 Sin telemetría, sin cuentas, sin servicios pagos.
 
-## Qué hace (v0.1)
-- **Estado:** CPU, memoria, disco y red en vivo.
+## Qué hace (v0.2)
+- **Panel:** tu hardware (Windows, CPU, RAM, GPU, placa, discos) con CPU, memoria y red en vivo.
 - **Procesos:** lista ordenable con ruta y botón para cerrar un proceso (pide confirmación).
 - **Arranque:** activa o desactiva apps de inicio sin borrarlas (igual que el Administrador de tareas).
 - **Disco:** limpia temporales y cachés de Chrome/Edge, y muestra qué ocupa más espacio.

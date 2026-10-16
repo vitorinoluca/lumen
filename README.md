@@ -5,8 +5,8 @@
 A lightweight, honest PC optimizer for Windows. One portable `.exe` (~8 MB), ~6 MB of private RAM, opens in ~35 ms.
 No telemetry, no accounts, no paid services.
 
-## What it does (v0.1)
-- **Status:** live CPU, memory, disk and network.
+## What it does (v0.2)
+- **Panel:** your hardware (Windows, CPU, RAM, GPU, board, disks) with live CPU, memory and network.
 - **Processes:** sortable list with path, and a button to close a process (asks first).
 - **Startup:** turn startup apps on or off without deleting them (the same mechanism Task Manager uses).
 - **Disk:** clean temp files and Chrome/Edge caches, and see what takes the most space.
