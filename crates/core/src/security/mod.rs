@@ -127,10 +127,10 @@ pub fn scan() -> ScanResult {
     let mut base = loaded.unwrap_or_default();
 
     // Cada consulta a PowerShell tarda ~1 s: se lanzan todas a la vez.
-    let (entries, special, procs, conns, status, exclusions, updates) = std::thread::scope(|s| {
+    let (entries, special, procs, conns, status, exclusions, updates, driver_check) = std::thread::scope(|s| {
         let (a, b, c, d) = (s.spawn(collect::all), s.spawn(collect::special_findings), s.spawn(analyze::processes), s.spawn(analyze::connections));
-        let (e, f, g) = (s.spawn(crate::defender::status), s.spawn(analyze::defender_exclusions), s.spawn(analyze::update_findings));
-        (a.join().unwrap_or_default(), b.join().unwrap_or_default(), c.join().unwrap_or_default(), d.join().unwrap_or_default(), e.join().ok().and_then(Result::ok), f.join().ok().flatten(), g.join().unwrap_or_default())
+        let (e, f, g, h) = (s.spawn(crate::defender::status), s.spawn(analyze::defender_exclusions), s.spawn(analyze::update_findings), s.spawn(crate::hashdb::check));
+        (a.join().unwrap_or_default(), b.join().unwrap_or_default(), c.join().unwrap_or_default(), d.join().unwrap_or_default(), e.join().ok().and_then(Result::ok), f.join().ok().flatten(), g.join().unwrap_or_default(), h.join().unwrap_or_default())
     });
 
     // 1. Persistencia, con hash y firma. La firma solo se pide de lo que no está ya en la línea base.
@@ -194,6 +194,9 @@ pub fn scan() -> ScanResult {
         result.findings.extend(analyze::defender_state_findings(st.realtime, st.enabled, st.mode == "Passive"));
     }
     result.findings.extend(updates);
+    let (hash_findings, hash_note) = driver_check;
+    result.findings.extend(hash_findings);
+    result.notes.push(hash_note);
     let mut changed = false;
     match exclusions {
         Some(list) => {

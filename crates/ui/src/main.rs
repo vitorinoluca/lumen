@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    defender, hardware, icons, security, power, privacy, profiles, restore, services,
+    defender, hardware, hashdb, icons, security, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
@@ -591,6 +591,28 @@ fn main() {
             };
             ui.set_sec_status(msg.into());
             rebuild();
+        }
+    });
+
+    // Base de hashes (LOLDrivers): lo único que usa internet, y solo cuando se pide.
+    ui.on_update_hashes({
+        let weak = ui.as_weak();
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.set_hash_busy(true);
+            ui.set_sec_status("Descargando la base de LOLDrivers (solo se guardan los hashes, unos 160 KB)…".into());
+            let weak = weak.clone();
+            thread::spawn(move || {
+                let res = hashdb::update();
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    ui.set_hash_busy(false);
+                    let msg = match res {
+                        Ok(n) => format!("Base actualizada: {n} hashes de LOLDrivers (licencia Apache-2.0). Se usa en la próxima revisión de comportamiento."),
+                        Err(e) => format!("No se pudo actualizar la base de hashes: {e}"),
+                    };
+                    ui.set_sec_status(msg.into());
+                });
+            });
         }
     });
 
