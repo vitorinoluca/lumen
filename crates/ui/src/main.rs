@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    defender, hardware, icons, power, privacy, profiles, restore, services,
+    defender, hardware, icons, security, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
@@ -151,6 +151,23 @@ fn load_security(weak: slint::Weak<Main>) {
             ui.set_sec_status(note.into());
         });
     });
+}
+
+/// Mensaje claro para un error al deshabilitar o restaurar.
+fn friendly(e: &std::io::Error) -> String {
+    let t = e.to_string().to_lowercase();
+    if e.kind() == std::io::ErrorKind::PermissionDenied || t.contains("denegado") || t.contains("access") || t.contains("permission") {
+        "Necesitás abrir lumen como administrador para hacer este cambio.".to_string()
+    } else {
+        format!("No se pudo: {e}")
+    }
+}
+
+/// Alto aproximado de una tarjeta de hallazgo, para el largo del scroll (el texto se ajusta solo).
+fn finding_height(f: &security::Finding) -> f32 {
+    let lines = |t: &str| t.lines().map(|l| l.chars().count() / 85 + 1).sum::<usize>() as f32;
+    let decoded = f.decoded.as_deref().map_or(0.0, |d| 52.0 + lines(d) * 16.0);
+    28.0 + 30.0 + lines(&f.detail) * 16.0 + decoded + 44.0 + 12.0
 }
 
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
@@ -492,6 +509,88 @@ fn main() {
                 ui.set_leftovers(ModelRc::new(VecModel::from(Vec::<DiskRow>::new())));
                 ui.set_status("Dejamos los restos como estaban.".into());
             }
+        }
+    });
+
+    // Comportamiento sospechoso: línea base, persistencia, reverse shells, ofuscación y Defender manipulado.
+    let behavior: Rc<RefCell<security::ScanResult>> = Rc::default();
+    let shared: Arc<Mutex<Option<security::ScanResult>>> = Arc::default();
+    let rebuild_findings = {
+        let (weak, behavior, journal) = (ui.as_weak(), behavior.clone(), journal.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let (r, j) = (behavior.borrow(), journal.borrow());
+            let mut total = 0.0;
+            let rows: Vec<FindingRow> = r
+                .findings
+                .iter()
+                .map(|f| {
+                    total += finding_height(f);
+                    let restorable = security::fix::disabled_id(&j, &f.key).is_some();
+                    FindingRow {
+                        title: f.title.clone().into(),
+                        detail: f.detail.clone().into(),
+                        decoded: f.decoded.clone().unwrap_or_default().into(),
+                        severity: f.severity as i32,
+                        can_disable: f.fix.is_some() && !restorable,
+                        can_restore: restorable,
+                    }
+                })
+                .collect();
+            ui.set_findings(ModelRc::new(VecModel::from(rows)));
+            ui.set_findings_h(total);
+        }
+    };
+    ui.on_scan_behavior({
+        let (weak, shared) = (ui.as_weak(), shared.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.set_behavior_busy(true);
+            ui.set_sec_status("Revisando persistencia, procesos y conexiones. La primera vez puede tardar casi medio minuto…".into());
+            let (weak, shared) = (weak.clone(), shared.clone());
+            thread::spawn(move || {
+                *shared.lock().unwrap() = Some(security::scan());
+                let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_behavior_ready());
+            });
+        }
+    });
+    ui.on_behavior_ready({
+        let (weak, shared, behavior, rebuild) = (ui.as_weak(), shared.clone(), behavior.clone(), rebuild_findings.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            if let Some(r) = shared.lock().unwrap().take() {
+                ui.set_sec_status(r.notes.join(" ").into());
+                *behavior.borrow_mut() = r;
+            }
+            ui.set_behavior_busy(false);
+            ui.set_behavior_run(true);
+            rebuild();
+        }
+    });
+    ui.on_finding_do({
+        let (weak, behavior, journal, rebuild) = (ui.as_weak(), behavior.clone(), journal.clone(), rebuild_findings.clone());
+        move |i, action| {
+            let Some(ui) = weak.upgrade() else { return };
+            let Some(f) = behavior.borrow().findings.get(i as usize).cloned() else { return };
+            let msg = match action {
+                1 => match security::ignore(&behavior.borrow(), &f.key) {
+                    Ok(()) => {
+                        behavior.borrow_mut().findings.retain(|x| x.key != f.key);
+                        "Ignorado: no se vuelve a mostrar.".to_string()
+                    }
+                    Err(e) => friendly(&e),
+                },
+                2 => match security::fix::disable(&mut journal.borrow_mut(), &f) {
+                    Ok(_) => "Deshabilitado. Se guardó un respaldo y podés volver atrás con Restaurar.".to_string(),
+                    Err(e) => friendly(&e),
+                },
+                _ => match security::fix::restore(&mut journal.borrow_mut(), &f.key) {
+                    Ok(()) => "Restaurado: quedó como estaba.".to_string(),
+                    Err(e) => friendly(&e),
+                },
+            };
+            ui.set_sec_status(msg.into());
+            rebuild();
         }
     });
 

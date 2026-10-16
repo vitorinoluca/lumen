@@ -5,6 +5,7 @@ export struct StartupRow { name: string, command: string, scope: string, enabled
 export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
 export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
 export struct SecRow { title: string, sub: string, icon: string, alert: bool }
+export struct FindingRow { title: string, detail: string, decoded: string, severity: int, can-disable: bool, can-restore: bool }
 export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
@@ -256,6 +257,63 @@ component Confirm inherits Rectangle {
     }
 }
 
+// Hallazgo de la revisión de comportamiento: severidad, qué es, y las acciones (siempre con confirmación).
+component FindingCard inherits Rectangle {
+    in property <string> title;
+    in property <string> detail;
+    in property <string> decoded;
+    in property <int> severity;
+    in property <bool> can-disable;
+    in property <bool> can-restore;
+    callback ignore();
+    callback disable();
+    callback restore();
+    background: Theme.card;
+    border-width: 1px;
+    border-color: severity == 0 ? Theme.danger.with-alpha(0.55) : Theme.line;
+    border-radius: 6px;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                height: 20px;
+                width: chip.preferred-width + 16px;
+                border-radius: 3px;
+                border-width: 1px;
+                border-color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.line);
+                chip := Text {
+                    text: severity == 0 ? "Alta" : (severity == 1 ? "Media" : "Baja");
+                    font-size: 12px;
+                    color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.muted);
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            Text { text: root.title; font-size: 14px; color: Theme.text; wrap: word-wrap; horizontal-stretch: 1; }
+        }
+        Text { text: root.detail; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+        if root.decoded != "": Rectangle {
+            background: Theme.bg;
+            border-radius: Theme.radius;
+            VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+                Text { text: "Comando real (estaba codificado):"; font-size: 12px; color: Theme.muted; }
+                Text { text: root.decoded; font-size: 12px; color: Theme.text; wrap: word-wrap; }
+            }
+        }
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: end;
+            Btn { text: "Ignorar"; clicked => { root.ignore(); } }
+            if root.can-disable: Btn { text: "Deshabilitar"; danger: true; clicked => { root.disable(); } }
+            if root.can-restore: Btn { text: "Restaurar"; strong: true; clicked => { root.restore(); } }
+        }
+    }
+}
+
 component Sep inherits Rectangle {
     height: 13px;
     Rectangle { y: 6px; height: 1px; background: Theme.line; }
@@ -399,6 +457,12 @@ export component Main inherits Window {
     in property <[DiskCard]> disks;
     in property <[SecRow]> sec-cards;
     in property <[SecRow]> threats;
+    in property <[FindingRow]> findings;
+    in property <length> findings-h;
+    in-out property <bool> behavior-run;
+    in-out property <bool> behavior-busy;
+    in-out property <int> sec-confirm: -1;
+    in-out property <int> sec-confirm-action;
     in-out property <string> sec-status;
     in-out property <bool> scanning;
     in property <[AppRow]> apps;
@@ -429,6 +493,9 @@ export component Main inherits Window {
     callback toggle-profile(int, bool);
     callback uninstall(int);
     callback quick-scan();
+    callback scan-behavior();
+    callback behavior-ready();
+    callback finding-do(int, int);
     callback open-defender();
     callback apps-reload();
     callback apps-rebuild();
@@ -682,23 +749,36 @@ export component Main inherits Window {
         if page == 8: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Seguridad"; sub: "Revisión de seguridad, no reemplaza a un antivirus. Acá ves lo que Windows Defender ya registró."; }
+            Head { title: "Seguridad"; sub: "Revisión de seguridad, no reemplaza a un antivirus. Windows Defender y comportamiento sospechoso que Defender puede pasar por alto."; }
             HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
-                Btn { text: scanning ? "Analizando…" : "Análisis rápido"; strong: !scanning; clicked => { if (!scanning) { quick-scan(); } } }
+                Btn { text: behavior-busy ? "Revisando…" : "Revisar comportamiento"; strong: !behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                Btn { text: scanning ? "Analizando…" : "Análisis rápido de Defender"; clicked => { if (!scanning) { quick-scan(); } } }
                 Btn { text: "Abrir Seguridad de Windows"; clicked => { open-defender(); } }
             }
             if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
             Scroll {
                 vertical-stretch: 1;
-                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px;
+                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px + (behavior-run ? 48px : 0px) + findings-h;
                 VerticalLayout {
                     alignment: start;
                     spacing: 12px;
                     for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
                     if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
                     for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                    if behavior-run: Text { text: findings.length > 0 ? "Comportamiento sospechoso (\{findings.length})" : "No se encontró nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."; font-size: 14px; color: Theme.text; wrap: word-wrap; }
+                    for f[i] in findings: FindingCard {
+                        title: f.title;
+                        detail: f.detail;
+                        decoded: f.decoded;
+                        severity: f.severity;
+                        can-disable: f.can-disable;
+                        can-restore: f.can-restore;
+                        ignore => { sec-confirm-action = 1; sec-confirm = i; }
+                        disable => { sec-confirm-action = 2; sec-confirm = i; }
+                        restore => { sec-confirm-action = 3; sec-confirm = i; }
+                    }
                 }
             }
         }
@@ -733,5 +813,19 @@ export component Main inherits Window {
         danger: true;
         ok => { kill(kill-pid); kill-pid = -1; }
         cancel => { kill-pid = -1; }
+    }
+    if sec-confirm >= 0: Confirm {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        title: sec-confirm-action == 1 ? "¿Ignorar este hallazgo?" : (sec-confirm-action == 2 ? "¿Deshabilitar esto?" : "¿Restaurar lo que deshabilitó lumen?");
+        body: sec-confirm-action == 1 ? "Se agrega a la línea base y no se vuelve a mostrar. No cambia nada en tu PC."
+            : (sec-confirm-action == 2 ? "Se desactiva y antes se guarda un respaldo. Podés volver atrás con Restaurar. Algunos cambios necesitan abrir lumen como administrador."
+            : "Se vuelve a dejar como estaba antes de que lumen lo deshabilitara.");
+        ok-text: sec-confirm-action == 1 ? "Ignorar" : (sec-confirm-action == 2 ? "Deshabilitar" : "Restaurar");
+        danger: sec-confirm-action == 2;
+        ok => { finding-do(sec-confirm, sec-confirm-action); sec-confirm = -1; }
+        cancel => { sec-confirm = -1; }
     }
 }
