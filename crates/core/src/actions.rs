@@ -10,6 +10,8 @@ pub enum Action {
     /// Mueve un archivo (cuarentena, limpieza). Revert lo devuelve.
     MoveFile { from: PathBuf, to: PathBuf },
     /// Activa o desactiva una app de inicio. Revert aplica el estado contrario.
+    /// Archivos movidos a la reserva de limpieza: (original, copia en reserva).
+    Stash { items: Vec<(PathBuf, PathBuf)> },
     SetStartup { source: Source, name: String, enable: bool },
 }
 
@@ -17,12 +19,18 @@ impl Action {
     pub fn apply(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(from, to),
+            Action::Stash { .. } => Ok(()), // se registra ya aplicada, ver `Journal::record`
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
     }
     pub fn revert(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(to, from),
+            Action::Stash { items } => {
+                // Devuelve lo que se pueda; si algo falla, avisa al final.
+                let failed = items.iter().filter(|(orig, saved)| mv(saved, orig).is_err()).count();
+                if failed == 0 { Ok(()) } else { Err(io::Error::other(format!("{failed} elementos no se pudieron restaurar"))) }
+            }
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
     }
@@ -65,6 +73,13 @@ impl Journal {
     /// Aplica y registra. Si la acción falla no se registra nada. Devuelve el id.
     pub fn apply(&mut self, description: &str, action: Action) -> io::Result<usize> {
         action.apply()?;
+        self.entries.push(Entry { description: description.into(), action, applied: true });
+        self.save()?;
+        Ok(self.entries.len() - 1)
+    }
+
+    /// Registra una acción que ya se ejecutó (ej. limpieza parcial).
+    pub fn record(&mut self, description: &str, action: Action) -> io::Result<usize> {
         self.entries.push(Entry { description: description.into(), action, applied: true });
         self.save()?;
         Ok(self.entries.len() - 1)
