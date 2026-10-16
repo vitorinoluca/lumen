@@ -105,7 +105,10 @@ const CONSULTING: &str = "Consultando a Windows Defender…";
 /// Consulta a Defender en un hilo y arma las tarjetas. Nunca dice que la PC esté limpia.
 fn load_security(weak: slint::Weak<Main>) {
     if let Some(ui) = weak.upgrade() {
-        ui.set_sec_status(CONSULTING.into());
+        // Solo si no hay otro aviso en pantalla (las notas del análisis no se pisan).
+        if ui.get_sec_status().is_empty() {
+            ui.set_sec_status(CONSULTING.into());
+        }
     }
     thread::spawn(move || {
         let st = defender::status();
