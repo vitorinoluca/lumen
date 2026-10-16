@@ -8,8 +8,8 @@ function Measure-Run {
     $p = Start-Process $exe -PassThru
     while ($p.MainWindowHandle -eq 0 -and $sw.ElapsedMilliseconds -lt 5000) { Start-Sleep -Milliseconds 5; $p.Refresh() }
     $ms = $sw.ElapsedMilliseconds
-    Start-Sleep -Seconds 1; $p.Refresh()
-    $ram = $p.WorkingSet64 / 1MB
+    Start-Sleep -Seconds 3; $p.Refresh()
+    $ram = $p.PrivateMemorySize64 / 1MB   # privada: el working set suma DLLs compartidas de Windows
     $p.Kill()
     [pscustomobject]@{ ms = $ms; ram = $ram }
 }
