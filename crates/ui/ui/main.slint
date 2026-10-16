@@ -499,7 +499,7 @@ export component Main inherits Window {
         if page == 7: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "\{apps.length} programas"; sub: "Se abre el desinstalador de cada programa. Después te mostramos lo que haya quedado, sin borrar nada solo. Ordenados por " + apps-sort-label + "."; }
+            Head { title: "\{apps.length} programas"; sub: "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: " + apps-sort-label + "."; }
             HorizontalLayout {
                 spacing: 8px;
                 Search { placeholder: "Buscar programa o editor"; changed(t) => { apps-filter(t); } horizontal-stretch: 1; }

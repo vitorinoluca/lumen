@@ -272,17 +272,17 @@ fn main() {
         move || {
             *all.borrow_mut() = uninstall::list();
             rebuild();
-            let todo: Vec<(String, Vec<String>)> = {
+            let todo: Vec<(String, uninstall::App)> = {
                 let cache = icons.lock().unwrap();
-                all.borrow().iter().map(|a| (app_key(a), a.icon_sources())).filter(|(k, _)| !cache.contains_key(k)).collect()
+                all.borrow().iter().map(|a| (app_key(a), a.clone())).filter(|(k, _)| !cache.contains_key(k)).collect()
             };
             if todo.is_empty() {
                 return;
             }
             let (weak, icons) = (weak.clone(), icons.clone());
             thread::spawn(move || {
-                for (key, sources) in todo {
-                    if let Some(i) = sources.iter().find_map(|s| icons::load(s)) {
+                for (key, app) in todo {
+                    if let Some(i) = app.icon_sources().iter().find_map(|s| icons::load(s)) {
                         icons.lock().unwrap().insert(key, (i.width, i.height, i.rgba));
                     }
                 }

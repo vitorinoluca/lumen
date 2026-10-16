@@ -63,6 +63,39 @@ pub fn exe_of_command(cmd: &str) -> Option<String> {
     path.to_lowercase().ends_with(".exe").then_some(path)
 }
 
+fn normalize(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_lowercase()
+}
+
+/// Ejecutable del programa dentro de sus carpetas (hasta dos niveles): el que se llama parecido
+/// al programa. Ignora desinstaladores e instaladores.
+pub fn find_exe(dirs: &[std::path::PathBuf], app_name: &str) -> Option<std::path::PathBuf> {
+    let name = normalize(app_name);
+    let skip = |stem: &str| ["unins", "uninst", "setup", "update", "install"].iter().any(|w| stem.starts_with(w));
+    for dir in dirs {
+        let mut level = vec![dir.clone()];
+        for _ in 0..2 {
+            let mut next = vec![];
+            for d in &level {
+                for e in std::fs::read_dir(d).into_iter().flatten().flatten() {
+                    let path = e.path();
+                    if path.is_dir() {
+                        next.push(path);
+                        continue;
+                    }
+                    let (Some(stem), Some(ext)) = (path.file_stem(), path.extension()) else { continue };
+                    let stem = normalize(&stem.to_string_lossy());
+                    if ext.eq_ignore_ascii_case("exe") && stem.len() >= 3 && !skip(&stem) && (name.contains(&stem) || stem.contains(&name)) {
+                        return Some(path);
+                    }
+                }
+            }
+            level = next;
+        }
+    }
+    None
+}
+
 /// Carga el ícono. None si el archivo no existe o no tiene ícono.
 pub fn load(spec: &str) -> Option<Icon> {
     let (path, index) = parse_spec(spec);
@@ -147,6 +180,20 @@ mod tests {
         assert_eq!(exe_of_command(r"C:\X\un.exe /S").as_deref(), Some(r"C:\X\un.exe"));
         assert_eq!(exe_of_command("MsiExec.exe /X{ABC}").as_deref(), Some("MsiExec.exe"));
         assert_eq!(exe_of_command("sin ejecutable"), None);
+    }
+
+    #[test]
+    fn finds_the_program_exe_by_name() {
+        let base = std::env::temp_dir().join(format!("lumen-icons-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("app-1.0")).unwrap();
+        std::fs::write(base.join("Update.exe"), "").unwrap();
+        std::fs::write(base.join("unins000.exe"), "").unwrap();
+        std::fs::write(base.join("app-1.0").join("Discord.exe"), "").unwrap();
+        let found = find_exe(std::slice::from_ref(&base), "Discord").unwrap();
+        assert!(found.ends_with("Discord.exe"));
+        assert!(find_exe(std::slice::from_ref(&base), "Otra Cosa").is_none());
+        let _ = std::fs::remove_dir_all(base);
     }
 
     #[test]

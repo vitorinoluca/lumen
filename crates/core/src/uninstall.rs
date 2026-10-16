@@ -26,13 +26,17 @@ pub struct App {
 }
 
 impl App {
-    /// De dónde sacar el ícono, en orden: el declarado y, si no, el ejecutable del desinstalador.
+    /// De dónde sacar el ícono, en orden: el declarado, el desinstalador y un .exe de su carpeta.
+    /// Recorre carpetas: llamarlo fuera del hilo de la interfaz.
     pub fn icon_sources(&self) -> Vec<String> {
         let mut v = vec![];
         if !self.icon.is_empty() {
             v.push(self.icon.clone());
         }
-        v.extend(crate::icons::exe_of_command(&self.uninstall));
+        let uninstaller = crate::icons::exe_of_command(&self.uninstall).filter(|p| Path::new(p).exists());
+        v.extend(uninstaller.clone());
+        let dirs: Vec<PathBuf> = self.location.iter().cloned().chain(uninstaller.and_then(|p| Path::new(&p).parent().map(Path::to_path_buf))).collect();
+        v.extend(crate::icons::find_exe(&dirs, &self.name).map(|p| p.display().to_string()));
         v
     }
 }
