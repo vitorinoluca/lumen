@@ -1,17 +1,29 @@
-import { Button, ProgressIndicator } from "std-widgets.slint";
+import { Button, ProgressIndicator, ListView } from "std-widgets.slint";
+
+export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
 
 export component Main inherits Window {
     title: "lumen";
     preferred-width: 900px;
     preferred-height: 600px;
+
     in property <float> cpu;
     in property <float> ram;
     in property <float> disk;
     in property <string> ram-text;
     in property <string> disk-text;
     in property <string> net-text;
-    property <int> page: 0;
+    in property <[Row]> procs;
+    in-out property <int> page: 0;
+    // pid pendiente de confirmar para finalizar (-1 = ninguno)
+    in-out property <int> kill-pid: -1;
+    in-out property <string> kill-name;
     property <[string]> pages: ["Monitor", "Procesos", "Inicio", "Disco", "Seguridad"];
+
+    callback sort(int);
+    callback kill(int);
+    callback opened();
+    changed page => { opened(); }
 
     HorizontalLayout {
         Rectangle {
@@ -40,7 +52,42 @@ export component Main inherits Window {
             ProgressIndicator { progress: disk; }
             Text { text: "Red  " + net-text; font-size: 16px; }
         }
-        if page != 0: Text {
+        if page == 1: VerticalLayout {
+            padding: 12px;
+            spacing: 6px;
+            HorizontalLayout {
+                spacing: 6px;
+                Text { text: "Ordenar por:"; vertical-alignment: center; }
+                Button { text: "CPU"; clicked => { sort(0); } }
+                Button { text: "Memoria"; clicked => { sort(1); } }
+                Button { text: "Nombre"; clicked => { sort(2); } }
+            }
+            if kill-pid >= 0: Rectangle {
+                background: #5a2a2a;
+                height: 40px;
+                HorizontalLayout {
+                    padding: 6px;
+                    spacing: 8px;
+                    Text { text: "¿Finalizar \{kill-name}? No se puede deshacer."; vertical-alignment: center; color: white; }
+                    Button { text: "Finalizar"; clicked => { kill(kill-pid); kill-pid = -1; } }
+                    Button { text: "Cancelar"; clicked => { kill-pid = -1; } }
+                }
+            }
+            ListView {
+                for p in procs: Rectangle {
+                    height: 26px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Text { text: p.name; width: 180px; overflow: elide; vertical-alignment: center; }
+                        Text { text: p.cpu; width: 50px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: p.mem; width: 80px; horizontal-alignment: right; vertical-alignment: center; }
+                        Text { text: p.path; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; color: #888; }
+                        Button { text: "×"; width: 28px; clicked => { kill-name = p.name; kill-pid = p.pid; } }
+                    }
+                }
+            }
+        }
+        if page > 1: Text {
             text: pages[page];
             horizontal-alignment: center;
             vertical-alignment: center;

@@ -1,6 +1,10 @@
 #![windows_subsystem = "windows"]
-use lumen_core::monitor::{Monitor, Snapshot};
-use std::{thread, time::Duration};
+use lumen_core::{
+    monitor::{Monitor, Snapshot},
+    processes::{Processes, SortBy},
+};
+use slint::{ModelRc, Timer, TimerMode, VecModel};
+use std::{cell::Cell, rc::Rc, thread, time::Duration};
 
 slint::include_modules!();
 
@@ -20,8 +24,9 @@ fn show(ui: &Main, s: &Snapshot) {
 
 fn main() {
     let ui = Main::new().unwrap();
+
+    // Monitor: lectura en hilo aparte, la UI nunca se bloquea.
     let weak = ui.as_weak();
-    // Lectura en hilo aparte: la UI nunca se bloquea.
     thread::spawn(move || {
         let mut mon = Monitor::new();
         loop {
@@ -30,6 +35,49 @@ fn main() {
             if weak.upgrade_in_event_loop(move |ui| show(&ui, &snap)).is_err() {
                 break; // ventana cerrada
             }
+        }
+    });
+
+    // Procesos: solo se refresca mientras la página está abierta.
+    let procs = Rc::new(std::cell::RefCell::new(Processes::default()));
+    let sort = Rc::new(Cell::new(SortBy::Cpu));
+    let refresh = {
+        let (weak, procs, sort) = (ui.as_weak(), procs.clone(), sort.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            if ui.get_page() != 1 {
+                return;
+            }
+            let rows: Vec<Row> = procs
+                .borrow_mut()
+                .list(sort.get())
+                .into_iter()
+                .map(|p| Row {
+                    pid: p.pid as i32,
+                    name: p.name.into(),
+                    cpu: format!("{:.0}%", p.cpu).into(),
+                    mem: format!("{} MB", p.mem / 1_048_576).into(),
+                    path: p.path.map(|p| p.display().to_string()).unwrap_or_default().into(),
+                })
+                .collect();
+            ui.set_procs(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    let timer = Timer::default();
+    timer.start(TimerMode::Repeated, Duration::from_secs(2), refresh.clone());
+    ui.on_sort({
+        let (sort, refresh) = (sort.clone(), refresh.clone());
+        move |i| {
+            sort.set([SortBy::Cpu, SortBy::Mem, SortBy::Name][i as usize]);
+            refresh();
+        }
+    });
+    ui.on_opened(refresh.clone());
+    ui.on_kill({
+        let (procs, refresh) = (procs.clone(), refresh.clone());
+        move |pid| {
+            procs.borrow_mut().kill(pid as u32);
+            refresh();
         }
     });
     ui.run().unwrap();
