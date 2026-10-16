@@ -2,7 +2,20 @@
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
 use crate::startup::{self, Source};
 use serde::{Deserialize, Serialize};
+use winreg::{enums::*, RegKey};
 use std::{fs, io, path::{Path, PathBuf}};
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Hive {
+    User,
+    Machine, // requiere administrador
+}
+
+impl Hive {
+    fn root(self) -> RegKey {
+        RegKey::predef(if self == Hive::User { HKEY_CURRENT_USER } else { HKEY_LOCAL_MACHINE })
+    }
+}
 
 /// Acciones reversibles. Cada fase agrega variantes (registro, servicios, ...).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -12,14 +25,23 @@ pub enum Action {
     /// Activa o desactiva una app de inicio. Revert aplica el estado contrario.
     /// Archivos movidos a la reserva de limpieza: (original, copia en reserva).
     Stash { items: Vec<(PathBuf, PathBuf)> },
+    /// Escribe un DWORD en el registro. `prev` es el valor de antes (None = no existía).
+    SetDword { hive: Hive, path: String, name: String, new: u32, prev: Option<u32> },
     SetStartup { source: Source, name: String, enable: bool },
 }
 
 impl Action {
+    /// Arma un SetDword leyendo el valor actual para poder revertirlo.
+    pub fn set_dword(hive: Hive, path: &str, name: &str, new: u32) -> Action {
+        let prev = hive.root().open_subkey(path).and_then(|k| k.get_value::<u32, _>(name)).ok();
+        Action::SetDword { hive, path: path.into(), name: name.into(), new, prev }
+    }
+
     pub fn apply(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(from, to),
             Action::Stash { .. } => Ok(()), // se registra ya aplicada, ver `Journal::record`
+            Action::SetDword { hive, path, name, new, .. } => write_dword(*hive, path, name, Some(*new)),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
     }
@@ -31,8 +53,24 @@ impl Action {
                 let failed = items.iter().filter(|(orig, saved)| mv(saved, orig).is_err()).count();
                 if failed == 0 { Ok(()) } else { Err(io::Error::other(format!("{failed} elementos no se pudieron restaurar"))) }
             }
+            Action::SetDword { hive, path, name, prev, .. } => write_dword(*hive, path, name, *prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
+    }
+}
+
+/// `None` borra el valor (el estado original si no existía).
+fn write_dword(hive: Hive, path: &str, name: &str, v: Option<u32>) -> io::Result<()> {
+    match v {
+        Some(v) => hive.root().create_subkey(path)?.0.set_value(name, &v),
+        None => match hive.root().open_subkey_with_flags(path, KEY_SET_VALUE) {
+            Ok(k) => match k.delete_value(name) {
+                Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
+                _ => Ok(()),
+            },
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        },
     }
 }
 
@@ -132,6 +170,25 @@ mod tests {
         assert!(a.exists() && !b.exists());
         assert!(j.revert(id).is_err()); // no se revierte dos veces
         let _ = fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn set_dword_restores_previous_state() {
+        let path = format!(r"Software\lumen-test-{}", std::process::id());
+        let root = Hive::User.root();
+        let read = || root.open_subkey(&path).and_then(|k| k.get_value::<u32, _>("v")).ok();
+        let tmp = tmp("reg");
+        let mut j = Journal::open(tmp.join("j.json")).unwrap();
+
+        let a = j.apply("1", Action::set_dword(Hive::User, &path, "v", 1)).unwrap(); // no existía
+        let b = j.apply("2", Action::set_dword(Hive::User, &path, "v", 2)).unwrap(); // prev = 1
+        assert_eq!(read(), Some(2));
+        j.revert(b).unwrap();
+        assert_eq!(read(), Some(1));
+        j.revert(a).unwrap();
+        assert_eq!(read(), None);
+        let _ = root.delete_subkey_all(&path);
+        let _ = fs::remove_dir_all(tmp);
     }
 
     #[test]
