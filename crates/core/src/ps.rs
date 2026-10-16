@@ -7,6 +7,9 @@ pub fn run(script: &str) -> io::Result<String> {
     let full = format!("[Console]::OutputEncoding = [Text.Encoding]::UTF8; {script}");
     let out = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &full])
+        // Si lumen se abre desde PowerShell 7, hereda su PSModulePath y Windows PowerShell 5.1 no puede
+        // cargar sus propios módulos (Security, Defender...). Sin la variable usa la ruta correcta.
+        .env_remove("PSModulePath")
         .creation_flags(0x0800_0000)
         .output()?;
     if out.status.success() {
