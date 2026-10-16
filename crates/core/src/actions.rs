@@ -1,6 +1,6 @@
 //! Journal de acciones: toda modificación del sistema pasa por acá y se puede deshacer.
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
-use crate::startup::{self, Source};
+use crate::{power, startup::{self, Source}};
 use serde::{Deserialize, Serialize};
 use winreg::{enums::*, RegKey};
 use std::{fs, io, path::{Path, PathBuf}};
@@ -27,10 +27,17 @@ pub enum Action {
     Stash { items: Vec<(PathBuf, PathBuf)> },
     /// Escribe un DWORD en el registro. `prev` es el valor de antes (None = no existía).
     SetDword { hive: Hive, path: String, name: String, new: u32, prev: Option<u32> },
+    /// Cambia el plan de energía. Revert vuelve al plan anterior.
+    SetPowerPlan { new: String, prev: String },
     SetStartup { source: Source, name: String, enable: bool },
 }
 
 impl Action {
+    /// Arma un cambio de plan de energía a partir de un plan base (lo crea si no existe en esta PC).
+    pub fn power_plan(template: &str) -> io::Result<Action> {
+        Ok(Action::SetPowerPlan { new: power::resolve(template)?, prev: power::active()? })
+    }
+
     /// Arma un SetDword leyendo el valor actual para poder revertirlo.
     pub fn set_dword(hive: Hive, path: &str, name: &str, new: u32) -> Action {
         let prev = hive.root().open_subkey(path).and_then(|k| k.get_value::<u32, _>(name)).ok();
@@ -42,6 +49,7 @@ impl Action {
             Action::MoveFile { from, to } => mv(from, to),
             Action::Stash { .. } => Ok(()), // se registra ya aplicada, ver `Journal::record`
             Action::SetDword { hive, path, name, new, .. } => write_dword(*hive, path, name, Some(*new)),
+            Action::SetPowerPlan { new, .. } => power::set(new),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
     }
@@ -54,6 +62,7 @@ impl Action {
                 if failed == 0 { Ok(()) } else { Err(io::Error::other(format!("{failed} elementos no se pudieron restaurar"))) }
             }
             Action::SetDword { hive, path, name, prev, .. } => write_dword(*hive, path, name, *prev),
+            Action::SetPowerPlan { prev, .. } => power::set(prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
     }
