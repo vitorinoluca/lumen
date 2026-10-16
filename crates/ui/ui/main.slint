@@ -679,7 +679,11 @@ export component Main inherits Window {
             }
 
             // Lo secundario, discreto y al final.
-            TextLink { text: show-map ? "Ocultar qué ocupa más espacio" : "Ver qué ocupa más espacio en tu usuario"; clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
+            // Dentro de una fila: un elemento de ancho fijo limitaría el ancho máximo de toda la página.
+            HorizontalLayout {
+                alignment: start;
+                TextLink { text: show-map ? "Ocultar qué ocupa más espacio" : "Ver qué ocupa más espacio en tu usuario"; clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
+            }
             if show-map: Scroll {
                 height: 190px;
                 content-h: space-map.length * 24px;
@@ -739,9 +743,12 @@ export component Main inherits Window {
                             }
                         }
                     }
-                    if opt-advanced > 0: TextLink {
-                        text: show-advanced ? "Ocultar las opciones avanzadas" : "Mostrar las opciones avanzadas (\{opt-advanced})";
-                        clicked => { show-advanced = !show-advanced; rebuild-opt(); }
+                    if opt-advanced > 0: HorizontalLayout {
+                        alignment: start;
+                        TextLink {
+                            text: show-advanced ? "Ocultar las opciones avanzadas" : "Mostrar las opciones avanzadas (\{opt-advanced})";
+                            clicked => { show-advanced = !show-advanced; rebuild-opt(); }
+                        }
                     }
                 }
             }
