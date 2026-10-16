@@ -1,4 +1,5 @@
 //! Monitor de CPU, RAM, disco y red.
+use crate::gpu::Gpu;
 use sysinfo::{Disks, Networks, System};
 use windows_sys::Win32::{Foundation::FILETIME, System::Threading::GetSystemTimes};
 
@@ -23,6 +24,8 @@ pub struct Snapshot {
     /// Bytes recibidos/enviados desde la muestra anterior.
     pub net_rx: u64,
     pub net_tx: u64,
+    /// Uso de la GPU en %, si Windows lo informa.
+    pub gpu: Option<f32>,
 }
 
 pub struct Monitor {
@@ -30,11 +33,12 @@ pub struct Monitor {
     last_cpu: (u64, u64),
     disks: Disks,
     nets: Networks,
+    gpu: Gpu,
 }
 
 impl Monitor {
     pub fn new() -> Self {
-        Self { sys: System::new(), last_cpu: cpu_times(), disks: Disks::new_with_refreshed_list(), nets: Networks::new_with_refreshed_list() }
+        Self { sys: System::new(), last_cpu: cpu_times(), disks: Disks::new_with_refreshed_list(), nets: Networks::new_with_refreshed_list(), gpu: Gpu::new() }
     }
 
     /// Toma una muestra. La CPU necesita dos muestras separadas para dar un valor real.
@@ -55,6 +59,7 @@ impl Monitor {
             disk_total,
             net_rx: self.nets.values().map(|n| n.received()).sum(),
             net_tx: self.nets.values().map(|n| n.transmitted()).sum(),
+            gpu: self.gpu.sample(),
         }
     }
 }

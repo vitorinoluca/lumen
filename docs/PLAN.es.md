@@ -37,7 +37,8 @@ Toda modificación del sistema pasa por `actions` (`apply()` / `revert()`). Las 
 - [x] Procesos: lista ordenable, ruta y finalizar.
 - [x] Inicio: activar/desactivar reversible.
 - [x] Disco: temporales, cachés de Chrome/Edge, mapa de espacio.
-- [ ] Pendiente: GPU, refresco configurable, firma digital (va con la Fase 3), papelera y Firefox.
+- [x] GPU, refresco configurable, papelera y Firefox.
+- [ ] Pendiente: firma digital (va con la Fase 3).
 
 ### Fase 2 — Optimización (hecha, v0.2)
 - [x] Privacidad: ajustes de Windows reversibles.

@@ -23,6 +23,18 @@ pub fn targets() -> Vec<Target> {
     if let Some(l) = local {
         v.push(Target { name: "Caché de Chrome", path: l.join(r"Google\Chrome\User Data\Default\Cache") });
         v.push(Target { name: "Caché de Edge", path: l.join(r"Microsoft\Edge\User Data\Default\Cache") });
+        // Un perfil de Firefox por carpeta; todos se suman bajo el mismo nombre.
+        for p in fs::read_dir(l.join(r"Mozilla\Firefox\Profiles")).into_iter().flatten().flatten() {
+            v.push(Target { name: "Caché de Firefox", path: p.path().join("cache2") });
+        }
+    }
+    // La papelera de la unidad del sistema: una carpeta por usuario, y solo se puede leer la propia.
+    // ponytail: solo la unidad del sistema; sumar las otras unidades si hace falta.
+    let bin = PathBuf::from(format!(r"{}\$Recycle.Bin", env::var("SystemDrive").unwrap_or_else(|_| "C:".into())));
+    for e in fs::read_dir(bin).into_iter().flatten().flatten() {
+        if fs::read_dir(e.path()).is_ok() {
+            v.push(Target { name: "Papelera de reciclaje", path: e.path() });
+        }
     }
     v.retain(|t| t.path.is_dir());
     v

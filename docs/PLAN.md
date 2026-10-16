@@ -37,7 +37,8 @@ Every system change goes through `actions` (`apply()` / `revert()`). Heavy reads
 - [x] Processes: sortable list, path and close.
 - [x] Startup: reversible enable/disable.
 - [x] Disk: temp files, Chrome/Edge caches, space map.
-- [ ] Pending: GPU, configurable refresh, digital signature (comes with Phase 3), recycle bin and Firefox.
+- [x] GPU, configurable refresh, recycle bin and Firefox.
+- [ ] Pending: digital signature (comes with Phase 3).
 
 ### Phase 2 — Optimization (done, v0.2)
 - [x] Privacy: reversible Windows settings.

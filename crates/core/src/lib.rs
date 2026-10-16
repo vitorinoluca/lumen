@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod monitor;
+pub mod gpu;
 pub mod processes;
 pub mod startup;
 pub mod disk;

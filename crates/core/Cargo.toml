@@ -10,5 +10,5 @@ serde_json = "1"
 sha2 = "0.11.1"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system", "disk", "network"] }
 toml = { version = "1.1.8", default-features = false, features = ["parse", "serde"] }
-windows-sys = { version = "0.61.2", features = ["Win32_System_Threading", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi"] }
+windows-sys = { version = "0.61.2", features = ["Win32_System_Threading", "Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_Graphics_Gdi", "Win32_System_Performance"] }
 winreg = "0.56.0"
