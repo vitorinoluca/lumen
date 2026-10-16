@@ -5,15 +5,18 @@
 A lightweight, honest PC optimizer for Windows. One portable `.exe` (~8 MB), ~6 MB of private RAM, opens in ~35 ms.
 No telemetry, no accounts, no paid services.
 
-## What it does (v0.2)
-- **Panel:** your hardware (Windows, CPU, RAM, GPU, board, disks) with live CPU, memory and network.
-- **Processes:** sortable list with path, and a button to close a process (asks first).
-- **Startup:** turn startup apps on or off without deleting them (the same mechanism Task Manager uses).
-- **Disk cleanup:** one button frees temp files and Chrome/Edge caches. Files go to a stash for 7 days, so it can be undone.
-- **Optimize:** one simple list (game and battery modes, privacy, services almost nobody uses) and an "Aplicar las recomendadas" button. Risky options stay hidden under "advanced", and critical services are never shown.
-- **Programs:** run an app's own uninstaller, then review and clean leftover folders and registry keys.
-- **Security:** Windows Defender status and detections, plus a behavior review that spots what Defender can miss: new startup entries, scheduled tasks and services, Winlogon/IFEO/WMI tampering, reverse shells, obfuscated commands, fake system processes and disabled Defender or Windows Update. First scan saves a baseline; later scans report only what is new or modified.
-- **Settings:** light, dark or Windows theme, dashboard refresh rate, and Spanish or English. Saved in `%APPDATA%lumennfig.json`.
+## What it does (v0.5)
+Every section shows each option with a checkbox, a short explanation and a risk tag (green = safe, yellow = review). Yellow options start unchecked and advanced ones hide behind "More options". Before applying, lumen shows exactly what it will do, creates a Windows restore point (once per session) and saves each setting's original value. It asks for administrator rights when it opens.
+- **Home:** your PC's state (space to free, startup apps, memory), an "Analyze" button and three presets: Minimal, Recommended and Advanced. Below, your hardware with live CPU and GPU.
+- **Cleanup:** temp files, browser caches and Windows Update leftovers go to a stash for 7 days (undoable); a duplicate finder; and a disk analyzer with bars.
+- **Performance:** power plan, game mode, startup apps (with their icons), services almost nobody uses, visual effects and background apps.
+- **Privacy:** telemetry, ads, Start menu suggestions and removal of preinstalled apps (this one can't be undone).
+- **Network:** clear the DNS cache, reset the network and pick a DNS (Cloudflare, Google or automatic).
+- **Repair:** SFC, DISM, repair Windows Update and disk health (SMART).
+- **Updates:** default, security only or paused.
+- **History:** every change lumen made, with an undo button on each.
+- **More:** processes (tap one to close it), programs (run the uninstaller and clean leftovers), security (Windows Defender plus a behavior review that spots what it can miss) and settings (theme, refresh rate, Spanish or English).
+lumen never installs programs, has no "registry cleaner" and no "RAM booster".
 
 ## How everything is undone
 Every change is recorded in `%APPDATA%\lumen\journal.json`. See [docs/UNDO.md](docs/UNDO.md).

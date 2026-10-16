@@ -16,7 +16,7 @@ Dense where needed (processes, files), calm on the home screen.
 - Radii: 6 px controls, 10 px sheet and cards. Left-aligned, 8 px grid, generous margins (32 px).
 - One typeface (Segoe UI Variable). Sizes: 12 / 14 / 28 (titles) / 32 (figures).
 - Neutral colors with a single accent. Red only for real danger.
-- Layout: grouped side menu (Panel / Optimizar, Programas / Inicio, Procesos, Disco / Seguridad) with Settings at the bottom.
+- Layout: side menu with Home, Cleanup, Performance, Privacy, Network, Repair, Updates and History, then a "more" group (Processes, Programs, Security) and Settings at the bottom. Option screens share one layout: checkbox, short text, risk tag (green safe, yellow review), a single main button and a preview of exactly what will change.
 - Slint gotcha: no `clip` on the translucent sheet; a rounded clip over a translucent fill breaks partial repaints (the repainted area turns lighter).
 - References: Windows 11 Settings and Files, Linear.
 

@@ -5,15 +5,18 @@
 Optimizador de PC para Windows, liviano y honesto. Un solo `.exe` portable (~8 MB), ~6 MB de RAM privada, abre en ~35 ms.
 Sin telemetría, sin cuentas, sin servicios pagos.
 
-## Qué hace (v0.2)
-- **Panel:** tu hardware (Windows, CPU, RAM, GPU, placa, discos) con CPU, memoria y red en vivo.
-- **Procesos:** lista ordenable con ruta y botón para cerrar un proceso (pide confirmación).
-- **Arranque:** activa o desactiva apps de inicio sin borrarlas (igual que el Administrador de tareas).
-- **Limpieza de disco:** un botón libera temporales y cachés de Chrome/Edge. Los archivos van a una reserva por 7 días, así se puede deshacer.
-- **Optimizar:** una lista simple (modos juego y batería, privacidad, servicios que casi nadie usa) y un botón "Aplicar las recomendadas". Lo delicado queda en "avanzadas" y los servicios críticos nunca se muestran.
-- **Programas:** abre el desinstalador de cada app y después revisás y limpiás carpetas y claves de registro que hayan quedado.
-- **Seguridad:** estado y detecciones de Windows Defender, y una revisión de comportamiento que detecta lo que Defender puede pasar por alto: entradas nuevas de inicio, tareas y servicios, cambios en Winlogon/IFEO/WMI, reverse shells, comandos ofuscados, procesos de sistema falsos y Defender o Windows Update desactivados. El primer escaneo guarda una línea base; los siguientes avisan solo de lo nuevo o modificado.
-- **Configuración:** tema claro, oscuro o el de Windows, frecuencia del panel e idioma español o inglés. Se guarda en `%APPDATA%lumennfig.json`.
+## Qué hace (v0.5)
+Cada sección muestra las opciones con casilla, una explicación corta y una etiqueta de riesgo (verde = seguro, amarillo = revisar). Lo amarillo viene desmarcado y lo avanzado queda detrás de "Más opciones". Antes de aplicar, lumen muestra exactamente qué va a hacer, crea un punto de restauración de Windows (una vez por sesión) y guarda el valor original de cada ajuste. Pide permisos de administrador al abrir.
+- **Inicio:** el estado de tu PC (espacio para liberar, apps de inicio, memoria), un botón "Analizar" y tres presets: Mínimo, Recomendado y Avanzado. Debajo, tu hardware con CPU y GPU en vivo.
+- **Limpieza:** temporales, cachés de navegadores y restos de Windows Update van a una reserva por 7 días (se puede deshacer); buscador de duplicados; y analizador de disco con barras.
+- **Rendimiento:** plan de energía, modo juego, apps de inicio (con su ícono), servicios que casi nadie usa, efectos visuales y apps en segundo plano.
+- **Privacidad:** telemetría, publicidad, sugerencias del menú Inicio y quitar apps preinstaladas (esto último no se puede deshacer).
+- **Red:** limpiar la caché de DNS, resetear la red y elegir DNS (Cloudflare, Google o automático).
+- **Reparación:** SFC, DISM, reparar Windows Update y salud del disco (SMART).
+- **Actualizaciones:** por defecto, solo seguridad o pausadas.
+- **Historial:** todos los cambios que hizo lumen, con un botón para deshacer cada uno.
+- **Más:** procesos (tocá uno para cerrarlo), programas (abre el desinstalador y limpia restos), seguridad (Windows Defender y una revisión de comportamiento que detecta lo que puede pasar por alto) y configuración (tema, frecuencia del panel, español o inglés).
+lumen no instala programas, no tiene "limpiador de registro" ni "liberador de RAM".
 
 ## Cómo se deshace todo
 Cada cambio se guarda en `%APPDATA%\lumen\journal.json`. Ver [docs/UNDO.es.md](docs/UNDO.es.md).

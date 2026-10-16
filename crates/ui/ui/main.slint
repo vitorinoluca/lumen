@@ -1,12 +1,9 @@
 import { Palette } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string, icon: image, has-icon: bool, initial: string }
-export struct StartupRow { name: string, command: string, scope: string, enabled: bool, icon: image, has-icon: bool, initial: string }
-export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
 export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
 export struct SecRow { title: string, sub: string, icon: string, alert: bool }
 export struct FindingRow { title: string, detail: string, decoded: string, severity: int, can-disable: bool, can-restore: bool }
-export struct OptRow { header: bool, title: string, desc: string, tag: string, enabled: bool, locked: bool, kind: int, src: int, icon: string, col: int, y: float }
 export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
@@ -123,30 +120,6 @@ component Btn inherits Rectangle {
         Text { text: root.text; font-size: root.font; font-weight: 600; color: root.danger ? Theme.danger : (root.strong ? Theme.on-accent : Theme.text); vertical-alignment: center; }
     }
     ta := TouchArea { enabled: root.enabled; mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default; clicked => { root.clicked(); } }
-}
-
-component Toggle inherits Rectangle {
-    in-out property <bool> checked;
-    in property <bool> locked: false;
-    callback toggled(bool);
-    opacity: locked ? 0.4 : 1.0;
-    width: 38px;
-    height: 20px;
-    border-radius: 10px;
-    border-width: checked ? 0px : 1px;
-    border-color: Theme.faint;
-    background: checked ? Theme.accent : (ta.has-hover && !locked ? Theme.hover : transparent);
-    animate background { duration: 90ms; }
-    Rectangle {
-        x: root.checked ? 21px : 4px;
-        y: root.checked ? 3px : 4px;
-        width: root.checked ? 14px : 12px;
-        height: self.width;
-        border-radius: self.width / 2;
-        background: root.checked ? Theme.on-accent : Theme.muted;
-        animate x { duration: 110ms; easing: ease-out; }
-    }
-    ta := TouchArea { enabled: !root.locked; mouse-cursor: root.locked ? MouseCursor.default : MouseCursor.pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
 }
 
 component Bar inherits Rectangle {
@@ -746,22 +719,11 @@ export component Main inherits Window {
     in property <string> disk-text;
     in property <string> net-text;
     in property <[Row]> procs;
-    in property <[StartupRow]> startup;
     in-out property <int> cfg-theme: 0;
     in-out property <int> cfg-refresh: 0;
     in-out property <int> cfg-lang: 0;
     in property <string> app-version;
     callback config-changed();
-    in property <[OptRow]> opt-rows;
-    in property <length> opt-h;
-    in property <int> opt-done;
-    in property <int> opt-total;
-    in property <int> opt-advanced;
-    in-out property <bool> show-advanced;
-    in-out property <bool> opt-confirm;
-    in property <[ServiceRow]> privacy;
-    in property <[ServiceRow]> services;
-    in property <[ServiceRow]> profiles;
     in property <Hw> hw;
     in property <[DiskCard]> disks;
     in property <[SecRow]> sec-cards;
@@ -833,14 +795,6 @@ export component Main inherits Window {
     callback sort(int);
     callback kill(int);
     callback opened();
-    callback toggle-startup(int, bool);
-    callback toggle-opt(int, int, bool);
-    callback rebuild-opt();
-    callback apply-recommended();
-    callback apply-recommended-services(string);
-    callback toggle-privacy(int, bool);
-    callback toggle-service(int, bool);
-    callback toggle-profile(int, bool);
     callback uninstall(int);
     callback scan-behavior();
     callback behavior-ready();
@@ -869,15 +823,11 @@ export component Main inherits Window {
     callback clean-leftovers();
     callback undo-leftovers();
     callback dismiss-leftovers();
-    callback disable-service(int, string);
     callback clean-all();
     callback disk-reset();
     callback undo-clean();
     callback purge();
     callback scan-map();
-    toggle-opt(kind, src, on) => {
-        if (kind == 0) { toggle-privacy(src, on); } else if (kind == 1) { toggle-service(src, on); } else { toggle-profile(src, on); }
-    }
     changed page => { opened(); }
 
     HorizontalLayout {
@@ -1049,47 +999,6 @@ export component Main inherits Window {
                                     Text { text: p.cpu; width: 44px; font-size: 14px; color: p.cpu == "0%" ? Theme.faint : Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                                     Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
                                     Text { text: p.path; font-size: 12px; color: Theme.faint; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                                }
-                            }
-                        }
-                    }
-                }
-
-if page == 2: Page {
-                    width: parent.width;
-                    height: parent.height;
-                    Head { title: @tr("" => "{} apps arrancan con Windows", startup.length); sub: @tr("" => "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."); }
-                    if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.danger; }
-                    Scroll {
-                        content-h: startup.length * 60px;
-                        vertical-stretch: 1;
-                        VerticalLayout {
-                            alignment: start;
-                            for e[i] in startup: Rectangle {
-                                height: 60px;
-                                // Cada app es una pieza: las apagadas se ven más tenues.
-                                Rectangle {
-                                    height: 54px;
-                                    border-radius: 8px;
-                                    background: st-ta.has-hover ? Theme.chosen : Theme.raised;
-                                    animate background { duration: 90ms; }
-                                    st-ta := TouchArea { }
-                                    HorizontalLayout {
-                                        spacing: 16px;
-                                        padding-left: 16px;
-                                        padding-right: 16px;
-                                        VerticalLayout { alignment: center; AppIcon { size: 32px; img: e.icon; has-icon: e.has-icon; initial: e.initial; opacity: e.enabled ? 1.0 : 0.5; } }
-                                        VerticalLayout {
-                                            horizontal-stretch: 1;
-                                            alignment: center;
-                                            spacing: 2px;
-                                            opacity: e.enabled ? 1.0 : 0.5;
-                                            Text { text: e.name; font-size: 14px; color: Theme.text; overflow: elide; }
-                                            Text { text: e.command; font-size: 12px; color: Theme.muted; overflow: elide; }
-                                        }
-                                        Text { text: I18n.t(e.scope); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
-                                        VerticalLayout { alignment: center; Toggle { checked: e.enabled; toggled(on) => { toggle-startup(i, on); } } }
-                                    }
                                 }
                             }
                         }
@@ -1300,113 +1209,6 @@ if page == 3: Page {
                                         Bar { height: 8px; value: m.fraction; }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-
-if page == 4: Page {
-                    width: parent.width;
-                    height: parent.height;
-                    Head { title: @tr("" => "Optimizar"); sub: @tr("" => "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."); }
-                    // Avance: cuántas de las recomendadas ya están aplicadas.
-                    VerticalLayout {
-                        vertical-stretch: 0;
-                        spacing: 10px;
-                        HorizontalLayout {
-                            spacing: 16px;
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                alignment: center;
-                                spacing: 2px;
-                                Text { text: @tr("" => "Aplicaste {} de {} mejoras recomendadas", opt-done, opt-total); font-size: 14px; color: Theme.text; }
-                                if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                            }
-                            if opt-done < opt-total: VerticalLayout {
-                                alignment: center;
-                                Btn { text: @tr("" => "Aplicar las recomendadas"); strong: true; clicked => { opt-confirm = true; } }
-                            }
-                        }
-                        Bar { value: opt-total > 0 ? opt-done / opt-total : 0; }
-                    }
-                    Scroll {
-                        vertical-stretch: 1;
-                        content-h: opt-h;
-                        // Tarjetas en dos columnas. Rust calcula `y` y `col` de cada una (y el alto total en `opt-h`).
-                        Rectangle {
-                            x: 0px;
-                            y: 0px;
-                            // Ancho de la hoja menos los márgenes de la página (64) y la barra de scroll (16): `parent.width` en un Flickable no es el visible.
-                            width: sheet.width - 80px;
-                            height: opt-h;
-                            for r[i] in opt-rows: Rectangle {
-                                x: r.header ? 0px : r.col * (parent.width + 12px) / 2;
-                                y: r.y * 1px;
-                                width: r.header ? parent.width : (parent.width - 12px) / 2;
-                                height: r.header ? 44px : 112px;
-                                if r.header: Label { x: 4px; y: parent.height - 28px; height: 20px; text: I18n.t(r.title); }
-                                if !r.header: Rectangle {
-                                    border-radius: 12px;
-                                    background: opt-ta.has-hover ? Theme.chosen : Theme.raised;
-                                    border-width: r.enabled ? 1px : 0px;
-                                    border-color: Theme.accent.with-alpha(0.45);
-                                    animate background { duration: 90ms; }
-                                    opt-ta := TouchArea { }
-                                    // Arriba el ícono y el interruptor; abajo el nombre. Al pasar el mouse el nombre deja lugar a la explicación.
-                                    Rectangle {
-                                        x: 16px;
-                                        y: 16px;
-                                        width: 36px;
-                                        height: 36px;
-                                        border-radius: 10px;
-                                        background: r.enabled ? Theme.accent.with-alpha(0.18) : Theme.hover;
-                                        animate background { duration: 120ms; }
-                                        Icon { x: 10px; y: 10px; width: 16px; height: 16px; kind: r.icon; tint: r.enabled ? Theme.accent : Theme.muted; }
-                                    }
-                                    HorizontalLayout {
-                                        x: 0px;
-                                        y: 22px;
-                                        width: parent.width;
-                                        height: 24px;
-                                        padding-right: 16px;
-                                        spacing: 10px;
-                                        alignment: end;
-                                        if r.tag != "": Text { text: I18n.t(r.tag); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
-                                        Toggle { checked: r.enabled; locked: r.locked; y: 2px; toggled(on) => { toggle-opt(r.kind, r.src, on); } }
-                                    }
-                                    Text {
-                                        x: 16px;
-                                        y: 64px;
-                                        width: parent.width - 32px;
-                                        height: 38px;
-                                        text: I18n.t(r.title);
-                                        font-size: 14px;
-                                        color: Theme.text;
-                                        wrap: word-wrap;
-                                        overflow: elide;
-                                        opacity: opt-ta.has-hover ? 0.0 : 1.0;
-                                        animate opacity { duration: 100ms; }
-                                    }
-                                    Text {
-                                        x: 16px;
-                                        y: 62px;
-                                        width: parent.width - 32px;
-                                        height: 42px;
-                                        text: I18n.t(r.desc);
-                                        font-size: 12px;
-                                        color: Theme.muted;
-                                        wrap: word-wrap;
-                                        overflow: elide;
-                                        opacity: opt-ta.has-hover ? 1.0 : 0.0;
-                                        animate opacity { duration: 100ms; }
-                                    }
-                                }
-                            }
-                            if opt-advanced > 0: TextLink {
-                                x: 4px;
-                                y: parent.height - 32px;
-                                text: show-advanced ? @tr("" => "Ocultar las opciones avanzadas") : @tr("" => "Mostrar las opciones avanzadas ({})", opt-advanced);
-                                clicked => { show-advanced = !show-advanced; rebuild-opt(); }
                             }
                         }
                     }
@@ -1723,16 +1525,5 @@ if page == 4: Page {
         ok-text: sc-button;
         ok => { sc-preview = false; sc-run(); }
         cancel => { sc-preview = false; }
-    }
-    if opt-confirm: Confirm {
-        x: 0;
-        y: 0;
-        width: root.width;
-        height: root.height;
-        title: @tr("" => "¿Aplicar las mejoras recomendadas?");
-        body: @tr("" => "Se desactivan cosas que casi nadie necesita: anuncios, sugerencias, telemetría y servicios que casi no se usan. Se puede volver atrás desde acá, cambio por cambio. Algunos necesitan abrir lumen como administrador.");
-        ok-text: @tr("" => "Aplicar");
-        ok => { opt-confirm = false; apply-recommended(); }
-        cancel => { opt-confirm = false; }
     }
 }

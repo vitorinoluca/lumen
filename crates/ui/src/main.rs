@@ -1,11 +1,10 @@
 #![windows_subsystem = "windows"]
 use lumen_core::{
-    actions::{Action, Hive, Journal},
+    actions::Journal,
     monitor::{Monitor, Snapshot},
     processes::{Processes, SortBy},
-    startup::{self, Source},
     disk,
-    config::Config, defender, hardware, hashdb, icons, security, power, privacy, profiles, restore, services,
+    config::Config, defender, hardware, hashdb, icons, security, restore,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
@@ -116,14 +115,6 @@ fn load_hardware(weak: slint::Weak<Main>) {
             ui.set_disks(ModelRc::new(VecModel::from(rows)));
         });
     });
-}
-
-fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
-    match res {
-        Ok(()) => warn.to_string(),
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => "Necesitás abrir lumen como administrador para cambiar servicios.".into(),
-        Err(e) => format!("No se pudo: {e}"),
-    }
 }
 
 /// Pone el tema (0 = como Windows, 1 = claro, 2 = oscuro) en la app y en la barra de título.
@@ -278,120 +269,6 @@ fn finding_height(f: &security::Finding) -> f32 {
 
 /// Arma la lista de Optimizar a partir de los tres orígenes (modos, privacidad, servicios).
 /// Muestra pocas cosas: lo delicado queda en "avanzadas" y lo crítico (que no se puede tocar) no se muestra.
-/// Ícono de cada mejora: por palabra clave del título y, si no hay, por el grupo (0 privacidad, 1 servicios, 2 modos).
-fn opt_icon(title: &str, kind: i32) -> &'static str {
-    let t = title.to_lowercase();
-    let has = |w: &[&str]| w.iter().any(|w| t.contains(w));
-    if has(&["juego", "xbox"]) {
-        "game"
-    } else if has(&["batería", "bateria"]) {
-        "battery"
-    } else if has(&["publicidad", "anuncio"]) {
-        "megaphone"
-    } else if has(&["sugerencia", "sugerida", "consejo"]) {
-        "bulb"
-    } else if has(&["notificaci"]) {
-        "bell"
-    } else if has(&["telemetr", "diagn"]) {
-        "cloud"
-    } else if has(&["mapa"]) {
-        "map"
-    } else if has(&["impresi", "fax"]) {
-        "print"
-    } else if has(&["bluetooth"]) {
-        "bluetooth"
-    } else if has(&["búsqueda", "busqueda"]) {
-        "search"
-    } else if has(&["update", "actualiz"]) {
-        "refresh"
-    } else if has(&["defender", "firewall", "antivirus"]) {
-        "shield"
-    } else if has(&["precarga", "memoria"]) {
-        "chip"
-    } else {
-        ["eye", "gear", "bolt"][kind.clamp(0, 2) as usize]
-    }
-}
-
-/// Las tarjetas van en dos columnas: se calcula acá dónde cae cada una porque la pantalla no acomoda una lista en grilla.
-const TILE_PITCH: f32 = 124.0; // tarjeta de 112 + 12 de aire
-const OPT_HEADER: f32 = 44.0;
-const OPT_LINK: f32 = 40.0;
-
-fn rebuild_opt(ui: &Main) {
-    use slint::Model;
-    let row = |r: &ServiceRow, kind: i32, src: usize| OptRow {
-        header: false,
-        title: r.title.clone(),
-        desc: r.desc.clone(),
-        tag: r.tag.clone(),
-        enabled: r.enabled,
-        locked: r.locked,
-        kind,
-        src: src as i32,
-        icon: opt_icon(&r.title, kind).into(),
-        col: 0,
-        y: 0.0,
-    };
-    let header = |t: &str| OptRow { header: true, title: t.into(), desc: "".into(), tag: "".into(), enabled: false, locked: false, kind: 0, src: 0, icon: "".into(), col: 0, y: 0.0 };
-    let (profiles, privacy, services): (Vec<ServiceRow>, Vec<ServiceRow>, Vec<ServiceRow>) = (ui.get_profiles().iter().collect(), ui.get_privacy().iter().collect(), ui.get_services().iter().collect());
-    let level = |r: &ServiceRow| r.level.to_string();
-
-    let mut rows = vec![header("Modos")];
-    rows.extend(profiles.iter().enumerate().map(|(i, r)| row(r, 2, i)));
-    rows.push(header("Privacidad"));
-    rows.extend(privacy.iter().enumerate().map(|(i, r)| row(r, 0, i)));
-    rows.push(header("Servicios que casi nadie usa"));
-    let safe: Vec<(usize, &ServiceRow)> = services.iter().enumerate().filter(|(_, r)| level(r) == "seguro").collect();
-    rows.extend(safe.iter().map(|(i, r)| row(r, 1, *i)));
-    let careful: Vec<(usize, &ServiceRow)> = services.iter().enumerate().filter(|(_, r)| level(r) == "depende").collect();
-    if ui.get_show_advanced() && !careful.is_empty() {
-        rows.push(header("Avanzado: pueden cambiar cómo usás la PC"));
-        rows.extend(careful.iter().map(|(i, r)| row(r, 1, *i)));
-    }
-
-    let total = (privacy.len() + safe.len()) as i32;
-    let done = (privacy.iter().filter(|r| r.enabled).count() + safe.iter().filter(|(_, r)| r.enabled).count()) as i32;
-    let (mut y, mut col) = (0.0, 0);
-    for r in rows.iter_mut() {
-        if r.header {
-            if col != 0 {
-                y += TILE_PITCH;
-                col = 0;
-            }
-            r.y = y;
-            y += OPT_HEADER;
-        } else {
-            (r.col, r.y) = (col, y);
-            if col == 1 {
-                y += TILE_PITCH;
-            }
-            col = 1 - col;
-        }
-    }
-    if col != 0 {
-        y += TILE_PITCH;
-    }
-    let height = y + if careful.is_empty() { 0.0 } else { OPT_LINK };
-    ui.set_opt_rows(ModelRc::new(VecModel::from(rows)));
-    ui.set_opt_h(height);
-    ui.set_opt_total(total);
-    ui.set_opt_done(done);
-    ui.set_opt_advanced(careful.len() as i32);
-}
-
-/// Resumen de "aplicar las recomendadas", en una frase.
-fn recommended_summary(applied: usize, need_admin: usize, warn: &str) -> String {
-    let mut msg = if applied == 0 { "No se aplicó ningún cambio.".to_string() } else { format!("Listo: {applied} mejoras aplicadas.") };
-    if need_admin > 0 {
-        msg += &format!(" {need_admin} necesitan abrir lumen como administrador.");
-    }
-    if !warn.is_empty() {
-        msg += &format!(" {warn}");
-    }
-    msg
-}
-
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
 pub(crate) fn size(b: u64) -> String {
     match b {
@@ -493,101 +370,11 @@ fn main() {
             refresh();
         }
     });
-    // Inicio: cada cambio pasa por el journal para poder deshacerlo.
-    let entries = Rc::new(RefCell::new(startup::list()));
+    // Todo cambio al sistema pasa por el journal para poder deshacerlo (se ve en Historial).
     let journal = {
         let dir = PathBuf::from(env::var_os("APPDATA").unwrap_or_default()).join("lumen");
         Rc::new(RefCell::new(Journal::open(dir.join("journal.json")).expect("journal ilegible")))
     };
-    let load_startup = {
-        let (weak, entries, exe_icons) = (ui.as_weak(), entries.clone(), exe_icons.clone());
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            *entries.borrow_mut() = startup::list();
-            let exes: Vec<String> = entries.borrow().iter().map(|e| icons::exe_of_command(&e.command).unwrap_or_default()).collect();
-            fetch_icons(&exe_icons, exes.iter().cloned(), weak.clone());
-            let rows: Vec<StartupRow> = entries
-                .borrow()
-                .iter()
-                .zip(&exes)
-                .map(|(e, exe)| {
-                    let (icon, has_icon) = exe_icon(&exe_icons, exe);
-                    StartupRow {
-                    icon,
-                    has_icon,
-                    initial: initial(&e.name),
-                    name: e.name.clone().into(),
-                    command: e.command.clone().into(),
-                    scope: match e.source {
-                        Source::RunUser => "usuario",
-                        Source::RunMachine => "equipo",
-                        Source::FolderUser => "carpeta",
-                    }
-                    .into(),
-                    enabled: e.enabled,
-                    }
-                })
-                .collect();
-            ui.set_startup(ModelRc::new(VecModel::from(rows)));
-        }
-    };
-    ui.on_toggle_startup({
-        let (weak, entries, journal, reload) = (ui.as_weak(), entries.clone(), journal.clone(), load_startup.clone());
-        move |i, enable| {
-            let Some(ui) = weak.upgrade() else { return };
-            let e = entries.borrow()[i as usize].clone();
-            let verb = if enable { "Activar" } else { "Desactivar" };
-            let action = Action::SetStartup { source: e.source, name: e.name.clone(), enable };
-            let res = journal.borrow_mut().apply(&format!("{verb} inicio: {}", e.name), action);
-            // Las entradas de "equipo" necesitan administrador.
-            ui.set_status(res.err().map(|err| format!("No se pudo: {err}")).unwrap_or_default().into());
-            reload();
-        }
-    });
-    // Privacidad: activar = apagar la función de Windows (valor privado); desactivar = revertir.
-    let load_privacy = {
-        let weak = ui.as_weak();
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let rows: Vec<ServiceRow> = privacy::SETTINGS
-                .iter()
-                .map(|s| ServiceRow {
-                    title: s.name.into(),
-                    desc: s.desc.into(),
-                    level: "seguro".into(),
-                    tag: if s.hive == Hive::Machine { "administrador" } else { "" }.into(),
-                    enabled: s.is_off(),
-                    locked: false,
-                })
-                .collect();
-            ui.set_privacy(ModelRc::new(VecModel::from(rows)));
-            rebuild_opt(&ui);
-        }
-    };
-    ui.on_toggle_privacy({
-        let (weak, journal, reload) = (ui.as_weak(), journal.clone(), load_privacy.clone());
-        move |i, on| {
-            let Some(ui) = weak.upgrade() else { return };
-            let s = &privacy::SETTINGS[i as usize];
-            let mut j = journal.borrow_mut();
-            let res = if on {
-                j.apply(&format!("Privacidad: {}", s.name), s.turn_off()).map(|_| ())
-            } else {
-                // Revierte el último cambio aplicado a este ajuste.
-                let last = j.entries.iter().rposition(|e| {
-                    e.applied && matches!(&e.action, Action::SetDword { path, name, .. } if path == s.path && name == s.value)
-                });
-                match last {
-                    Some(id) => j.revert(id),
-                    None => Err(std::io::Error::other("no hay un cambio de lumen para revertir")),
-                }
-            };
-            ui.set_status(res.err().map(|e| format!("No se pudo: {e}")).unwrap_or_default().into());
-            drop(j);
-            reload();
-        }
-    });
-
     // Programas: desinstalar corre en un hilo (el instalador del programa puede tardar). Los restos
     // quedan pendientes hasta que el usuario los confirme.
     let all_apps = Rc::new(RefCell::new(Vec::<uninstall::App>::new()));
@@ -876,203 +663,6 @@ fn main() {
         }
     });
 
-    // Perfiles: encendido = el plan de lumen sigue siendo el activo. Apagar = deshacer ese cambio.
-    let load_profiles = {
-        let (weak, journal) = (ui.as_weak(), journal.clone());
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let active = power::active().unwrap_or_default();
-            let j = journal.borrow();
-            let row = |label: &str, desc: String, level: &str| ServiceRow {
-                title: format!("Activar el {}", label.to_lowercase()).into(),
-                desc: desc.into(),
-                level: level.into(),
-                tag: "".into(),
-                enabled: profiles::active_entry(&j, label, &active).is_some(),
-                locked: false,
-            };
-            let game = format!("Alto rendimiento y cierra {} apps de tu lista (game-list.json). Lo cerrado no se reabre solo.", profiles::game_list().len());
-            let rows = vec![
-                row(profiles::GAME, game, "depende"),
-                row(profiles::BATTERY, "Plan de ahorro de energía para que la batería dure más.".into(), "seguro"),
-            ];
-            ui.set_profiles(ModelRc::new(VecModel::from(rows)));
-            rebuild_opt(&ui);
-        }
-    };
-    ui.on_toggle_profile({
-        let (weak, journal, procs, reload) = (ui.as_weak(), journal.clone(), procs.clone(), load_profiles.clone());
-        move |i, on| {
-            let Some(ui) = weak.upgrade() else { return };
-            let label = if i == 0 { profiles::GAME } else { profiles::BATTERY };
-            let mut j = journal.borrow_mut();
-            let mut msg = String::new();
-            let res = if on {
-                let action = if i == 0 { profiles::game_action() } else { profiles::battery_action() };
-                action.and_then(|a| j.apply(label, a)).map(|_| {
-                    if i == 0 {
-                        msg = format!("{} procesos cerrados.", profiles::close_game_list(&mut procs.borrow_mut()));
-                    }
-                })
-            } else {
-                let active = power::active().unwrap_or_default();
-                match profiles::active_entry(&j, label, &active) {
-                    Some(id) => j.revert(id),
-                    None => Err(std::io::Error::other("el plan de energía ya fue cambiado por otro lado")),
-                }
-            };
-            if let Err(e) = res {
-                msg = format!("No se pudo: {e}");
-            }
-            drop(j);
-            ui.set_status(msg.into());
-            reload();
-        }
-    });
-
-    // Servicios: solo los de la base curada. Los críticos salen bloqueados.
-    let svcs = Rc::new(RefCell::new(Vec::<services::Service>::new()));
-    let load_services = {
-        let (weak, svcs) = (ui.as_weak(), svcs.clone());
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            *svcs.borrow_mut() = services::list();
-            let rows: Vec<ServiceRow> = svcs
-                .borrow()
-                .iter()
-                .map(|s| ServiceRow {
-                    title: s.title.clone().into(),
-                    desc: s.desc.clone().into(),
-                    level: match s.level {
-                        services::Level::Safe => "seguro",
-                        services::Level::Caution => "depende",
-                        services::Level::Critical => "bloqueado",
-                    }
-                    .into(),
-                    tag: "".into(),
-                    enabled: !s.enabled(), // encendido = ya está desactivado
-                    locked: s.locked(),
-                })
-                .collect();
-            ui.set_services(ModelRc::new(VecModel::from(rows)));
-            rebuild_opt(&ui);
-        }
-    };
-    // Desactivar un servicio es un cambio grande: antes se crea un punto de restauración (en un hilo,
-    // tarda unos segundos) y recién después se aplica. Reactivar es solo deshacer, sin punto.
-    ui.on_toggle_service({
-        let (weak, svcs, journal, reload) = (ui.as_weak(), svcs.clone(), journal.clone(), load_services.clone());
-        move |i, on| {
-            let Some(ui) = weak.upgrade() else { return };
-            let name = svcs.borrow()[i as usize].name.clone();
-            if on {
-                ui.set_status("Creando punto de restauración, puede tardar unos segundos…".into());
-                let weak = weak.clone();
-                thread::spawn(move || {
-                    let warn = match restore::create(&format!("desactivar servicio {name}")) {
-                        Ok(()) => String::new(),
-                        Err(e) => format!("Sin punto de restauración ({e}). El cambio igual se puede deshacer desde lumen."),
-                    };
-                    let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_disable_service(i, warn.into()));
-                });
-                return;
-            }
-            let mut j = journal.borrow_mut();
-            // Volver a activar = deshacer el último cambio de lumen sobre este servicio.
-            let last = j.entries.iter().rposition(|e| {
-                e.applied && matches!(&e.action, Action::SetDword { path, .. } if path.ends_with(&format!(r"Services\{name}")))
-            });
-            let res = match last {
-                Some(id) => j.revert(id),
-                None => Err(std::io::Error::other("lumen no lo desactivó, no hay nada que revertir")),
-            };
-            drop(j);
-            ui.set_status(service_msg(res, "").into());
-            reload();
-        }
-    });
-    ui.on_disable_service({
-        let (weak, svcs, journal, reload) = (ui.as_weak(), svcs.clone(), journal.clone(), load_services.clone());
-        move |i, warn| {
-            let Some(ui) = weak.upgrade() else { return };
-            let name = svcs.borrow()[i as usize].name.clone();
-            let res = match services::disable_action(&name) {
-                Some(a) => journal.borrow_mut().apply(&format!("Desactivar servicio: {name}"), a).map(|_| ()),
-                None => Err(std::io::Error::other("este servicio está protegido")),
-            };
-            ui.set_status(service_msg(res, &warn).into());
-            reload();
-        }
-    });
-
-    ui.on_rebuild_opt({
-        let weak = ui.as_weak();
-        move || {
-            if let Some(ui) = weak.upgrade() {
-                rebuild_opt(&ui);
-            }
-        }
-    });
-
-    // Aplicar las recomendadas: la privacidad al instante; los servicios (necesitan administrador)
-    // después de crear un punto de restauración.
-    let batch = Rc::new(Cell::new((0usize, 0usize))); // (aplicadas, necesitan administrador)
-    ui.on_apply_recommended({
-        let (weak, journal, svcs, batch, reload_priv, reload_svc) = (ui.as_weak(), journal.clone(), svcs.clone(), batch.clone(), load_privacy.clone(), load_services.clone());
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let admin = restore::is_admin();
-            let (mut applied, mut need_admin) = (0, 0);
-            {
-                let mut j = journal.borrow_mut();
-                for s in privacy::SETTINGS.iter().filter(|s| !s.is_off()) {
-                    if s.hive == Hive::Machine && !admin {
-                        need_admin += 1;
-                    } else if j.apply(&format!("Privacidad: {}", s.name), s.turn_off()).is_ok() {
-                        applied += 1;
-                    } else {
-                        need_admin += 1;
-                    }
-                }
-            }
-            let pending = svcs.borrow().iter().filter(|s| s.level == services::Level::Safe && s.enabled()).count();
-            batch.set((applied, need_admin));
-            reload_priv();
-            if pending == 0 || !admin {
-                ui.set_status(recommended_summary(applied, need_admin + pending, "").into());
-                reload_svc();
-                return;
-            }
-            ui.set_status("Creando un punto de restauración, puede tardar unos segundos…".into());
-            let weak = weak.clone();
-            thread::spawn(move || {
-                let warn = match restore::create("aplicar las mejoras recomendadas") {
-                    Ok(()) => String::new(),
-                    Err(e) => format!("Sin punto de restauración ({e}); los cambios igual se pueden volver atrás."),
-                };
-                let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_apply_recommended_services(warn.into()));
-            });
-        }
-    });
-    ui.on_apply_recommended_services({
-        let (weak, journal, svcs, batch, reload_svc) = (ui.as_weak(), journal.clone(), svcs.clone(), batch.clone(), load_services.clone());
-        move |warn| {
-            let Some(ui) = weak.upgrade() else { return };
-            let (mut applied, mut need_admin) = batch.get();
-            let names: Vec<String> = svcs.borrow().iter().filter(|s| s.level == services::Level::Safe && s.enabled()).map(|s| s.name.clone()).collect();
-            for name in names {
-                let done = services::disable_action(&name).is_some_and(|a| journal.borrow_mut().apply(&format!("Desactivar servicio: {name}"), a).is_ok());
-                if done {
-                    applied += 1;
-                } else {
-                    need_admin += 1;
-                }
-            }
-            ui.set_status(recommended_summary(applied, need_admin, &warn).into());
-            reload_svc();
-        }
-    });
-
     // Configuración: se guarda en cada cambio y se aplica al instante.
     ui.on_config_changed({
         let (weak, interval) = (ui.as_weak(), interval.clone());
@@ -1222,33 +812,17 @@ fn main() {
     duplicates::wire(&ui, journal.clone());
     let (open_section, redraw_section) = sections::wire(&ui, journal.clone(), exe_icons.clone());
     ui.on_icons_ready({
-        let (refresh, load_startup) = (refresh.clone(), load_startup.clone());
+        let refresh = refresh.clone();
         move || {
             refresh();
-            load_startup();
             redraw_section();
         }
     });
     ui.on_opened({
-        let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, load_apps, weak) = (
-            refresh.clone(),
-            load_startup.clone(),
-            load_disk.clone(),
-            load_privacy.clone(),
-            load_services.clone(),
-            load_profiles.clone(),
-            load_apps.clone(),
-            ui.as_weak(),
-        );
+        let (refresh, load_disk, load_apps, weak) = (refresh.clone(), load_disk.clone(), load_apps.clone(), ui.as_weak());
         move || match weak.upgrade().map(|u| u.get_page()) {
             Some(1) => refresh(),
-            Some(2) => load_startup(),
             Some(3) => load_disk(),
-            Some(4) => {
-                load_privacy();
-                load_services();
-                load_profiles();
-            }
             Some(7) => load_apps(),
             Some(p @ sections::FIRST..=sections::LAST) => open_section(p),
             _ => {}

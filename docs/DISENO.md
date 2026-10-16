@@ -17,7 +17,7 @@ Densa donde hace falta (procesos, archivos), despejada en el inicio.
 - Radios: 6 px controles, 10 px hoja y tarjetas. Alineado a izquierda, grilla de 8 px, márgenes generosos (32 px).
 - Una tipografía (Segoe UI Variable). Tamaños: 12 / 14 / 28 (títulos) / 32 (cifras).
 - Colores neutros con un solo acento. Rojo solo para algo realmente peligroso.
-- Estructura: menú lateral agrupado (Panel / Optimizar, Programas / Inicio, Procesos, Disco / Seguridad) con Configuración abajo.
+- Estructura: menú lateral con Inicio, Limpieza, Rendimiento, Privacidad, Red, Reparación, Actualizaciones e Historial, un grupo aparte (Procesos, Programas, Seguridad) y Configuración abajo. Las pantallas con opciones comparten un diseño: casilla, texto corto, etiqueta de riesgo (verde seguro, amarillo revisar), un solo botón principal y una vista previa de lo que va a cambiar.
 - Ojo con Slint: no poner `clip` en la hoja translúcida; un recorte redondeado sobre un fondo translúcido rompe el repintado parcial (la zona repintada queda más clara).
 - Referencias: Configuración y Archivos de Windows 11, Linear.
 
