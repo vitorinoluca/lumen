@@ -628,20 +628,18 @@ export component Main inherits Window {
             spacing: 12px;
             Head { title: @tr("" => "{} procesos", procs.length); sub: sort-by == 0 ? @tr("" => "Ordenados por uso de CPU.") : (sort-by == 1 ? @tr("" => "Ordenados por memoria.") : @tr("" => "Ordenados por nombre.")); }
             HorizontalLayout {
-                spacing: 8px;
                 alignment: start;
-                Btn { text: @tr("" => "Por CPU"); clicked => { sort-by = 0; sort(0); } }
-                Btn { text: @tr("" => "Por memoria"); clicked => { sort-by = 1; sort(1); } }
-                Btn { text: @tr("" => "Por nombre"); clicked => { sort-by = 2; sort(2); } }
+                Segmented { options: [@tr("" => "Por CPU"), @tr("" => "Por memoria"), @tr("" => "Por nombre")]; current: sort-by; picked(i) => { sort-by = i; sort(i); } }
             }
             Scroll {
-                content-h: procs.length * 28px;
+                content-h: procs.length * 32px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
                 for p in procs: Rectangle {
-                    height: 28px;
+                    height: 32px;
                     background: (ta.has-hover || close-btn.hovered) ? Theme.hover : transparent;
+                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
                     ta := TouchArea { }
                     HorizontalLayout {
                         spacing: 12px;
@@ -651,7 +649,7 @@ export component Main inherits Window {
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; close-btn := Btn { text: @tr("" => "Cerrar"); danger: true; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
+                        VerticalLayout { alignment: center; close-btn := Btn { text: @tr("" => "Cerrar"); danger: true; height: 24px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
                     }
                 }
             }
@@ -664,20 +662,26 @@ export component Main inherits Window {
             Head { title: @tr("" => "{} apps arrancan con Windows", startup.length); sub: @tr("" => "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."); }
             if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.danger; }
             Scroll {
-                content-h: startup.length * 36px;
+                content-h: startup.length * 52px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
                 for e[i] in startup: Rectangle {
-                    height: 36px;
+                    height: 52px;
                     Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
                     HorizontalLayout {
-                        spacing: 12px;
+                        spacing: 14px;
                         padding-left: 4px;
-                        Toggle { y: 10px; checked: e.enabled; toggled(on) => { toggle-startup(i, on); } }
-                        Text { text: e.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
-                        Text { text: I18n.t(e.scope); width: 56px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
-                        Text { text: e.command; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
+                        padding-right: 10px;
+                        Toggle { y: 14px; checked: e.enabled; toggled(on) => { toggle-startup(i, on); } }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text { text: e.name; font-size: 14px; color: Theme.text; overflow: elide; }
+                            Text { text: e.command; font-size: 12px; color: Theme.muted; overflow: elide; }
+                        }
+                        Text { text: I18n.t(e.scope); font-size: 12px; color: Theme.muted; vertical-alignment: center; }
                     }
                 }
             }
