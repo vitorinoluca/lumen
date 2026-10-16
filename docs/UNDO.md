@@ -9,6 +9,7 @@ lumen records every change in `%APPDATA%\lumen\journal.json`, so it can be undon
 | Services | Move the switch back. lumen restores the service's previous start type. Takes effect after a reboot. |
 | Profiles | Turn the profile off: the previous power plan comes back. Apps closed by game mode are not reopened. |
 | Programs | Leftover folders go to the stash and registry keys are saved to a `.reg` backup. "Undo leftover cleanup" restores both. The program's own uninstall cannot be undone (use the restore point). |
+| Security | "Disable" saves a backup first and goes through the journal; "Restore" puts it back exactly as it was. "Ignore" only adds the item to the baseline (change nothing on your PC) and is undone by deleting `%APPDATA%\lumen\security-baseline.json`. Scheduled-task backups are kept in `%APPDATA%\lumen\backups`. |
 | Disk | Files are moved to `%APPDATA%\lumen\stash`, not deleted. "Undo last clean" puts them back. |
 
 ## What cannot be undone

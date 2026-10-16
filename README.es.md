@@ -13,6 +13,7 @@ Sin telemetría, sin cuentas, sin servicios pagos.
 - **Privacidad:** apaga el ID de publicidad, las sugerencias, Bing en la búsqueda de Inicio, la telemetría y el historial de actividades.
 - **Perfiles:** modo juego (plan de alto rendimiento, cierra una lista de apps) y modo batería.
 - **Programas:** abre el desinstalador de cada app y después revisás y limpiás carpetas y claves de registro que hayan quedado.
+- **Seguridad:** estado y detecciones de Windows Defender, y una revisión de comportamiento que detecta lo que Defender puede pasar por alto: entradas nuevas de inicio, tareas y servicios, cambios en Winlogon/IFEO/WMI, reverse shells, comandos ofuscados, procesos de sistema falsos y Defender o Windows Update desactivados. El primer escaneo guarda una línea base; los siguientes avisan solo de lo nuevo o modificado.
 - **Servicios:** lista curada con descripciones simples. Los críticos están bloqueados. Al desactivar se crea antes un punto de restauración.
 
 ## Cómo se deshace todo

@@ -13,6 +13,7 @@ No telemetry, no accounts, no paid services.
 - **Privacy:** switch off Windows advertising ID, suggestions, Bing in Start search, telemetry and activity history.
 - **Profiles:** game mode (high performance plan, closes a list of apps) and battery mode.
 - **Programs:** run an app's own uninstaller, then review and clean leftover folders and registry keys.
+- **Security:** Windows Defender status and detections, plus a behavior review that spots what Defender can miss: new startup entries, scheduled tasks and services, Winlogon/IFEO/WMI tampering, reverse shells, obfuscated commands, fake system processes and disabled Defender or Windows Update. First scan saves a baseline; later scans report only what is new or modified.
 - **Services:** a curated list with plain descriptions. Critical ones are locked. Disabling creates a restore point first.
 
 ## How everything is undone

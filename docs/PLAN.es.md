@@ -46,7 +46,10 @@ Toda modificación del sistema pasa por `actions` (`apply()` / `revert()`). Las 
 - [x] Perfiles: modo juego y modo batería.
 - [x] Punto de restauración automático antes de cambios grandes (por ahora al desactivar servicios; el desinstalador y los perfiles también lo usarán).
 
-### Fase 3 — Revisión de seguridad local y gratuita
+### Fase 3 — Revisión de seguridad local y gratuita (en curso)
+- [x] Capa 1: estado, detecciones y análisis rápido de Windows Defender.
+- [x] Revisión de comportamiento (línea base + diferencias): persistencia, reverse shells, comandos ofuscados, manipulación de Defender y Windows Update, procesos de sistema falsos. Acciones: ignorar, deshabilitar con respaldo, restaurar.
+- [ ] Hashes conocidos, reglas YARA, ClamAV opcional y el resto de las heurísticas.
 Detección en capas, todo offline: Windows Defender, hashes conocidos (abuse.ch, LOLDrivers), reglas YARA (`yara-x`),
 ClamAV opcional (descarga aparte, GPL) y heurísticas propias con puntaje. Cuarentena reversible.
 Texto fijo: "Revisión de seguridad, no reemplaza a un antivirus". Nunca afirmar "PC limpia".
