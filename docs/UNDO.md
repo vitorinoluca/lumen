@@ -11,10 +11,9 @@ lumen records every change in `%APPDATA%\lumen\journal.json`, so it can be undon
 | Programs | Leftover folders go to the stash and registry keys are saved to a `.reg` backup. "Undo leftover cleanup" restores both. The program's own uninstall cannot be undone (use the restore point). |
 | Security | "Disable" saves a backup first and goes through the journal; "Restore" puts it back exactly as it was. "Ignore" only adds the item to the baseline (change nothing on your PC) and is undone by deleting `%APPDATA%\lumen\security-baseline.json`. Scheduled-task backups are kept in `%APPDATA%\lumen\backups`. |
 | Drivers | Nothing to undo: the driver check only reads files. The downloaded database is in `%APPDATA%\lumen\db` and can be deleted. |
-| Disk | Files are moved to `%APPDATA%\lumen\stash`, not deleted. "Undo last clean" puts them back. |
+| Disk | "Limpiar" moves the files to a stash, it does not delete them. "Deshacer" puts them back. "Borrar ahora" deletes them for good, which is when the space is freed and cannot be undone. The stash empties itself after 7 days. |
 
 ## What cannot be undone
-- **Empty stash** deletes the files for good. This is when disk space is actually freed.
 - **Closing a process** loses whatever that program had unsaved.
 
 ## Restore points

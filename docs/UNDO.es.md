@@ -11,7 +11,7 @@ lumen guarda cada cambio en `%APPDATA%\lumen\journal.json`, así que se puede de
 | Programas | Las carpetas que sobran van a la reserva y las claves de registro se respaldan en un `.reg`. "Deshacer limpieza de restos" restaura ambas. La desinstalación del programa en sí no se deshace (usá el punto de restauración). |
 | Seguridad | "Deshabilitar" guarda un respaldo antes y pasa por el journal; "Restaurar" lo deja exactamente como estaba. "Ignorar" solo agrega el elemento a la línea base (no cambia nada en tu PC) y se deshace borrando `%APPDATA%\lumen\security-baseline.json`. Los respaldos de tareas programadas quedan en `%APPDATA%\lumen\backups`. |
 | Drivers | No hay nada que deshacer: la revisión de drivers solo lee archivos. La base descargada está en `%APPDATA%\lumen\db` y se puede borrar. |
-| Disco | Los archivos se mueven a `%APPDATA%\lumen\stash`, no se borran. "Deshacer última limpieza" los devuelve. |
+| Disco | "Limpiar" mueve los archivos a una reserva, no los borra. "Deshacer" los devuelve. "Borrar ahora" los borra para siempre: ahí se libera el espacio y ya no se puede deshacer. La reserva se vacía sola a los 7 días. |
 
 ## Lo que no se puede deshacer
 - **Vaciar reserva** borra los archivos definitivamente. Recién ahí se libera el espacio.
