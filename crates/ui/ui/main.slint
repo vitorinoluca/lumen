@@ -2,7 +2,9 @@ import { Palette, ListView } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
-export struct ServiceRow { title: string, desc: string, level: string, enabled: bool, locked: bool }
+export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
+export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
+export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string }
 export struct DiskRow { name: string, size: string }
 
@@ -14,6 +16,7 @@ export global Theme {
     out property <color> line: dark ? #26262a : #dcdce0;
     out property <color> text: dark ? #ececee : #1d1d1f;
     out property <color> muted: dark ? #9a9aa0 : #6b6b72;
+    out property <color> card: dark ? #151517 : #ffffff;
     out property <color> hover: dark ? #1f1f23 : #e4e4e8;
     out property <color> accent: dark ? #4fb39d : #2a7a68;
     out property <color> danger: dark ? #e5736a : #b3261e;
@@ -41,6 +44,12 @@ component Icon inherits Path {
         kind == "sliders" ? "M4 7 H20 M4 12 H20 M4 17 H20 M9 5 V9 M15 10 V14 M8 15 V19" :
         kind == "bolt" ? "M13 3 L5 14 H12 L11 21 L19 10 H12 Z" :
         kind == "box" ? "M3 7 L12 3 L21 7 V17 L12 21 L3 17 Z M3 7 L12 11 L21 7 M12 11 V21" :
+        kind == "chip" ? "M7 7 H17 V17 H7 Z M10 3 V7 M14 3 V7 M10 17 V21 M14 17 V21 M3 10 H7 M3 14 H7 M17 10 H21 M17 14 H21" :
+        kind == "memory" ? "M3 8 H21 V16 H3 Z M7 8 V16 M11 8 V16 M15 8 V16 M6 19 V16 M18 19 V16" :
+        kind == "monitor" ? "M3 5 H21 V15 H3 Z M9 19 H15 M12 15 V19" :
+        kind == "board" ? "M4 4 H20 V20 H4 Z M8 8 H12 V12 H8 Z M15 8 V16 M8 16 H12" :
+        kind == "windows" ? "M3 5 L11 4 V11 H3 Z M13 3.8 L21 3 V11 H13 Z M3 13 H11 V20 L3 19 Z M13 13 H21 V21 L13 20 Z" :
+        kind == "gear" ? "M12 9 A3 3 0 1 0 12 15 A3 3 0 1 0 12 9 M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M5.6 18.4 L7 17 M17 7 L18.4 5.6" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -90,17 +99,6 @@ component Bar inherits Rectangle {
     Rectangle { x: 0; width: parent.width * Math.min(1, Math.max(0, root.value)); border-radius: 2px; background: Theme.accent; }
 }
 
-// Dato grande con etiqueta chica y barra fina.
-component Stat inherits VerticalLayout {
-    in property <string> label;
-    in property <string> value;
-    in property <float> fraction: -1;
-    spacing: 4px;
-    Text { text: label; font-size: 12px; color: Theme.muted; }
-    Text { text: value; font-size: 22px; color: Theme.text; }
-    if fraction >= 0: Bar { value: fraction; }
-}
-
 component NavItem inherits Rectangle {
     in property <string> text;
     in property <string> icon;
@@ -123,6 +121,120 @@ component Head inherits VerticalLayout {
     Text { text: sub; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
 }
 
+
+component Sep inherits Rectangle {
+    height: 13px;
+    Rectangle { y: 6px; height: 1px; background: Theme.line; }
+}
+
+// Etiqueta de riesgo: el acento es para "seguro", rojo solo para lo bloqueado.
+component Badge inherits Rectangle {
+    in property <string> level;
+    height: 20px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: level == "seguro" ? Theme.accent : (level == "bloqueado" ? Theme.danger : Theme.line);
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        Text {
+            text: level == "seguro" ? "Seguro" : (level == "bloqueado" ? "Bloqueado" : "Depende");
+            font-size: 12px;
+            vertical-alignment: center;
+            color: level == "seguro" ? Theme.accent : (level == "bloqueado" ? Theme.danger : Theme.muted);
+        }
+    }
+}
+
+component Card inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <string> level;
+    in property <string> tag;
+    in property <bool> checked;
+    in property <bool> locked;
+    callback toggled(bool);
+    background: Theme.card;
+    border-width: 1px;
+    border-color: Theme.line;
+    border-radius: 6px;
+    VerticalLayout {
+        padding: 14px;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: title; font-size: 14px; color: Theme.text; overflow: elide; horizontal-stretch: 1; }
+            if tag != "": Text { text: tag; font-size: 12px; color: Theme.muted; }
+        }
+        Text { text: desc; font-size: 12px; color: Theme.muted; wrap: word-wrap; overflow: elide; vertical-stretch: 1; }
+        HorizontalLayout {
+            if level != "": Badge { level: root.level; }
+            Rectangle { horizontal-stretch: 1; }
+            Toggle { checked: root.checked; locked: root.locked; toggled(on) => { root.toggled(on); } }
+        }
+    }
+}
+
+// Tarjetas en dos columnas, con scroll.
+component CardGrid inherits Flickable {
+    in property <[ServiceRow]> items;
+    callback toggled(int, bool);
+    content-height: Math.ceil(items.length / 2) * 150px;
+    for e[i] in items: Card {
+        x: Math.mod(i, 2) * (root.width / 2);
+        y: Math.floor(i / 2) * 150px;
+        width: root.width / 2 - 8px;
+        height: 140px;
+        title: e.title;
+        desc: e.desc;
+        level: e.level;
+        tag: e.tag;
+        checked: e.enabled;
+        locked: e.locked;
+        toggled(on) => { root.toggled(i, on); }
+    }
+}
+
+component Tabs inherits HorizontalLayout {
+    in property <[string]> items;
+    in property <int> current;
+    callback picked(int);
+    spacing: 20px;
+    alignment: start;
+    for t[i] in items: Rectangle {
+        width: label.preferred-width;
+        height: 30px;
+        label := Text { text: t; font-size: 14px; color: i == current ? Theme.text : Theme.muted; vertical-alignment: center; }
+        Rectangle { y: parent.height - 2px; height: 2px; background: i == current ? Theme.accent : transparent; }
+        TouchArea { mouse-cursor: pointer; clicked => { root.picked(i); } }
+    }
+}
+
+// Tarjeta de datos del equipo: ícono, título, detalle y barra opcional.
+component Info inherits Rectangle {
+    in property <string> icon;
+    in property <string> title;
+    in property <string> sub;
+    in property <float> fraction: -1;
+    background: Theme.card;
+    border-width: 1px;
+    border-color: Theme.line;
+    border-radius: 6px;
+    min-height: 68px;
+    HorizontalLayout {
+        padding: 14px;
+        spacing: 12px;
+        Icon { kind: root.icon; tint: Theme.muted; y: 2px; width: 20px; height: 20px; }
+        VerticalLayout {
+            spacing: 3px;
+            alignment: center;
+            Text { text: title; font-size: 14px; color: Theme.text; overflow: elide; }
+            Text { text: sub; font-size: 12px; color: Theme.muted; overflow: elide; }
+            if fraction >= 0: Bar { value: fraction; }
+        }
+    }
+}
+
 export component Main inherits Window {
     title: "lumen";
     preferred-width: 920px;
@@ -140,9 +252,11 @@ export component Main inherits Window {
     in property <string> net-text;
     in property <[Row]> procs;
     in property <[StartupRow]> startup;
-    in property <[StartupRow]> privacy;
+    in property <[ServiceRow]> privacy;
     in property <[ServiceRow]> services;
-    in property <[StartupRow]> profiles;
+    in property <[ServiceRow]> profiles;
+    in property <Hw> hw;
+    in property <[DiskCard]> disks;
     in property <[AppRow]> apps;
     in property <[DiskRow]> leftovers;
     in-out property <bool> can-undo-leftovers;
@@ -159,8 +273,7 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
-    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "bolt", "box", "shield"];
-    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Programas", "Seguridad"];
+    property <[string]> pages: ["Panel", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Programas", "Seguridad", "Configuración"];
 
     callback sort(int);
     callback kill(int);
@@ -189,22 +302,44 @@ export component Main inherits Window {
             VerticalLayout {
                 padding: 12px;
                 spacing: 2px;
-                alignment: start;
-                Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
-                Rectangle { height: 12px; }
-                for name[i] in pages: NavItem { text: name; icon: icons[i]; active: i == page; clicked => { page = i; } }
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    spacing: 2px;
+                    alignment: start;
+                    Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
+                    Rectangle { height: 12px; }
+                    NavItem { text: "Panel"; icon: "home"; active: page == 0; clicked => { page = 0; } }
+                    NavItem { text: "Optimizar"; icon: "bolt"; active: page >= 4 && page <= 6; clicked => { status = ""; page = 4; } }
+                    NavItem { text: "Programas"; icon: "box"; active: page == 7; clicked => { page = 7; } }
+                    Sep { }
+                    NavItem { text: "Gestor de inicio"; icon: "power"; active: page == 2; clicked => { page = 2; } }
+                    NavItem { text: "Procesos"; icon: "list"; active: page == 1; clicked => { page = 1; } }
+                    NavItem { text: "Limpieza de disco"; icon: "disk"; active: page == 3; clicked => { page = 3; } }
+                    Sep { }
+                    NavItem { text: "Seguridad"; icon: "shield"; active: page == 8; clicked => { page = 8; } }
+                }
+                NavItem { text: "Configuración"; icon: "gear"; active: page == 9; clicked => { page = 9; } }
             }
         }
 
         if page == 0: VerticalLayout {
-            padding: 32px;
-            spacing: 24px;
+            padding: 24px;
+            spacing: 12px;
             alignment: start;
-            Head { title: "Estado de la PC"; sub: "Se actualiza cada segundo."; }
-            Stat { label: "Procesador"; value: "\{Math.round(cpu * 100)} %"; fraction: cpu; }
-            Stat { label: "Memoria"; value: ram-text; fraction: ram; }
-            Stat { label: "Disco"; value: disk-text; fraction: disk; }
-            Stat { label: "Red"; value: net-text; }
+            Head { title: "Panel"; sub: "Resumen de tu equipo. Se actualiza cada segundo."; }
+            HorizontalLayout {
+                spacing: 12px;
+                Info { icon: "windows"; title: hw.os; sub: hw.os-sub; }
+                Info { icon: "chip"; title: hw.cpu; sub: "\{Math.round(cpu * 100)} % en uso · " + hw.cpu-sub; fraction: cpu; }
+            }
+            HorizontalLayout {
+                spacing: 12px;
+                Info { icon: "memory"; title: hw.ram; sub: ram-text + " en uso"; fraction: ram; }
+                Info { icon: "monitor"; title: hw.gpu; sub: hw.gpu-sub; }
+            }
+            Info { icon: "board"; title: hw.board; sub: hw.board-sub + " · Red: " + net-text; }
+            Text { text: "Almacenamiento"; font-size: 12px; color: Theme.muted; }
+            for d in disks: Info { icon: "disk"; title: d.name; sub: d.sub; fraction: d.fraction; }
         }
 
         if page == 1: VerticalLayout {
@@ -308,72 +443,20 @@ export component Main inherits Window {
             }
         }
 
-        if page == 4: VerticalLayout {
+        if page >= 4 && page <= 6: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Privacidad"; sub: "Activado = Windows comparte o muestra menos. Cada ajuste se puede volver atrás."; }
-            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
-            ListView {
-                for e[i] in privacy: Rectangle {
-                    height: 36px;
-                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-                    HorizontalLayout {
-                        spacing: 12px;
-                        padding-left: 4px;
-                        Toggle { y: 10px; checked: e.enabled; toggled(on) => { toggle-privacy(i, on); } }
-                        Text { text: e.name; horizontal-stretch: 1; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
-                        Text { text: e.scope; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
-                    }
-                }
+            Head {
+                title: "Optimizar";
+                sub: page == 4 ? "Apagá lo que Windows comparte o muestra de más. Cada ajuste se puede volver atrás."
+                   : (page == 5 ? "Programas que Windows corre por detrás. Desactivar necesita administrador y rige desde el próximo arranque."
+                   : "Cambian el plan de energía de Windows. Al apagarlos vuelve el plan anterior.");
             }
-        }
-
-        if page == 5: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: "Servicios"; sub: "Programas que Windows corre por detrás. Desactivar necesita administrador y rige desde el próximo arranque."; }
-            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; wrap: word-wrap; }
-            ListView {
-                for e[i] in services: Rectangle {
-                    height: 52px;
-                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-                    HorizontalLayout {
-                        spacing: 12px;
-                        padding-left: 4px;
-                        Toggle { y: 18px; checked: e.enabled; locked: e.locked; toggled(on) => { toggle-service(i, on); } }
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: e.title; font-size: 14px; color: Theme.text; overflow: elide; }
-                            Text { text: e.desc; font-size: 12px; color: Theme.muted; overflow: elide; }
-                        }
-                        Text { text: e.level; width: 70px; font-size: 12px; color: e.locked ? Theme.danger : Theme.muted; vertical-alignment: center; }
-                    }
-                }
-            }
-        }
-
-        if page == 6: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: "Perfiles"; sub: "Cambian el plan de energía de Windows. Al apagarlos vuelve el plan anterior."; }
+            Tabs { items: ["Privacidad", "Servicios", "Perfiles"]; current: page - 4; picked(i) => { status = ""; page = 4 + i; } }
             if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            for e[i] in profiles: Rectangle {
-                height: 56px;
-                Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-                HorizontalLayout {
-                    spacing: 12px;
-                    padding-left: 4px;
-                    Toggle { y: 20px; checked: e.enabled; toggled(on) => { toggle-profile(i, on); } }
-                    VerticalLayout {
-                        alignment: center;
-                        spacing: 2px;
-                        Text { text: e.name; font-size: 14px; color: Theme.text; }
-                        Text { text: e.command; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                    }
-                }
-            }
+            if page == 4: CardGrid { items: privacy; toggled(i, on) => { toggle-privacy(i, on); } }
+            if page == 5: CardGrid { items: services; toggled(i, on) => { toggle-service(i, on); } }
+            if page == 6: CardGrid { items: profiles; toggled(i, on) => { toggle-profile(i, on); } }
         }
 
         if page == 7: VerticalLayout {

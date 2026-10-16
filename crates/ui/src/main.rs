@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    power, privacy, profiles, restore, services,
+    hardware, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
@@ -14,7 +14,44 @@ use std::{cell::{Cell, RefCell}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc,
 slint::include_modules!();
 
 fn gb(b: u64) -> String {
-    format!("{:.1} GB", b as f64 / 1e9)
+    // Base 1024, como muestra Windows (34,2 GB en base 10 son 31,9 GB para el sistema).
+    format!("{:.1} GB", b as f64 / 1_073_741_824.0).replace('.', ",")
+}
+
+/// "Encendida hace 1 d 11 h" a partir de los segundos de actividad.
+fn uptime(secs: u64) -> String {
+    let (d, h, m) = (secs / 86400, secs % 86400 / 3600, secs % 3600 / 60);
+    if d > 0 { format!("Encendida hace {d} d {h} h") } else { format!("Encendida hace {h} h {m} min") }
+}
+
+/// Datos fijos del equipo para el panel; se leen en un hilo al abrir.
+fn load_hardware(weak: slint::Weak<Main>) {
+    thread::spawn(move || {
+        let h = hardware::read();
+        let build = h.os_build.split(['(', ')']).nth(1).unwrap_or("").to_string();
+        let hw = (
+            h.os.clone(),
+            format!("64 bits · compilación {build}"),
+            h.cpu.clone(),
+            format!("{} núcleos / {} hilos · {} MHz", h.cores, h.threads, h.mhz),
+            format!("{} de RAM", gb(h.ram_total)),
+            if h.gpu.is_empty() { "Gráficos".to_string() } else { h.gpu.clone() },
+            if h.vram > 0 { format!("{} de memoria", gb(h.vram)) } else { String::new() },
+            h.board.clone(),
+            uptime(h.uptime_secs),
+        );
+        let disks: Vec<(String, String, f32)> = h
+            .disks
+            .iter()
+            .map(|d| (format!("({}) {} · {}", d.mount.trim_end_matches('\\'), d.kind, d.fs), format!("{} usados de {}", gb(d.used), gb(d.total)), d.used as f32 / d.total.max(1) as f32))
+            .collect();
+        let _ = weak.upgrade_in_event_loop(move |ui| {
+            let (os, os_sub, cpu, cpu_sub, ram, gpu, gpu_sub, board, board_sub) = hw;
+            ui.set_hw(Hw { os: os.into(), os_sub: os_sub.into(), cpu: cpu.into(), cpu_sub: cpu_sub.into(), ram: ram.into(), gpu: gpu.into(), gpu_sub: gpu_sub.into(), board: board.into(), board_sub: board_sub.into() });
+            let rows: Vec<DiskCard> = disks.into_iter().map(|(n, s, f)| DiskCard { name: n.into(), sub: s.into(), fraction: f }).collect();
+            ui.set_disks(ModelRc::new(VecModel::from(rows)));
+        });
+    });
 }
 
 fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
@@ -41,6 +78,7 @@ fn show(ui: &Main, s: &Snapshot) {
 
 fn main() {
     let ui = Main::new().unwrap();
+    load_hardware(ui.as_weak());
 
     // Monitor: lectura en hilo aparte, la UI nunca se bloquea.
     let weak = ui.as_weak();
@@ -136,13 +174,15 @@ fn main() {
         let weak = ui.as_weak();
         move || {
             let Some(ui) = weak.upgrade() else { return };
-            let rows: Vec<StartupRow> = privacy::SETTINGS
+            let rows: Vec<ServiceRow> = privacy::SETTINGS
                 .iter()
-                .map(|s| StartupRow {
-                    name: s.name.into(),
-                    command: "".into(),
-                    scope: if s.hive == Hive::Machine { "administrador" } else { "" }.into(),
+                .map(|s| ServiceRow {
+                    title: s.name.into(),
+                    desc: s.desc.into(),
+                    level: "seguro".into(),
+                    tag: if s.hive == Hive::Machine { "administrador" } else { "" }.into(),
                     enabled: s.is_off(),
+                    locked: false,
                 })
                 .collect();
             ui.set_privacy(ModelRc::new(VecModel::from(rows)));
@@ -286,14 +326,19 @@ fn main() {
             let Some(ui) = weak.upgrade() else { return };
             let active = power::active().unwrap_or_default();
             let j = journal.borrow();
-            let row = |label: &str, desc: String| StartupRow {
-                name: label.into(),
-                command: desc.into(),
-                scope: "".into(),
+            let row = |label: &str, desc: String, level: &str| ServiceRow {
+                title: label.into(),
+                desc: desc.into(),
+                level: level.into(),
+                tag: "".into(),
                 enabled: profiles::active_entry(&j, label, &active).is_some(),
+                locked: false,
             };
-            let game = format!("Plan de alto rendimiento y cierra: {}. Lo cerrado no se reabre solo. Editá la lista en {}.", profiles::game_list().join(", "), profiles::game_list_path().display());
-            let rows = vec![row(profiles::GAME, game), row(profiles::BATTERY, "Plan de ahorro de energía para que la batería dure más.".into())];
+            let game = format!("Alto rendimiento y cierra {} apps de tu lista (game-list.json). Lo cerrado no se reabre solo.", profiles::game_list().len());
+            let rows = vec![
+                row(profiles::GAME, game, "depende"),
+                row(profiles::BATTERY, "Plan de ahorro de energía para que la batería dure más.".into(), "seguro"),
+            ];
             ui.set_profiles(ModelRc::new(VecModel::from(rows)));
         }
     };
@@ -346,6 +391,7 @@ fn main() {
                         services::Level::Critical => "bloqueado",
                     }
                     .into(),
+                    tag: "".into(),
                     enabled: s.enabled(),
                     locked: s.locked(),
                 })
