@@ -121,11 +121,10 @@ fn load_security(weak: slint::Weak<Main>) {
                         (true, _) => "Activa".to_string(),
                         (false, _) => "Apagada".to_string(),
                     };
-                    cards.push(card("shield", "Protección en tiempo real", rt));
-                    cards.push(card("list", "Firmas de virus", format!("Versión {} · actualizadas el {}", s.sig_version, fmt_date(&s.sig_updated))));
-                    cards.push(card("search", "Último análisis rápido", fmt_date(&s.quick_scan)));
+                    let last = if s.quick_scan.is_empty() { "nunca".to_string() } else { fmt_date(&s.quick_scan) };
+                    cards.push(card("shield", "Windows Defender", format!("Protección en tiempo real: {} · último análisis rápido: {last}", rt.to_lowercase())));
                     if !s.other_av.is_empty() {
-                        note = format!("También hay otro antivirus instalado: {}. lumen solo informa.", s.other_av.join(", "));
+                        note = format!("También hay otro antivirus instalado: {}.", s.other_av.join(", "));
                     }
                 }
                 Err(e) => note = format!("No se pudo consultar a Defender: {e}"),
@@ -552,10 +551,18 @@ fn main() {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             ui.set_behavior_busy(true);
-            ui.set_sec_status("Revisando persistencia, procesos y conexiones. La primera vez puede tardar casi medio minuto…".into());
+            ui.set_sec_status("Revisando tu PC: lo que arranca solo, las conexiones, los procesos y los drivers. La primera vez puede tardar casi medio minuto…".into());
             let (weak, shared) = (weak.clone(), shared.clone());
             thread::spawn(move || {
-                *shared.lock().unwrap() = Some(security::scan());
+                // La lista de drivers peligrosos se renueva sola (como mucho una vez por semana).
+                let refreshed = hashdb::ensure_fresh();
+                let mut result = security::scan();
+                match refreshed {
+                    Ok(true) => result.notes.insert(0, "Actualicé la lista de drivers peligrosos conocidos.".into()),
+                    Err(_) if hashdb::Db::load().is_some() => result.notes.insert(0, "No pude conectarme para actualizar la lista de drivers peligrosos; usé la que ya tenía.".into()),
+                    _ => {}
+                }
+                *shared.lock().unwrap() = Some(result);
                 let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_behavior_ready());
             });
         }
@@ -598,52 +605,6 @@ fn main() {
             ui.set_sec_status(msg.into());
             rebuild();
         }
-    });
-
-    // Base de hashes (LOLDrivers): lo único que usa internet, y solo cuando se pide.
-    ui.on_update_hashes({
-        let weak = ui.as_weak();
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            ui.set_hash_busy(true);
-            ui.set_sec_status("Descargando la base de LOLDrivers (solo se guardan los hashes, unos 160 KB)…".into());
-            let weak = weak.clone();
-            thread::spawn(move || {
-                let res = hashdb::update();
-                let _ = weak.upgrade_in_event_loop(move |ui| {
-                    ui.set_hash_busy(false);
-                    let msg = match res {
-                        Ok(n) => format!("Base actualizada: {n} hashes de LOLDrivers (licencia Apache-2.0). Se usa en la próxima revisión de comportamiento."),
-                        Err(e) => format!("No se pudo actualizar la base de hashes: {e}"),
-                    };
-                    ui.set_sec_status(msg.into());
-                });
-            });
-        }
-    });
-
-    // Seguridad: capa 1 (Windows Defender). Solo informa lo que Defender registra.
-    ui.on_quick_scan({
-        let weak = ui.as_weak();
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            ui.set_scanning(true);
-            ui.set_sec_status("Analizando con Windows Defender. Puede tardar unos minutos…".into());
-            let weak = weak.clone();
-            thread::spawn(move || {
-                let res = defender::quick_scan();
-                let _ = weak.upgrade_in_event_loop(move |ui| {
-                    ui.set_scanning(false);
-                    match res {
-                        Ok(()) => load_security(ui.as_weak()),
-                        Err(e) => ui.set_sec_status(format!("No se pudo analizar: {e}").into()),
-                    }
-                });
-            });
-        }
-    });
-    ui.on_open_defender(|| {
-        let _ = defender::open_app();
     });
 
     // Perfiles: encendido = el plan de lumen sigue siendo el activo. Apagar = deshacer ese cambio.

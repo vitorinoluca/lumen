@@ -462,11 +462,9 @@ export component Main inherits Window {
     in property <length> findings-h;
     in-out property <bool> behavior-run;
     in-out property <bool> behavior-busy;
-    in-out property <bool> hash-busy;
     in-out property <int> sec-confirm: -1;
     in-out property <int> sec-confirm-action;
     in-out property <string> sec-status;
-    in-out property <bool> scanning;
     in property <[AppRow]> apps;
     in property <[DiskRow]> leftovers;
     in-out property <bool> can-undo-leftovers;
@@ -494,12 +492,9 @@ export component Main inherits Window {
     callback toggle-service(int, bool);
     callback toggle-profile(int, bool);
     callback uninstall(int);
-    callback quick-scan();
     callback scan-behavior();
-    callback update-hashes();
     callback behavior-ready();
     callback finding-do(int, int);
-    callback open-defender();
     callback apps-reload();
     callback apps-rebuild();
     callback apps-filter(string);
@@ -752,14 +747,11 @@ export component Main inherits Window {
         if page == 8: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Seguridad"; sub: "Revisión de seguridad, no reemplaza a un antivirus. Windows Defender y comportamiento sospechoso que Defender puede pasar por alto."; }
+            Head { title: "Seguridad"; sub: "Una sola revisión mira Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."; }
             HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
-                Btn { text: behavior-busy ? "Revisando…" : "Revisar comportamiento"; strong: !behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
-                Btn { text: scanning ? "Analizando…" : "Análisis de Defender"; clicked => { if (!scanning) { quick-scan(); } } }
-                Btn { text: hash-busy ? "Descargando…" : "Actualizar hashes"; clicked => { if (!hash-busy) { update-hashes(); } } }
-                Btn { text: "Seguridad de Windows"; clicked => { open-defender(); } }
+                Btn { text: behavior-busy ? "Revisando…" : "Revisar mi PC"; strong: !behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
             }
             if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
             Scroll {
@@ -768,7 +760,7 @@ export component Main inherits Window {
                 VerticalLayout {
                     alignment: start;
                     spacing: 12px;
-                    if behavior-run: Text { text: findings.length > 0 ? "Comportamiento sospechoso (\{findings.length})" : "No se encontró nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."; font-size: 14px; color: Theme.text; wrap: word-wrap; }
+                    if behavior-run: Text { text: findings.length > 0 ? findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar" : "No se encontró nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."; font-size: 14px; color: Theme.text; wrap: word-wrap; }
                     for f[i] in findings: FindingCard {
                         title: f.title;
                         detail: f.detail;
