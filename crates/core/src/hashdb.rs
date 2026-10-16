@@ -140,6 +140,12 @@ pub fn update() -> io::Result<usize> {
 /// La lista se renueva sola, pero no más de una vez por semana: es chica (unos 160 KB) y cambia poco.
 const MAX_AGE_SECS: u64 = 7 * 24 * 3600;
 
+/// ¿La lista falta o tiene más de una semana?
+pub fn is_stale() -> bool {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    !Db::load().is_some_and(|d| now.saturating_sub(d.updated_secs) < MAX_AGE_SECS)
+}
+
 /// Actualiza la lista si falta o tiene más de una semana. Ok(true) si se descargó una nueva.
 /// Se llama al revisar la PC: es el pedido del usuario, no corre en segundo plano.
 pub fn ensure_fresh() -> io::Result<bool> {

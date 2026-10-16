@@ -113,30 +113,43 @@ fn cmd_id(cmd: &str) -> String {
 /// llamarlo desde un hilo. En el primer escaneo guarda la línea base y solo informa lo que es
 /// sospechoso por sí mismo.
 pub fn scan() -> ScanResult {
+    scan_with(&|_| {})
+}
+
+/// Igual que `scan`, avisa en qué etapa va con frases cortas para mostrarlas al usuario.
+/// `progress` se llama solo desde el hilo que escanea, al empezar cada etapa.
+pub fn scan_with(progress: &dyn Fn(&str)) -> ScanResult {
     let own = std::process::id();
     let mut result = ScanResult::default();
     let loaded = Baseline::load();
     result.first_run = loaded.is_none();
     let mut base = loaded.unwrap_or_default();
 
-    // Cada consulta a PowerShell tarda ~1 s: se lanzan todas a la vez.
-    let (entries, special, procs, conns, status, exclusions, updates, driver_check) = std::thread::scope(|s| {
+    // Etapa 1. Cada consulta a PowerShell tarda ~1 s: se lanzan todas a la vez.
+    progress("Revisando lo que arranca solo, las conexiones y Defender");
+    let (entries, special, procs, conns, status, exclusions, updates) = std::thread::scope(|s| {
         let (a, b, c, d) = (s.spawn(collect::all), s.spawn(collect::special_findings), s.spawn(analyze::processes), s.spawn(analyze::connections));
-        let (e, f, g, h) = (s.spawn(crate::defender::status), s.spawn(analyze::defender_exclusions), s.spawn(analyze::update_findings), s.spawn(crate::hashdb::check));
-        (a.join().unwrap_or_default(), b.join().unwrap_or_default(), c.join().unwrap_or_default(), d.join().unwrap_or_default(), e.join().ok().and_then(Result::ok), f.join().ok().flatten(), g.join().unwrap_or_default(), h.join().unwrap_or_default())
+        let (e, f, g) = (s.spawn(crate::defender::status), s.spawn(analyze::defender_exclusions), s.spawn(analyze::update_findings));
+        (a.join().unwrap_or_default(), b.join().unwrap_or_default(), c.join().unwrap_or_default(), d.join().unwrap_or_default(), e.join().ok().and_then(Result::ok), f.join().ok().flatten(), g.join().unwrap_or_default())
     });
 
-    // 1. Persistencia, con hash y firma. La firma solo se pide de lo que no está ya en la línea base.
+    // Etapa 2. Huellas de los archivos que arrancan solos y revisión de drivers, en paralelo.
+    // La firma solo se pide de lo que no está ya en la línea base.
+    progress("Revisando archivos y drivers");
     result.entries = entries.len();
-    // Muchos servicios comparten el mismo ejecutable (svchost.exe): se calcula una vez por archivo.
-    let mut hashes: HashMap<PathBuf, String> = HashMap::new();
-    let hashed: Vec<(Entry, String)> = entries
-        .into_iter()
-        .map(|e| {
-            let sha = e.target.as_ref().map(|t| hashes.entry(t.clone()).or_insert_with(|| signature::sha256(t).unwrap_or_default()).clone()).unwrap_or_default();
-            (e, sha)
-        })
-        .collect();
+    let (hashed, driver_check): (Vec<(Entry, String)>, _) = std::thread::scope(|s| {
+        let drivers = s.spawn(crate::hashdb::check);
+        // Muchos servicios comparten el mismo ejecutable (svchost.exe): se calcula una vez por archivo.
+        let mut hashes: HashMap<PathBuf, String> = HashMap::new();
+        let hashed = entries
+            .into_iter()
+            .map(|e| {
+                let sha = e.target.as_ref().map(|t| hashes.entry(t.clone()).or_insert_with(|| signature::sha256(t).unwrap_or_default()).clone()).unwrap_or_default();
+                (e, sha)
+            })
+            .collect();
+        (hashed, drivers.join().unwrap_or_default())
+    });
     let needs_sig = |e: &Entry, sha: &str| base.entries.get(&e.key).is_none_or(|old| old.sha256 != sha || old.command != e.command);
     let mut to_verify: Vec<PathBuf> = hashed.iter().filter(|(e, sha)| needs_sig(e, sha)).filter_map(|(e, _)| e.target.clone()).collect();
 
@@ -145,6 +158,7 @@ pub fn scan() -> ScanResult {
     to_verify.extend(analyze::lookalike_paths(&procs));
     to_verify.sort();
     to_verify.dedup();
+    progress("Comprobando quién firmó cada programa");
     let sigs: HashMap<PathBuf, Sig> = signature::signatures(&to_verify);
 
     let scanned: Vec<Scanned> = hashed
