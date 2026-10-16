@@ -9,8 +9,8 @@ export global Theme {
     // true cuando Windows dibuja el material Mica detrás (la ventana es transparente)
     in-out property <bool> mica: false;
     out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
-    out property <color> bg: mica ? transparent : (dark ? #1c1c1e : #f7f7f8);
-    out property <color> side: mica ? (dark ? #00000030 : #ffffff40) : (dark ? #232326 : #eeeef0);
+    out property <color> bg: mica ? (dark ? #00000070 : transparent) : (dark ? #1c1c1e : #f7f7f8);
+    out property <color> side: mica ? (dark ? #00000040 : #ffffff40) : (dark ? #232326 : #eeeef0);
     out property <color> line: mica ? (dark ? #ffffff18 : #00000018) : (dark ? #38383c : #dcdce0);
     out property <color> text: dark ? #ececee : #1d1d1f;
     out property <color> muted: dark ? (mica ? #b4b4ba : #9a9aa0) : #5f5f66;
