@@ -5,3 +5,4 @@ pub mod startup;
 pub mod disk;
 pub mod privacy;
 pub mod services;
+pub mod restore;
