@@ -38,6 +38,7 @@ component Icon inherits Path {
         kind == "power" ? "M12 3 V12 M6.3 6.8 A8 8 0 1 0 17.7 6.8" :
         kind == "disk" ? "M4 14 H20 V19 H4 Z M4 14 L7 5 H17 L20 14 M16 16.5 H16.5" :
         kind == "sliders" ? "M4 7 H20 M4 12 H20 M4 17 H20 M9 5 V9 M15 10 V14 M8 15 V19" :
+        kind == "bolt" ? "M13 3 L5 14 H12 L11 21 L19 10 H12 Z" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -139,6 +140,7 @@ export component Main inherits Window {
     in property <[StartupRow]> startup;
     in property <[StartupRow]> privacy;
     in property <[ServiceRow]> services;
+    in property <[StartupRow]> profiles;
     in-out property <string> status;
     in property <[DiskRow]> targets;
     in property <[DiskRow]> space-map;
@@ -150,8 +152,8 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
-    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "shield"];
-    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Seguridad"];
+    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "bolt", "shield"];
+    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Seguridad"];
 
     callback sort(int);
     callback kill(int);
@@ -159,6 +161,7 @@ export component Main inherits Window {
     callback toggle-startup(int, bool);
     callback toggle-privacy(int, bool);
     callback toggle-service(int, bool);
+    callback toggle-profile(int, bool);
     callback disable-service(int, string);
     callback clean(int);
     callback undo-clean();
@@ -339,7 +342,29 @@ export component Main inherits Window {
             }
         }
 
-        if page > 5: VerticalLayout {
+        if page == 6: VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "Perfiles"; sub: "Cambian el plan de energía de Windows. Al apagarlos vuelve el plan anterior."; }
+            if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            for e[i] in profiles: Rectangle {
+                height: 56px;
+                Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+                HorizontalLayout {
+                    spacing: 12px;
+                    padding-left: 4px;
+                    Toggle { y: 20px; checked: e.enabled; toggled(on) => { toggle-profile(i, on); } }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        Text { text: e.name; font-size: 14px; color: Theme.text; }
+                        Text { text: e.command; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                    }
+                }
+            }
+        }
+
+        if page > 6: VerticalLayout {
             padding: 24px;
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }

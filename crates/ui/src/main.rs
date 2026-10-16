@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    privacy, restore, services,
+    power, privacy, profiles, restore, services,
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
@@ -171,6 +171,54 @@ fn main() {
         }
     });
 
+    // Perfiles: encendido = el plan de lumen sigue siendo el activo. Apagar = deshacer ese cambio.
+    let load_profiles = {
+        let (weak, journal) = (ui.as_weak(), journal.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let active = power::active().unwrap_or_default();
+            let j = journal.borrow();
+            let row = |label: &str, desc: String| StartupRow {
+                name: label.into(),
+                command: desc.into(),
+                scope: "".into(),
+                enabled: profiles::active_entry(&j, label, &active).is_some(),
+            };
+            let game = format!("Plan de alto rendimiento y cierra: {}. Lo cerrado no se reabre solo. Editá la lista en {}.", profiles::game_list().join(", "), profiles::game_list_path().display());
+            let rows = vec![row(profiles::GAME, game), row(profiles::BATTERY, "Plan de ahorro de energía para que la batería dure más.".into())];
+            ui.set_profiles(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    ui.on_toggle_profile({
+        let (weak, journal, procs, reload) = (ui.as_weak(), journal.clone(), procs.clone(), load_profiles.clone());
+        move |i, on| {
+            let Some(ui) = weak.upgrade() else { return };
+            let label = if i == 0 { profiles::GAME } else { profiles::BATTERY };
+            let mut j = journal.borrow_mut();
+            let mut msg = String::new();
+            let res = if on {
+                let action = if i == 0 { profiles::game_action() } else { profiles::battery_action() };
+                action.and_then(|a| j.apply(label, a)).map(|_| {
+                    if i == 0 {
+                        msg = format!("{} procesos cerrados.", profiles::close_game_list(&mut procs.borrow_mut()));
+                    }
+                })
+            } else {
+                let active = power::active().unwrap_or_default();
+                match profiles::active_entry(&j, label, &active) {
+                    Some(id) => j.revert(id),
+                    None => Err(std::io::Error::other("el plan de energía ya fue cambiado por otro lado")),
+                }
+            };
+            if let Err(e) = res {
+                msg = format!("No se pudo: {e}");
+            }
+            drop(j);
+            ui.set_status(msg.into());
+            reload();
+        }
+    });
+
     // Servicios: solo los de la base curada. Los críticos salen bloqueados.
     let svcs = Rc::new(RefCell::new(Vec::<services::Service>::new()));
     let load_services = {
@@ -323,12 +371,13 @@ fn main() {
     });
 
     ui.on_opened({
-        let (refresh, load_startup, load_disk, load_privacy, load_services, weak) = (
+        let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, weak) = (
             refresh.clone(),
             load_startup.clone(),
             load_disk.clone(),
             load_privacy.clone(),
             load_services.clone(),
+            load_profiles.clone(),
             ui.as_weak(),
         );
         move || match weak.upgrade().map(|u| u.get_page()) {
@@ -337,6 +386,7 @@ fn main() {
             Some(3) => load_disk(),
             Some(4) => load_privacy(),
             Some(5) => load_services(),
+            Some(6) => load_profiles(),
             _ => {}
         }
     });
