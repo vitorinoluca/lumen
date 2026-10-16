@@ -11,6 +11,8 @@ Sin telemetría, sin cuentas, sin servicios pagos.
 - **Arranque:** activa o desactiva apps de inicio sin borrarlas (igual que el Administrador de tareas).
 - **Disco:** limpia temporales y cachés de Chrome/Edge, y muestra qué ocupa más espacio.
 - **Privacidad:** apaga el ID de publicidad, las sugerencias, Bing en la búsqueda de Inicio, la telemetría y el historial de actividades.
+- **Perfiles:** modo juego (plan de alto rendimiento, cierra una lista de apps) y modo batería.
+- **Programas:** abre el desinstalador de cada app y después revisás y limpiás carpetas y claves de registro que hayan quedado.
 - **Servicios:** lista curada con descripciones simples. Los críticos están bloqueados. Al desactivar se crea antes un punto de restauración.
 
 ## Cómo se deshace todo

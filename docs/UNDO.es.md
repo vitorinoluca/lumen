@@ -7,6 +7,8 @@ lumen guarda cada cambio en `%APPDATA%\lumen\journal.json`, así que se puede de
 | Arranque | Volvé a mover el interruptor. No se borra nada; lumen solo marca la entrada como desactivada. |
 | Privacidad | Volvé a mover el interruptor. lumen restaura el valor que tenía Windows antes (o lo quita si no existía). |
 | Servicios | Volvé a mover el interruptor. lumen restaura el tipo de inicio que tenía el servicio. Rige después de reiniciar. |
+| Perfiles | Apagá el perfil: vuelve el plan de energía anterior. Las apps que cerró el modo juego no se reabren. |
+| Programas | Las carpetas que sobran van a la reserva y las claves de registro se respaldan en un `.reg`. "Deshacer limpieza de restos" restaura ambas. La desinstalación del programa en sí no se deshace (usá el punto de restauración). |
 | Disco | Los archivos se mueven a `%APPDATA%\lumen\stash`, no se borran. "Deshacer última limpieza" los devuelve. |
 
 ## Lo que no se puede deshacer

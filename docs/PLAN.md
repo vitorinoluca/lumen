@@ -39,11 +39,11 @@ Every system change goes through `actions` (`apply()` / `revert()`). Heavy reads
 - [x] Disk: temp files, Chrome/Edge caches, space map.
 - [ ] Pending: GPU, configurable refresh, digital signature (comes with Phase 3), recycle bin and Firefox.
 
-### Phase 2 — Optimization (in progress)
+### Phase 2 — Optimization (done, v0.2)
 - [x] Privacy: reversible Windows settings.
-- [ ] Uninstaller with leftover cleanup.
+- [x] Uninstaller with leftover cleanup.
 - [x] Services with a curated "safe to disable" database.
-- [ ] Profiles: game mode and battery mode.
+- [x] Profiles: game mode and battery mode.
 - [x] Automatic restore point before big changes (so far: disabling services; the uninstaller and profiles will use it too).
 
 ### Phase 3 — Local, free security check

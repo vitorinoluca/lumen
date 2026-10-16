@@ -39,11 +39,11 @@ Toda modificación del sistema pasa por `actions` (`apply()` / `revert()`). Las 
 - [x] Disco: temporales, cachés de Chrome/Edge, mapa de espacio.
 - [ ] Pendiente: GPU, refresco configurable, firma digital (va con la Fase 3), papelera y Firefox.
 
-### Fase 2 — Optimización (en curso)
+### Fase 2 — Optimización (hecha, v0.2)
 - [x] Privacidad: ajustes de Windows reversibles.
-- [ ] Desinstalador con limpieza de restos.
+- [x] Desinstalador con limpieza de restos.
 - [x] Servicios con base curada de "seguro de desactivar".
-- [ ] Perfiles: modo juego y modo batería.
+- [x] Perfiles: modo juego y modo batería.
 - [x] Punto de restauración automático antes de cambios grandes (por ahora al desactivar servicios; el desinstalador y los perfiles también lo usarán).
 
 ### Fase 3 — Revisión de seguridad local y gratuita
