@@ -1,30 +1,35 @@
 # lumen
 
-Optimizador de PC para Windows, liviano y honesto. Un solo `.exe` portable (~8 MB), ~11 MB de RAM, abre en ~35 ms.
-Sin telemetría, sin cuentas, sin servicios pagos.
+**English** | [Español](README.es.md)
 
-## Qué hace (v0.1)
-- **Monitor:** CPU, RAM, disco y red en vivo.
-- **Procesos:** lista ordenable con ruta y botón para finalizar (pide confirmación).
-- **Inicio:** activa/desactiva apps de inicio sin borrarlas (igual que el Administrador de tareas).
-- **Disco:** limpia temporales y cachés de Chrome/Edge, y muestra el espacio por carpeta.
+A lightweight, honest PC optimizer for Windows. One portable `.exe` (~8 MB), ~6 MB of private RAM, opens in ~35 ms.
+No telemetry, no accounts, no paid services.
 
-## Cómo se deshace todo
-Cada cambio se guarda en `%APPDATA%\lumen\journal.json`.
-- Inicio: volvé a mover el interruptor.
-- Limpieza: los archivos van a `%APPDATA%\lumen\stash`, no se borran. "Deshacer última limpieza" los devuelve.
-  El espacio se libera al "Vaciar reserva", y **eso no se puede deshacer**.
-- Finalizar un proceso tampoco se puede deshacer.
+## What it does (v0.1)
+- **Status:** live CPU, memory, disk and network.
+- **Processes:** sortable list with path, and a button to close a process (asks first).
+- **Startup:** turn startup apps on or off without deleting them (the same mechanism Task Manager uses).
+- **Disk:** clean temp files and Chrome/Edge caches, and see what takes the most space.
+- **Privacy:** switch off Windows advertising ID, suggestions, Bing in Start search, telemetry and activity history.
 
-## Lo que NO hacemos
-Limpiador de registro ni "liberador de RAM": no sirven y pueden romper cosas.
+On Windows 11 the window is translucent (Acrylic). On other systems it falls back to a solid background.
 
-## Desarrollo
+## How everything is undone
+Every change is recorded in `%APPDATA%\lumen\journal.json`. See [docs/UNDO.md](docs/UNDO.md).
+
+## What we do NOT do
+No "registry cleaner" and no "RAM booster": they don't help and can break things.
+
+## Build
 ```
-cargo run --release                  # abrir la app
+cargo run --release                  # run the app
 cargo clippy --all-targets -- -D warnings && cargo test
-powershell scripts/check-limits.ps1  # tamaño, RAM y arranque (lo corre el CI)
+powershell scripts/check-limits.ps1  # size, RAM and startup limits (also run by CI)
 ```
+Requires Rust and the MSVC build tools.
 
-## Licencia
+## Roadmap
+See [PLAN.md](docs/PLAN.md). Design rules: [docs/DESIGN.md](docs/DESIGN.md).
+
+## License
 MIT
