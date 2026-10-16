@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    hardware, icons, power, privacy, profiles, restore, services,
+    defender, hardware, icons, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
@@ -80,6 +80,76 @@ fn sync_rows<T: Clone + 'static>(model: &VecModel<T>, rows: Vec<T>) {
             model.push(r);
         }
     }
+}
+
+/// "2026-10-15T11:46:03.0000000-03:00" -> "15/10/2026 11:46". Vacío = "nunca".
+fn fmt_date(iso: &str) -> String {
+    match (iso.get(0..4), iso.get(5..7), iso.get(8..10), iso.get(11..16)) {
+        (Some(y), Some(m), Some(d), Some(t)) => format!("{d}/{m}/{y} {t}"),
+        _ => "nunca".to_string(),
+    }
+}
+
+fn severity(n: u8) -> &'static str {
+    match n {
+        1 => "baja",
+        2 => "moderada",
+        4 => "alta",
+        5 => "grave",
+        _ => "sin dato",
+    }
+}
+
+/// Consulta a Defender en un hilo y arma las tarjetas. Nunca dice que la PC esté limpia.
+fn load_security(weak: slint::Weak<Main>) {
+    if let Some(ui) = weak.upgrade() {
+        ui.set_sec_status("Consultando a Windows Defender…".into());
+    }
+    thread::spawn(move || {
+        let st = defender::status();
+        let th = defender::threats();
+        let _ = weak.upgrade_in_event_loop(move |ui| {
+            let card = |icon: &str, title: &str, sub: String| SecRow { icon: icon.into(), title: title.into(), sub: sub.into(), alert: false };
+            let mut cards = vec![];
+            let mut note = String::new();
+            match st {
+                Ok(s) => {
+                    let rt = match (s.realtime, s.mode.as_str()) {
+                        (_, "Passive") => "En segundo plano: hay otro antivirus como protección principal".to_string(),
+                        (true, _) => "Activa".to_string(),
+                        (false, _) => "Apagada".to_string(),
+                    };
+                    cards.push(card("shield", "Protección en tiempo real", rt));
+                    cards.push(card("list", "Firmas de virus", format!("Versión {} · actualizadas el {}", s.sig_version, fmt_date(&s.sig_updated))));
+                    cards.push(card("search", "Último análisis rápido", fmt_date(&s.quick_scan)));
+                    if !s.other_av.is_empty() {
+                        note = format!("También hay otro antivirus instalado: {}. lumen solo informa.", s.other_av.join(", "));
+                    }
+                }
+                Err(e) => note = format!("No se pudo consultar a Defender: {e}"),
+            }
+            let threats: Vec<SecRow> = th
+                .unwrap_or_default()
+                .iter()
+                .map(|t| SecRow {
+                    icon: "shield".into(),
+                    title: if t.name.is_empty() { "Detección sin nombre".to_string() } else { t.name.clone() }.into(),
+                    sub: format!(
+                        "{} · {} · gravedad {} · {}",
+                        t.file(),
+                        fmt_date(&t.time),
+                        severity(t.severity),
+                        if t.active { "sigue activa: abrí Seguridad de Windows" } else { "Defender ya actuó sobre ella" }
+                    )
+                    .into(),
+                    alert: t.active || t.severity >= 4,
+                })
+                .collect();
+            ui.set_sec_cards(ModelRc::new(VecModel::from(cards)));
+            ui.set_threats(ModelRc::new(VecModel::from(threats)));
+            ui.set_sec_status(note.into());
+        });
+    });
 }
 
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
@@ -424,6 +494,30 @@ fn main() {
         }
     });
 
+    // Seguridad: capa 1 (Windows Defender). Solo informa lo que Defender registra.
+    ui.on_quick_scan({
+        let weak = ui.as_weak();
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.set_scanning(true);
+            ui.set_sec_status("Analizando con Windows Defender. Puede tardar unos minutos…".into());
+            let weak = weak.clone();
+            thread::spawn(move || {
+                let res = defender::quick_scan();
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    ui.set_scanning(false);
+                    match res {
+                        Ok(()) => load_security(ui.as_weak()),
+                        Err(e) => ui.set_sec_status(format!("No se pudo analizar: {e}").into()),
+                    }
+                });
+            });
+        }
+    });
+    ui.on_open_defender(|| {
+        let _ = defender::open_app();
+    });
+
     // Perfiles: encendido = el plan de lumen sigue siendo el activo. Apagar = deshacer ese cambio.
     let load_profiles = {
         let (weak, journal) = (ui.as_weak(), journal.clone());
@@ -648,6 +742,7 @@ fn main() {
             Some(5) => load_services(),
             Some(6) => load_profiles(),
             Some(7) => load_apps(),
+            Some(8) => load_security(weak.clone()),
             _ => {}
         }
     });
@@ -663,7 +758,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{size, sync_rows};
+    use super::{fmt_date, size, sync_rows};
     use slint::{Model, VecModel};
 
     #[test]
@@ -675,6 +770,12 @@ mod tests {
         assert_eq!(m.iter().collect::<Vec<_>>(), [5]);
         sync_rows(&m, vec![]);
         assert_eq!(m.row_count(), 0);
+    }
+
+    #[test]
+    fn fmt_date_formats_defender_timestamps() {
+        assert_eq!(fmt_date("2026-10-15T11:46:03.0000000-03:00"), "15/10/2026 11:46");
+        assert_eq!(fmt_date(""), "nunca");
     }
 
     #[test]

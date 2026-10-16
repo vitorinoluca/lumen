@@ -4,6 +4,7 @@ export struct Row { pid: int, name: string, cpu: string, mem: string, path: stri
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
 export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
 export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
+export struct SecRow { title: string, sub: string, icon: string, alert: bool }
 export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
@@ -354,15 +355,16 @@ component Info inherits Rectangle {
     in property <string> title;
     in property <string> sub;
     in property <float> fraction: -1;
+    in property <bool> alert: false;
     background: Theme.card;
     border-width: 1px;
-    border-color: Theme.line;
+    border-color: alert ? Theme.danger.with-alpha(0.55) : Theme.line;
     border-radius: 6px;
     min-height: 68px;
     HorizontalLayout {
         padding: 14px;
         spacing: 12px;
-        Icon { kind: root.icon; tint: Theme.muted; y: 2px; width: 20px; height: 20px; }
+        Icon { kind: root.icon; tint: root.alert ? Theme.danger : Theme.muted; y: 2px; width: 20px; height: 20px; }
         VerticalLayout {
             spacing: 3px;
             alignment: center;
@@ -395,6 +397,10 @@ export component Main inherits Window {
     in property <[ServiceRow]> profiles;
     in property <Hw> hw;
     in property <[DiskCard]> disks;
+    in property <[SecRow]> sec-cards;
+    in property <[SecRow]> threats;
+    in-out property <string> sec-status;
+    in-out property <bool> scanning;
     in property <[AppRow]> apps;
     in property <[DiskRow]> leftovers;
     in-out property <bool> can-undo-leftovers;
@@ -422,6 +428,8 @@ export component Main inherits Window {
     callback toggle-service(int, bool);
     callback toggle-profile(int, bool);
     callback uninstall(int);
+    callback quick-scan();
+    callback open-defender();
     callback apps-reload();
     callback apps-rebuild();
     callback apps-filter(string);
@@ -671,7 +679,31 @@ export component Main inherits Window {
             }
         }
 
-        if page > 7: VerticalLayout {
+        if page == 8: VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "Seguridad"; sub: "Revisión de seguridad, no reemplaza a un antivirus. Acá ves lo que Windows Defender ya registró."; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Btn { text: scanning ? "Analizando…" : "Análisis rápido"; strong: !scanning; clicked => { if (!scanning) { quick-scan(); } } }
+                Btn { text: "Abrir Seguridad de Windows"; clicked => { open-defender(); } }
+            }
+            if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            Scroll {
+                vertical-stretch: 1;
+                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 80px;
+                VerticalLayout {
+                    alignment: start;
+                    spacing: 12px;
+                    for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
+                    if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
+                    for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                }
+            }
+        }
+
+        if page > 8: VerticalLayout {
             padding: 24px;
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }
