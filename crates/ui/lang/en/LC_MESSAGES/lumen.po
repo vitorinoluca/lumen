@@ -1,0 +1,809 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+
+msgid "Cancelar"
+msgstr "Cancel"
+
+msgid "Alta"
+msgstr "High"
+
+msgid "Media"
+msgstr "Medium"
+
+msgid "Baja"
+msgstr "Low"
+
+msgid "Comando real (estaba codificado):"
+msgstr "Real command (it was encoded):"
+
+msgid "Ignorar"
+msgstr "Ignore"
+
+msgid "Deshabilitar"
+msgstr "Disable"
+
+msgid "Restaurar"
+msgstr "Restore"
+
+msgid "Analizar"
+msgstr "Scan"
+
+msgid "Analizando"
+msgstr "Scanning"
+
+msgid "nombre"
+msgstr "name"
+
+msgid "Panel"
+msgstr "Dashboard"
+
+msgid "Procesos"
+msgstr "Processes"
+
+msgid "Arranque"
+msgstr "Startup"
+
+msgid "Disco"
+msgstr "Disk"
+
+msgid "Privacidad"
+msgstr "Privacy"
+
+msgid "Servicios"
+msgstr "Services"
+
+msgid "Perfiles"
+msgstr "Profiles"
+
+msgid "Programas"
+msgstr "Programs"
+
+msgid "Seguridad"
+msgstr "Security"
+
+msgid "Configuración"
+msgstr "Settings"
+
+msgid "Optimizar"
+msgstr "Optimize"
+
+msgid "Gestor de inicio"
+msgstr "Startup manager"
+
+msgid "Limpieza de disco"
+msgstr "Disk cleanup"
+
+msgid "Resumen de tu equipo. Se actualiza cada segundo."
+msgstr "Overview of your PC. Updates every second."
+
+msgid "{} % en uso · {}"
+msgstr "{} % in use · {}"
+
+msgid "{} en uso"
+msgstr "{} in use"
+
+msgid "{} · Red: {}"
+msgstr "{} · Network: {}"
+
+msgid "Almacenamiento"
+msgstr "Storage"
+
+msgid "{} procesos"
+msgstr "{} processes"
+
+msgid "Ordenados por uso de CPU."
+msgstr "Sorted by CPU usage."
+
+msgid "Ordenados por memoria."
+msgstr "Sorted by memory."
+
+msgid "Ordenados por nombre."
+msgstr "Sorted by name."
+
+msgid "Por CPU"
+msgstr "By CPU"
+
+msgid "Por memoria"
+msgstr "By memory"
+
+msgid "Por nombre"
+msgstr "By name"
+
+msgid "Cerrar"
+msgstr "Close"
+
+msgid "{} apps arrancan con Windows"
+msgstr "{} apps start with Windows"
+
+msgid "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."
+msgstr "Turning them off doesn't delete them. You can turn them back on whenever you want."
+
+msgid "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."
+msgstr "Deletes temporary files and caches that Windows and browsers recreate on their own."
+
+msgid "Calculando…"
+msgstr "Calculating…"
+
+msgid "No hay nada para limpiar"
+msgstr "Nothing to clean"
+
+msgid "Podés liberar {}"
+msgstr "You can free {}"
+
+msgid "Limpiar"
+msgstr "Clean"
+
+msgid "Limpiando"
+msgstr "Cleaning"
+
+msgid "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran."
+msgstr "Files are kept for 7 days in case something goes wrong. The space is freed when they are deleted."
+
+msgid "Deshacer"
+msgstr "Undo"
+
+msgid "Borrar ahora"
+msgstr "Delete now"
+
+msgid "Volver"
+msgstr "Back"
+
+msgid "Ocultar qué ocupa más espacio"
+msgstr "Hide what uses the most space"
+
+msgid "Ver qué ocupa más espacio en tu usuario"
+msgstr "See what uses the most space in your user folder"
+
+msgid "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."
+msgstr "Optional improvements for your PC. Each one can be undone from here."
+
+msgid "Aplicaste {} de {} mejoras recomendadas"
+msgstr "You applied {} of {} recommended improvements"
+
+msgid "Aplicar las recomendadas"
+msgstr "Apply the recommended ones"
+
+msgid "Ocultar las opciones avanzadas"
+msgstr "Hide advanced options"
+
+msgid "Mostrar las opciones avanzadas ({})"
+msgstr "Show advanced options ({})"
+
+msgid "{} programas"
+msgstr "{} programs"
+
+msgid "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: {}."
+msgstr "Opens each program's uninstaller and then shows what was left behind. Order: {}."
+
+msgid "Buscar programa o editor"
+msgstr "Search program or publisher"
+
+msgid "Nombre"
+msgstr "Name"
+
+msgid "Peso"
+msgstr "Size"
+
+msgid "Editor"
+msgstr "Publisher"
+
+msgid "Quedaron {} restos. Revisalos antes de limpiar:"
+msgstr "{} leftovers remain. Review them before cleaning:"
+
+msgid "Mover a la reserva"
+msgstr "Move to the stash"
+
+msgid "Dejarlos"
+msgstr "Keep them"
+
+msgid "Deshacer limpieza de restos"
+msgstr "Undo leftover cleanup"
+
+msgid "Desinstalar"
+msgstr "Uninstall"
+
+msgid "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."
+msgstr "Checks Windows Defender, what starts on its own, connections, processes and drivers. It doesn't replace an antivirus."
+
+msgid "Toca para revisar tu PC. Tarda unos segundos."
+msgstr "Tap to check your PC. It takes a few seconds."
+
+msgid "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."
+msgstr "I found nothing new or suspicious in this check. That doesn't guarantee your PC is clean."
+
+msgid "Encontré 1 cosa para revisar"
+msgstr "I found 1 thing to review"
+
+msgid "Encontré {} cosas para revisar"
+msgstr "I found {} things to review"
+
+msgid "Detecciones registradas por Defender ({})"
+msgstr "Detections recorded by Defender ({})"
+
+msgid "Se guarda sola y se recuerda la próxima vez que abras lumen."
+msgstr "It saves itself and is remembered the next time you open lumen."
+
+msgid "Tema"
+msgstr "Theme"
+
+msgid "Claro, oscuro o el mismo que usa Windows."
+msgstr "Light, dark or the same one Windows uses."
+
+msgid "Automático"
+msgstr "Automatic"
+
+msgid "Claro"
+msgstr "Light"
+
+msgid "Oscuro"
+msgstr "Dark"
+
+msgid "Actualización del panel"
+msgstr "Dashboard refresh"
+
+msgid "Cada cuánto se renuevan el uso del procesador, la memoria y la red."
+msgstr "How often CPU, memory and network usage are refreshed."
+
+msgid "1 segundo"
+msgstr "1 second"
+
+msgid "2 segundos"
+msgstr "2 seconds"
+
+msgid "5 segundos"
+msgstr "5 seconds"
+
+msgid "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen"
+msgstr "lumen {} · MIT License · github.com/vitorinoluca/lumen"
+
+msgid "¿Desinstalar {}?"
+msgstr "Uninstall {}?"
+
+msgid "Se abre el desinstalador del programa. Cuando termine, te mostramos lo que haya quedado para que decidas si lo limpiás. Si lumen corre como administrador, antes se crea un punto de restauración."
+msgstr "The program's uninstaller opens. When it finishes, we show you what was left so you can decide whether to clean it. If lumen runs as administrator, a restore point is created first."
+
+msgid "¿Cerrar {}?"
+msgstr "Close {}?"
+
+msgid "Perdés lo que no hayas guardado en ese programa. No se puede deshacer."
+msgstr "You lose anything unsaved in that program. This can't be undone."
+
+msgid "Cerrar proceso"
+msgstr "Close process"
+
+msgid "¿Ignorar este hallazgo?"
+msgstr "Ignore this finding?"
+
+msgid "¿Deshabilitar esto?"
+msgstr "Disable this?"
+
+msgid "¿Restaurar lo que deshabilitó lumen?"
+msgstr "Restore what lumen disabled?"
+
+msgid "Se agrega a la línea base y no se vuelve a mostrar. No cambia nada en tu PC."
+msgstr "It's added to the baseline and won't be shown again. Nothing changes on your PC."
+
+msgid "Se desactiva y antes se guarda un respaldo. Podés volver atrás con Restaurar. Algunos cambios necesitan abrir lumen como administrador."
+msgstr "It's turned off and a backup is saved first. You can go back with Restore. Some changes need lumen to run as administrator."
+
+msgid "Se vuelve a dejar como estaba antes de que lumen lo deshabilitara."
+msgstr "It goes back to how it was before lumen disabled it."
+
+msgid "¿Aplicar las mejoras recomendadas?"
+msgstr "Apply the recommended improvements?"
+
+msgid "Se desactivan cosas que casi nadie necesita: anuncios, sugerencias, telemetría y servicios que casi no se usan. Se puede volver atrás desde acá, cambio por cambio. Algunos necesitan abrir lumen como administrador."
+msgstr "Turns off things almost nobody needs: ads, suggestions, telemetry and rarely used services. You can undo it from here, change by change. Some need lumen to run as administrator."
+
+msgid "Aplicar"
+msgstr "Apply"
+
+msgid "Desactivar el ID de publicidad"
+msgstr "Turn off the advertising ID"
+
+msgid "Evita que las apps te sigan con un identificador para mostrarte anuncios."
+msgstr "Stops apps from tracking you with an identifier to show you ads."
+
+msgid "Desactivar las sugerencias en Inicio y Configuración"
+msgstr "Turn off suggestions in Start and Settings"
+
+msgid "Quita las sugerencias y promociones que Windows muestra en Inicio y Configuración."
+msgstr "Removes the suggestions and promotions Windows shows in Start and Settings."
+
+msgid "Desactivar los consejos y trucos de Windows"
+msgstr "Turn off Windows tips and tricks"
+
+msgid "Deja de mostrar notificaciones con consejos y novedades."
+msgstr "Stops showing notifications with tips and news."
+
+msgid "Desactivar las apps sugeridas en Inicio"
+msgstr "Turn off suggested apps in Start"
+
+msgid "Quita las apps promocionadas del menú Inicio."
+msgstr "Removes promoted apps from the Start menu."
+
+msgid "Desactivar la personalización con datos de diagnóstico"
+msgstr "Turn off personalization with diagnostic data"
+
+msgid "Windows no usa tus datos de diagnóstico para personalizar anuncios y consejos."
+msgstr "Windows doesn't use your diagnostic data to personalize ads and tips."
+
+msgid "Desactivar la búsqueda web de Bing en Inicio"
+msgstr "Turn off Bing web search in Start"
+
+msgid "El buscador de Inicio busca solo en tu PC, sin enviar lo que escribís a Bing."
+msgstr "Start search only looks on your PC, without sending what you type to Bing."
+
+msgid "Desactivar la telemetría de Windows"
+msgstr "Turn off Windows telemetry"
+
+msgid "Reduce los datos de uso y diagnóstico que Windows envía a Microsoft."
+msgstr "Reduces the usage and diagnostic data Windows sends to Microsoft."
+
+msgid "Desactivar el historial de actividades"
+msgstr "Turn off activity history"
+
+msgid "Windows deja de guardar un historial de lo que hacés en la PC."
+msgstr "Windows stops keeping a history of what you do on your PC."
+
+msgid "Envía datos de uso y diagnóstico a Microsoft."
+msgstr "Sends usage and diagnostic data to Microsoft."
+
+msgid "Desactivar los mensajes push de telemetría"
+msgstr "Turn off telemetry push messages"
+
+msgid "Acompaña a la telemetría. No hace falta para nada más."
+msgstr "Goes along with telemetry. Nothing else needs it."
+
+msgid "Desactivar las descargas de mapas"
+msgstr "Turn off map downloads"
+
+msgid "Actualiza mapas sin conexión. Solo lo usa la app Mapas."
+msgstr "Updates offline maps. Only the Maps app uses it."
+
+msgid "Desactivar el fax"
+msgstr "Turn off fax"
+
+msgid "Permite enviar y recibir fax. Casi nadie lo usa."
+msgstr "Lets you send and receive faxes. Almost nobody uses it."
+
+msgid "Desactivar el modo demostración de tienda"
+msgstr "Turn off store demo mode"
+
+msgid "Solo sirve en equipos de exhibición."
+msgstr "Only useful on display PCs."
+
+msgid "Desactivar compartir la biblioteca multimedia"
+msgstr "Turn off media library sharing"
+
+msgid "Comparte música y videos con otros equipos de la red."
+msgstr "Shares music and videos with other PCs on the network."
+
+msgid "Desactivar Xbox: inicio de sesión"
+msgstr "Turn off Xbox: sign-in"
+
+msgid "Inicio de sesión de Xbox. Desactivalo solo si no jugás juegos de Microsoft Store o Game Pass."
+msgstr "Xbox sign-in. Turn it off only if you don't play Microsoft Store or Game Pass games."
+
+msgid "Desactivar Xbox: partidas guardadas"
+msgstr "Turn off Xbox: saved games"
+
+msgid "Sincroniza partidas guardadas de la nube. Solo para juegos de Xbox."
+msgstr "Syncs saved games from the cloud. Only for Xbox games."
+
+msgid "Desactivar Xbox: red"
+msgstr "Turn off Xbox: network"
+
+msgid "Conexión de red de Xbox. Solo para juegos de Xbox."
+msgstr "Xbox network connection. Only for Xbox games."
+
+msgid "Desactivar la precarga de programas (SysMain)"
+msgstr "Turn off program preloading (SysMain)"
+
+msgid "Acelera la apertura de programas en discos mecánicos. En un SSD casi no aporta."
+msgstr "Speeds up opening programs on hard drives. It barely helps on an SSD."
+
+msgid "Desactivar la búsqueda de Windows"
+msgstr "Turn off Windows search"
+
+msgid "Indexa archivos para buscar rápido. Si lo desactivás, buscar archivos se vuelve más lento."
+msgstr "Indexes files for fast search. If you turn it off, searching for files gets slower."
+
+msgid "Desactivar la cola de impresión"
+msgstr "Turn off the print queue"
+
+msgid "Necesario para imprimir. Si no tenés impresora, se puede desactivar."
+msgstr "Needed for printing. If you don't have a printer, you can turn it off."
+
+msgid "Desactivar el Bluetooth"
+msgstr "Turn off Bluetooth"
+
+msgid "Necesario para auriculares, mouse y teclados Bluetooth."
+msgstr "Needed for Bluetooth headphones, mice and keyboards."
+
+msgid "Desactivar Windows Update"
+msgstr "Turn off Windows Update"
+
+msgid "Descarga e instala actualizaciones. Desactivarlo te deja sin parches de seguridad."
+msgstr "Downloads and installs updates. Turning it off leaves you without security patches."
+
+msgid "Desactivar el antivirus de Microsoft Defender"
+msgstr "Turn off Microsoft Defender antivirus"
+
+msgid "Protección contra virus en tiempo real."
+msgstr "Real-time virus protection."
+
+msgid "Desactivar el Firewall de Windows"
+msgstr "Turn off Windows Firewall"
+
+msgid "Bloquea conexiones no deseadas."
+msgstr "Blocks unwanted connections."
+
+msgid "Desactivar el motor de filtrado base"
+msgstr "Turn off the Base Filtering Engine"
+
+msgid "Lo necesita el firewall y otras funciones de red."
+msgstr "The firewall and other network features need it."
+
+msgid "Desactivar la llamada a procedimiento remoto (RPC)"
+msgstr "Turn off Remote Procedure Call (RPC)"
+
+msgid "Windows entero depende de este servicio."
+msgstr "All of Windows depends on this service."
+
+msgid "Desactivar el lanzador de procesos DCOM"
+msgstr "Turn off the DCOM process launcher"
+
+msgid "Desactivar el registro de eventos de Windows"
+msgstr "Turn off the Windows event log"
+
+msgid "Guarda los errores del sistema; varios servicios lo necesitan."
+msgstr "Stores system errors; several services need it."
+
+msgid "Desactivar el cliente DHCP"
+msgstr "Turn off the DHCP client"
+
+msgid "Sin él no obtenés dirección de red ni internet."
+msgstr "Without it you get no network address or internet."
+
+msgid "Desactivar el cliente DNS"
+msgstr "Turn off the DNS client"
+
+msgid "Traduce nombres de sitios web a direcciones."
+msgstr "Translates website names into addresses."
+
+msgid "Desactivar Plug and Play"
+msgstr "Turn off Plug and Play"
+
+msgid "Detecta los dispositivos que conectás."
+msgstr "Detects the devices you plug in."
+
+msgid "Desactivar los servicios criptográficos"
+msgstr "Turn off cryptographic services"
+
+msgid "Verifica firmas de archivos y certificados."
+msgstr "Verifies file signatures and certificates."
+
+msgid "Modo juego"
+msgstr "Game mode"
+
+msgid "Modo batería"
+msgstr "Battery mode"
+
+msgid "Alto rendimiento y cierra {} apps de tu lista (game-list.json). Lo cerrado no se reabre solo."
+msgstr "High performance, and closes {} apps from your list (game-list.json). Closed apps don't reopen on their own."
+
+msgid "Plan de ahorro de energía para que la batería dure más."
+msgstr "Power-saving plan so the battery lasts longer."
+
+msgid "Activar el {}"
+msgstr "Turn on {}"
+
+msgid "Modos"
+msgstr "Modes"
+
+msgid "Servicios que casi nadie usa"
+msgstr "Services almost nobody uses"
+
+msgid "Avanzado: pueden cambiar cómo usás la PC"
+msgstr "Advanced: they can change how you use your PC"
+
+msgid "administrador"
+msgstr "administrator"
+
+msgid "usuario"
+msgstr "user"
+
+msgid "equipo"
+msgstr "machine"
+
+msgid "carpeta"
+msgstr "folder"
+
+msgid "No se aplicó ningún cambio."
+msgstr "No changes were applied."
+
+msgid "Listo: {} mejoras aplicadas."
+msgstr "Done: {} improvements applied."
+
+msgid "Listo: {} mejoras aplicadas. {} necesitan abrir lumen como administrador."
+msgstr "Done: {} improvements applied. {} need lumen to run as administrator."
+
+msgid " {} necesitan abrir lumen como administrador."
+msgstr " {} need lumen to run as administrator."
+
+msgid "Necesitás abrir lumen como administrador para cambiar servicios."
+msgstr "You need to open lumen as administrator to change services."
+
+msgid "Necesitás abrir lumen como administrador para hacer este cambio."
+msgstr "You need to open lumen as administrator to make this change."
+
+msgid "No se pudo: {}"
+msgstr "Couldn't do it: {}"
+
+msgid "Consultando a Windows Defender…"
+msgstr "Asking Windows Defender…"
+
+msgid "No se pudo consultar a Defender: {}"
+msgstr "Couldn't ask Defender: {}"
+
+msgid "También hay otro antivirus instalado: {}."
+msgstr "There's also another antivirus installed: {}."
+
+msgid "Detección sin nombre"
+msgstr "Unnamed detection"
+
+msgid "{}\n{} · gravedad {} · {}"
+msgstr "{}\n{} · severity {} · {}"
+
+msgid "sigue activa: abrí Seguridad de Windows"
+msgstr "still active: open Windows Security"
+
+msgid "ya no figura como activa"
+msgstr "no longer listed as active"
+
+msgid "baja"
+msgstr "low"
+
+msgid "moderada"
+msgstr "moderate"
+
+msgid "alta"
+msgstr "high"
+
+msgid "grave"
+msgstr "severe"
+
+msgid "sin dato"
+msgstr "no data"
+
+msgid "nunca"
+msgstr "never"
+
+msgid "En segundo plano: hay otro antivirus como protección principal"
+msgstr "In the background: another antivirus is the main protection"
+
+msgid "activa"
+msgstr "on"
+
+msgid "apagada"
+msgstr "off"
+
+msgid "en segundo plano: hay otro antivirus como protección principal"
+msgstr "in the background: another antivirus is the main protection"
+
+msgid "Activa"
+msgstr "On"
+
+msgid "Apagada"
+msgstr "Off"
+
+msgid "Protección en tiempo real: {} · último análisis rápido: {}"
+msgstr "Real-time protection: {} · last quick scan: {}"
+
+msgid "Encendida hace {} d {} h"
+msgstr "Up for {} d {} h"
+
+msgid "Encendida hace {} h {} min"
+msgstr "Up for {} h {} min"
+
+msgid "64 bits · compilación {}"
+msgstr "64-bit · build {}"
+
+msgid "{} núcleos / {} hilos · {} MHz"
+msgstr "{} cores / {} threads · {} MHz"
+
+msgid "{} de RAM"
+msgstr "{} of RAM"
+
+msgid "{} de memoria"
+msgstr "{} of memory"
+
+msgid "Gráficos"
+msgstr "Graphics"
+
+msgid "{} usados de {}"
+msgstr "{} used of {}"
+
+msgid "{} KB/s bajada, {} KB/s subida"
+msgstr "{} KB/s down, {} KB/s up"
+
+msgid "nombre, de mayor a menor"
+msgstr "name, high to low"
+
+msgid "nombre, de menor a mayor"
+msgstr "name, low to high"
+
+msgid "peso, de mayor a menor"
+msgstr "size, high to low"
+
+msgid "peso, de menor a mayor"
+msgstr "size, low to high"
+
+msgid "editor, de mayor a menor"
+msgstr "publisher, high to low"
+
+msgid "editor, de menor a mayor"
+msgstr "publisher, low to high"
+
+msgid "Creando punto de restauración…"
+msgstr "Creating a restore point…"
+
+msgid "Creando punto de restauración, puede tardar unos segundos…"
+msgstr "Creating a restore point, it may take a few seconds…"
+
+msgid "Creando un punto de restauración, puede tardar unos segundos…"
+msgstr "Creating a restore point, it may take a few seconds…"
+
+msgid "Sin punto de restauración ({}). "
+msgstr "No restore point ({}). "
+
+msgid "Sin punto de restauración ({}). El cambio igual se puede deshacer desde lumen."
+msgstr "No restore point ({}). The change can still be undone from lumen."
+
+msgid "Sin punto de restauración ({}); los cambios igual se pueden volver atrás."
+msgstr "No restore point ({}); the changes can still be undone."
+
+msgid "{}Se abrió el desinstalador de {}. Seguí los pasos de su ventana."
+msgstr "{}The uninstaller for {} opened. Follow the steps in its window."
+
+msgid "No se pudo abrir el desinstalador: {}"
+msgstr "Couldn't open the uninstaller: {}"
+
+msgid "Listo. No quedaron restos de {}."
+msgstr "Done. Nothing was left behind by {}."
+
+msgid "Terminó el desinstalador. Encontramos {} restos."
+msgstr "The uninstaller finished. We found {} leftovers."
+
+msgid "{} restos movidos a la reserva. Se pueden devolver."
+msgstr "{} leftovers moved to the stash. They can be restored."
+
+msgid "Restos devueltos a su lugar."
+msgstr "Leftovers put back in place."
+
+msgid "{} restos no se pudieron devolver."
+msgstr "{} leftovers couldn't be put back."
+
+msgid "Dejamos los restos como estaban."
+msgstr "We left the leftovers as they were."
+
+msgid "Preparando la revisión"
+msgstr "Getting ready to check"
+
+msgid "Actualizando la lista de drivers peligrosos"
+msgstr "Updating the list of dangerous drivers"
+
+msgid "Actualicé la lista de drivers peligrosos."
+msgstr "I updated the list of dangerous drivers."
+
+msgid "No pude conectarme para actualizar la lista de drivers peligrosos; usé la que ya tenía."
+msgstr "I couldn't connect to update the list of dangerous drivers; I used the one I already had."
+
+msgid "Ignorado: no se vuelve a mostrar."
+msgstr "Ignored: it won't be shown again."
+
+msgid "Deshabilitado. Se guardó un respaldo y podés volver atrás con Restaurar."
+msgstr "Disabled. A backup was saved and you can go back with Restore."
+
+msgid "Restaurado: quedó como estaba."
+msgstr "Restored: it's back as it was."
+
+msgid "{} procesos cerrados."
+msgstr "{} processes closed."
+
+msgid "Hay {} guardados de una limpieza anterior. Se borran solos a los 7 días."
+msgstr "{} are stored from a previous cleanup. They delete themselves after 7 days."
+
+msgid "No había nada que se pudiera limpiar ahora: los archivos están en uso."
+msgstr "There was nothing that could be cleaned right now: the files are in use."
+
+msgid "Limpieza hecha: {}"
+msgstr "Cleanup done: {}"
+
+msgid "Limpieza hecha: {} ({} elementos en uso quedaron)"
+msgstr "Cleanup done: {} ({} items in use were left)"
+
+msgid "No se pudieron devolver {} elementos."
+msgstr "{} items couldn't be restored."
+
+msgid "Listo: liberaste {}."
+msgstr "Done: you freed {}."
+
+msgid "Calculando… puede tardar unos segundos"
+msgstr "Calculating… it may take a few seconds"
+
+msgid "Cerrar el juego"
+msgstr "Close the game"
+
+msgid "Defender tiene una exclusión nueva"
+msgstr "Defender has a new exclusion"
+
+msgid "La protección en tiempo real de Defender está apagada"
+msgstr "Defender real-time protection is off"
+
+msgid "Sin esta protección, Windows no revisa los archivos al abrirlos. Si no la apagaste vos, conviene investigarlo."
+msgstr "Without this protection, Windows doesn't check files when they open. If you didn't turn it off, it's worth investigating."
+
+msgid "El servicio de Windows Update está deshabilitado"
+msgstr "The Windows Update service is disabled"
+
+msgid "Tarea de Windows deshabilitada: {}"
+msgstr "Windows task disabled: {}"
+
+msgid "Es una tarea de Windows Update o del eliminador de software malintencionado."
+msgstr "It's a Windows Update task or one from the malicious software removal tool."
+
+msgid "Defender no analiza lo que está excluido: el malware suele agregarse acá para esconderse."
+msgstr "Defender doesn't scan what's excluded: malware often adds itself here to hide."
+
+msgid "Comando sospechoso en {}"
+msgstr "Suspicious command in {}"
+
+msgid "Qué tiene de raro: {}.\n{}"
+msgstr "What looks odd: {}.\n{}"
+
+msgid "Conexión saliente de {} hacia {}:{}"
+msgstr "Outgoing connection from {} to {}:{}"
+
+msgid "Ruta: {}"
+msgstr "Path: {}"
+
+msgid "Valor actual: {}"
+msgstr "Current value: {}"
+
+msgid "Valor esperado: {}"
+msgstr "Expected value: {}"
+
+msgid "Firma: {}"
+msgstr "Signature: {}"
+
+msgid "Disparador: {}"
+msgstr "Trigger: {}"
+
+msgid "Cambió cómo inicia Windows (Winlogon: {})"
+msgstr "How Windows starts has changed (Winlogon: {})"
+
+msgid "{} se abre con otro programa en su lugar"
+msgstr "{} opens with another program instead"
+
+msgid "Cada vez que se abre {}, Windows ejecuta: {}"
+msgstr "Every time {} opens, Windows runs: {}"
+
+msgid "Elemento oculto de Windows (WMI): {} «{}»"
+msgstr "Hidden Windows item (WMI): {} «{}»"
+
+msgid "modo juego"
+msgstr "game mode"
+
+msgid "modo batería"
+msgstr "battery mode"
+
+msgid "Idioma"
+msgstr "Language"
+
+msgid "El idioma de todos los textos de lumen."
+msgstr "The language of all lumen text."
+

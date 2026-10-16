@@ -13,6 +13,7 @@ No telemetry, no accounts, no paid services.
 - **Optimize:** one simple list (game and battery modes, privacy, services almost nobody uses) and an "Aplicar las recomendadas" button. Risky options stay hidden under "advanced", and critical services are never shown.
 - **Programs:** run an app's own uninstaller, then review and clean leftover folders and registry keys.
 - **Security:** Windows Defender status and detections, plus a behavior review that spots what Defender can miss: new startup entries, scheduled tasks and services, Winlogon/IFEO/WMI tampering, reverse shells, obfuscated commands, fake system processes and disabled Defender or Windows Update. First scan saves a baseline; later scans report only what is new or modified.
+- **Settings:** light, dark or Windows theme, dashboard refresh rate, and Spanish or English. Saved in `%APPDATA%lumennfig.json`.
 
 ## How everything is undone
 Every change is recorded in `%APPDATA%\lumen\journal.json`. See [docs/UNDO.md](docs/UNDO.md).

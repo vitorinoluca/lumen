@@ -11,6 +11,8 @@ use lumen_core::{
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, collections::HashMap, sync::atomic::{AtomicU64, Ordering}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
+mod i18n;
+
 slint::include_modules!();
 
 /// Íconos ya extraídos por programa: ancho, alto y píxeles RGBA.
@@ -75,6 +77,14 @@ fn apply_theme(ui: &Main, mode: i32) {
         _ => None, // None = que la barra siga a Windows
     };
     ui.window().with_winit_window(|w| w.set_theme(t));
+}
+
+/// Pone el idioma ("es" o "en"): textos de las pantallas (Slint) y los que arma Rust.
+fn apply_language(ui: &Main, lang: &str) {
+    let en = lang == "en";
+    i18n::set_english(en);
+    let _ = slint::select_bundled_translation(if en { "en" } else { "" });
+    ui.global::<I18n>().set_lang(en as i32);
 }
 
 fn theme_index(name: &str) -> i32 {
@@ -276,6 +286,9 @@ fn main() {
     ui.set_app_version(env!("CARGO_PKG_VERSION").into());
     ui.set_cfg_theme(theme_index(&cfg.theme));
     ui.set_cfg_refresh(refresh_index(cfg.refresh_secs));
+    ui.set_cfg_lang((cfg.language == "en") as i32);
+    ui.global::<I18n>().on_translate(|s, _| i18n::t(s.as_str()).into());
+    apply_language(&ui, &cfg.language);
     ui.global::<Theme>().set_mode(theme_index(&cfg.theme));
     // La ventana recién existe con el bucle de eventos andando: el tema de la barra se aplica un instante después.
     {
@@ -918,11 +931,12 @@ fn main() {
             let cfg = Config {
                 theme: ["auto", "light", "dark"][ui.get_cfg_theme().clamp(0, 2) as usize].into(),
                 refresh_secs: lumen_core::config::REFRESH_CHOICES[ui.get_cfg_refresh().clamp(0, 2) as usize],
-                language: Config::load().language,
+                language: if ui.get_cfg_lang() == 1 { "en" } else { "es" }.into(),
             };
             let _ = cfg.save();
             interval.store(cfg.refresh_secs, Ordering::Relaxed);
             apply_theme(&ui, theme_index(&cfg.theme));
+            apply_language(&ui, &cfg.language);
         }
     });
 

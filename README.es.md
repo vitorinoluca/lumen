@@ -13,6 +13,7 @@ Sin telemetría, sin cuentas, sin servicios pagos.
 - **Optimizar:** una lista simple (modos juego y batería, privacidad, servicios que casi nadie usa) y un botón "Aplicar las recomendadas". Lo delicado queda en "avanzadas" y los servicios críticos nunca se muestran.
 - **Programas:** abre el desinstalador de cada app y después revisás y limpiás carpetas y claves de registro que hayan quedado.
 - **Seguridad:** estado y detecciones de Windows Defender, y una revisión de comportamiento que detecta lo que Defender puede pasar por alto: entradas nuevas de inicio, tareas y servicios, cambios en Winlogon/IFEO/WMI, reverse shells, comandos ofuscados, procesos de sistema falsos y Defender o Windows Update desactivados. El primer escaneo guarda una línea base; los siguientes avisan solo de lo nuevo o modificado.
+- **Configuración:** tema claro, oscuro o el de Windows, frecuencia del panel e idioma español o inglés. Se guarda en `%APPDATA%lumennfig.json`.
 
 ## Cómo se deshace todo
 Cada cambio se guarda en `%APPDATA%\lumen\journal.json`. Ver [docs/UNDO.es.md](docs/UNDO.es.md).

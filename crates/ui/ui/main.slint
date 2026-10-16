@@ -60,6 +60,13 @@ component Icon inherits Path {
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
 
+// Idioma de los textos que arma Rust. `lang` cambia al elegir otro idioma y recalcula todo lo que usa `t`.
+export global I18n {
+    in property <int> lang;
+    pure callback translate(string, int) -> string;
+    public pure function t(s: string) -> string { return translate(s, lang); }
+}
+
 component Btn inherits Rectangle {
     in property <string> text;
     in property <bool> strong: false;
@@ -253,7 +260,7 @@ component Confirm inherits Rectangle {
             HorizontalLayout {
                 spacing: 8px;
                 alignment: end;
-                Btn { text: "Cancelar"; clicked => { root.cancel(); } }
+                Btn { text: @tr("" => "Cancelar"); clicked => { root.cancel(); } }
                 Btn { text: root.ok-text; strong: !root.danger; danger: root.danger; clicked => { root.ok(); } }
             }
         }
@@ -287,32 +294,32 @@ component FindingCard inherits Rectangle {
                 border-width: 1px;
                 border-color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.line);
                 chip := Text {
-                    text: severity == 0 ? "Alta" : (severity == 1 ? "Media" : "Baja");
+                    text: severity == 0 ? @tr("" => "Alta") : (severity == 1 ? @tr("" => "Media") : @tr("" => "Baja"));
                     font-size: 12px;
                     color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.muted);
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
             }
-            Text { text: root.title; font-size: 14px; color: Theme.text; wrap: word-wrap; horizontal-stretch: 1; }
+            Text { text: I18n.t(root.title); font-size: 14px; color: Theme.text; wrap: word-wrap; horizontal-stretch: 1; }
         }
-        Text { text: root.detail; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+        Text { text: I18n.t(root.detail); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
         if root.decoded != "": Rectangle {
             background: Theme.bg;
             border-radius: Theme.radius;
             VerticalLayout {
                 padding: 8px;
                 spacing: 4px;
-                Text { text: "Comando real (estaba codificado):"; font-size: 12px; color: Theme.muted; }
-                Text { text: root.decoded; font-size: 12px; color: Theme.text; wrap: word-wrap; }
+                Text { text: @tr("" => "Comando real (estaba codificado):"); font-size: 12px; color: Theme.muted; }
+                Text { text: I18n.t(root.decoded); font-size: 12px; color: Theme.text; wrap: word-wrap; }
             }
         }
         HorizontalLayout {
             spacing: 8px;
             alignment: end;
-            Btn { text: "Ignorar"; clicked => { root.ignore(); } }
-            if root.can-disable: Btn { text: "Deshabilitar"; danger: true; clicked => { root.disable(); } }
-            if root.can-restore: Btn { text: "Restaurar"; strong: true; clicked => { root.restore(); } }
+            Btn { text: @tr("" => "Ignorar"); clicked => { root.ignore(); } }
+            if root.can-disable: Btn { text: @tr("" => "Deshabilitar"); danger: true; clicked => { root.disable(); } }
+            if root.can-restore: Btn { text: @tr("" => "Restaurar"); strong: true; clicked => { root.restore(); } }
         }
     }
 }
@@ -324,8 +331,8 @@ component ScanButton inherits Rectangle {
     in property <bool> busy: false;
     in property <bool> compact: false;
     in property <string> progress;
-    in property <string> label: "Analizar";
-    in property <string> busy-label: "Analizando";
+    in property <string> label: @tr("" => "Analizar");
+    in property <string> busy-label: @tr("" => "Analizando");
     in property <bool> enabled: true;
     callback clicked;
     property <angle> spin;
@@ -370,7 +377,7 @@ component ScanButton inherits Rectangle {
             horizontal-alignment: center;
         }
         if root.busy && !root.compact: Text {
-            text: root.progress;
+            text: I18n.t(root.progress);
             font-size: 12px;
             color: Theme.muted;
             horizontal-alignment: center;
@@ -459,8 +466,8 @@ component Info inherits Rectangle {
         VerticalLayout {
             spacing: 3px;
             alignment: center;
-            Text { text: title; font-size: 14px; color: Theme.text; overflow: elide; }
-            Text { text: sub; font-size: 12px; color: Theme.muted; overflow: elide; }
+            Text { text: I18n.t(title); font-size: 14px; color: Theme.text; overflow: elide; }
+            Text { text: I18n.t(sub); font-size: 12px; color: Theme.muted; overflow: elide; }
             if fraction >= 0: Bar { value: fraction; }
         }
     }
@@ -486,6 +493,7 @@ export component Main inherits Window {
     in property <[StartupRow]> startup;
     in-out property <int> cfg-theme: 0;
     in-out property <int> cfg-refresh: 0;
+    in-out property <int> cfg-lang: 0;
     in property <string> app-version;
     callback config-changed();
     in property <[OptRow]> opt-rows;
@@ -513,7 +521,7 @@ export component Main inherits Window {
     in property <[AppRow]> apps;
     in property <[DiskRow]> leftovers;
     in-out property <bool> can-undo-leftovers;
-    in-out property <string> apps-sort-label: "nombre";
+    in-out property <string> apps-sort-label: @tr("" => "nombre");
     in-out property <int> confirm-app: -1;
     in-out property <string> confirm-app-name;
     in-out property <string> status;
@@ -531,8 +539,8 @@ export component Main inherits Window {
     // pid pendiente de confirmar para cerrar (-1 = ninguno)
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
-    in-out property <string> sort-label: "uso de CPU";
-    property <[string]> pages: ["Panel", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Perfiles", "Programas", "Seguridad", "Configuración"];
+    in-out property <int> sort-by: 0;
+    property <[string]> pages: [@tr("" => "Panel"), @tr("" => "Procesos"), @tr("" => "Arranque"), @tr("" => "Disco"), @tr("" => "Privacidad"), @tr("" => "Servicios"), @tr("" => "Perfiles"), @tr("" => "Programas"), @tr("" => "Seguridad"), @tr("" => "Configuración")];
 
     callback sort(int);
     callback kill(int);
@@ -581,17 +589,17 @@ export component Main inherits Window {
                     alignment: start;
                     Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
                     Rectangle { height: 12px; }
-                    NavItem { text: "Panel"; icon: "home"; active: page == 0; clicked => { page = 0; } }
-                    NavItem { text: "Optimizar"; icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
-                    NavItem { text: "Programas"; icon: "box"; active: page == 7; clicked => { page = 7; } }
+                    NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
+                    NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
+                    NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
                     Sep { }
-                    NavItem { text: "Gestor de inicio"; icon: "power"; active: page == 2; clicked => { page = 2; } }
-                    NavItem { text: "Procesos"; icon: "list"; active: page == 1; clicked => { page = 1; } }
-                    NavItem { text: "Limpieza de disco"; icon: "disk"; active: page == 3; clicked => { page = 3; } }
+                    NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
+                    NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
+                    NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
                     Sep { }
-                    NavItem { text: "Seguridad"; icon: "shield"; active: page == 8; clicked => { page = 8; } }
+                    NavItem { text: @tr("" => "Seguridad"); icon: "shield"; active: page == 8; clicked => { page = 8; } }
                 }
-                NavItem { text: "Configuración"; icon: "gear"; active: page == 9; clicked => { page = 9; } }
+                NavItem { text: @tr("" => "Configuración"); icon: "gear"; active: page == 9; clicked => { page = 9; } }
             }
         }
 
@@ -599,32 +607,32 @@ export component Main inherits Window {
             padding: 24px;
             spacing: 12px;
             alignment: start;
-            Head { title: "Panel"; sub: "Resumen de tu equipo. Se actualiza cada segundo."; }
+            Head { title: @tr("" => "Panel"); sub: @tr("" => "Resumen de tu equipo. Se actualiza cada segundo."); }
             HorizontalLayout {
                 spacing: 12px;
                 Info { icon: "windows"; title: hw.os; sub: hw.os-sub; }
-                Info { icon: "chip"; title: hw.cpu; sub: "\{Math.round(cpu * 100)} % en uso · " + hw.cpu-sub; fraction: cpu; }
+                Info { icon: "chip"; title: hw.cpu; sub: @tr("" => "{} % en uso · {}", Math.round(cpu * 100), hw.cpu-sub); fraction: cpu; }
             }
             HorizontalLayout {
                 spacing: 12px;
-                Info { icon: "memory"; title: hw.ram; sub: ram-text + " en uso"; fraction: ram; }
+                Info { icon: "memory"; title: hw.ram; sub: @tr("" => "{} en uso", ram-text); fraction: ram; }
                 Info { icon: "monitor"; title: hw.gpu; sub: hw.gpu-sub; }
             }
-            Info { icon: "board"; title: hw.board; sub: hw.board-sub + " · Red: " + net-text; }
-            Text { text: "Almacenamiento"; font-size: 12px; color: Theme.muted; }
+            Info { icon: "board"; title: hw.board; sub: @tr("" => "{} · Red: {}", hw.board-sub, net-text); }
+            Text { text: @tr("" => "Almacenamiento"); font-size: 12px; color: Theme.muted; }
             for d in disks: Info { icon: "disk"; title: d.name; sub: d.sub; fraction: d.fraction; }
         }
 
         if page == 1: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "\{procs.length} procesos"; sub: "Ordenados por " + sort-label + "."; }
+            Head { title: @tr("" => "{} procesos", procs.length); sub: sort-by == 0 ? @tr("" => "Ordenados por uso de CPU.") : (sort-by == 1 ? @tr("" => "Ordenados por memoria.") : @tr("" => "Ordenados por nombre.")); }
             HorizontalLayout {
                 spacing: 8px;
                 alignment: start;
-                Btn { text: "Por CPU"; clicked => { sort-label = "uso de CPU"; sort(0); } }
-                Btn { text: "Por memoria"; clicked => { sort-label = "memoria"; sort(1); } }
-                Btn { text: "Por nombre"; clicked => { sort-label = "nombre"; sort(2); } }
+                Btn { text: @tr("" => "Por CPU"); clicked => { sort-by = 0; sort(0); } }
+                Btn { text: @tr("" => "Por memoria"); clicked => { sort-by = 1; sort(1); } }
+                Btn { text: @tr("" => "Por nombre"); clicked => { sort-by = 2; sort(2); } }
             }
             Scroll {
                 content-h: procs.length * 28px;
@@ -643,7 +651,7 @@ export component Main inherits Window {
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; close-btn := Btn { text: "Cerrar"; danger: true; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
+                        VerticalLayout { alignment: center; close-btn := Btn { text: @tr("" => "Cerrar"); danger: true; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
                     }
                 }
             }
@@ -653,8 +661,8 @@ export component Main inherits Window {
         if page == 2: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "\{startup.length} apps arrancan con Windows"; sub: "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."; }
-            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
+            Head { title: @tr("" => "{} apps arrancan con Windows", startup.length); sub: @tr("" => "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."); }
+            if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.danger; }
             Scroll {
                 content-h: startup.length * 36px;
                 vertical-stretch: 1;
@@ -668,7 +676,7 @@ export component Main inherits Window {
                         padding-left: 4px;
                         Toggle { y: 10px; checked: e.enabled; toggled(on) => { toggle-startup(i, on); } }
                         Text { text: e.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
-                        Text { text: e.scope; width: 56px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+                        Text { text: I18n.t(e.scope); width: 56px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
                         Text { text: e.command; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
                     }
                 }
@@ -679,7 +687,7 @@ export component Main inherits Window {
         if page == 3: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Limpieza de disco"; sub: "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."; }
+            Head { title: @tr("" => "Limpieza de disco"); sub: @tr("" => "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."); }
 
             // Antes de limpiar: cuánto se puede liberar y el botón.
             if disk-phase < 2: VerticalLayout {
@@ -687,7 +695,7 @@ export component Main inherits Window {
                 alignment: center;
                 spacing: 16px;
                 Text {
-                    text: disk-loading ? "Calculando…" : (disk-nothing ? "No hay nada para limpiar" : "Podés liberar \{disk-total}");
+                    text: disk-loading ? @tr("" => "Calculando…") : (disk-nothing ? @tr("" => "No hay nada para limpiar") : @tr("" => "Podés liberar {}", disk-total));
                     font-size: 22px;
                     color: Theme.text;
                     horizontal-alignment: center;
@@ -696,15 +704,15 @@ export component Main inherits Window {
                     alignment: center;
                     ScanButton {
                         size: 200px;
-                        label: "Limpiar";
-                        busy-label: "Limpiando";
+                        label: @tr("" => "Limpiar");
+                        busy-label: @tr("" => "Limpiando");
                         busy: disk-phase == 1;
                         enabled: !disk-loading && !disk-nothing;
                         clicked => { if (disk-phase == 0) { clean-all(); } }
                     }
                 }
-                if !disk-loading && !disk-nothing: Text { text: disk-parts; font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
-                if disk-old != "": Text { text: disk-old; font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
+                if !disk-loading && !disk-nothing: Text { text: I18n.t(disk-parts); font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
+                if disk-old != "": Text { text: I18n.t(disk-old); font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
             }
 
             // Después: qué pasó y, si se puede, deshacerlo.
@@ -712,9 +720,9 @@ export component Main inherits Window {
                 vertical-stretch: 1;
                 alignment: center;
                 spacing: 14px;
-                Text { text: disk-result; font-size: 22px; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
+                Text { text: I18n.t(disk-result); font-size: 22px; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
                 if disk-phase == 2: Text {
-                    text: "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.";
+                    text: @tr("" => "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.");
                     font-size: 12px;
                     color: Theme.muted;
                     horizontal-alignment: center;
@@ -723,9 +731,9 @@ export component Main inherits Window {
                 HorizontalLayout {
                     alignment: center;
                     spacing: 8px;
-                    if disk-phase == 2: Btn { text: "Deshacer"; clicked => { undo-clean(); } }
-                    if disk-phase == 2: Btn { text: "Borrar ahora"; strong: true; clicked => { purge(); } }
-                    if disk-phase == 3: Btn { text: "Volver"; clicked => { disk-reset(); } }
+                    if disk-phase == 2: Btn { text: @tr("" => "Deshacer"); clicked => { undo-clean(); } }
+                    if disk-phase == 2: Btn { text: @tr("" => "Borrar ahora"); strong: true; clicked => { purge(); } }
+                    if disk-phase == 3: Btn { text: @tr("" => "Volver"); clicked => { disk-reset(); } }
                 }
             }
 
@@ -733,7 +741,7 @@ export component Main inherits Window {
             // Dentro de una fila: un elemento de ancho fijo limitaría el ancho máximo de toda la página.
             HorizontalLayout {
                 alignment: start;
-                TextLink { text: show-map ? "Ocultar qué ocupa más espacio" : "Ver qué ocupa más espacio en tu usuario"; clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
+                TextLink { text: show-map ? @tr("" => "Ocultar qué ocupa más espacio") : @tr("" => "Ver qué ocupa más espacio en tu usuario"); clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
             }
             if show-map: Scroll {
                 height: 190px;
@@ -753,19 +761,19 @@ export component Main inherits Window {
         if page == 4: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Optimizar"; sub: "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."; }
+            Head { title: @tr("" => "Optimizar"); sub: @tr("" => "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."); }
             HorizontalLayout {
                 spacing: 16px;
                 VerticalLayout {
                     horizontal-stretch: 1;
                     alignment: center;
                     spacing: 2px;
-                    Text { text: "Aplicaste \{opt-done} de \{opt-total} mejoras recomendadas"; font-size: 14px; color: Theme.text; }
-                    if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                    Text { text: @tr("" => "Aplicaste {} de {} mejoras recomendadas", opt-done, opt-total); font-size: 14px; color: Theme.text; }
+                    if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
                 }
                 if opt-done < opt-total: VerticalLayout {
                     alignment: center;
-                    Btn { text: "Aplicar las recomendadas"; strong: true; clicked => { opt-confirm = true; } }
+                    Btn { text: @tr("" => "Aplicar las recomendadas"); strong: true; clicked => { opt-confirm = true; } }
                 }
             }
             Scroll {
@@ -775,7 +783,7 @@ export component Main inherits Window {
                     alignment: start;
                     for r[i] in opt-rows: Rectangle {
                         height: r.header ? 44px : 56px;
-                        if r.header: Text { text: r.title; x: 4px; y: parent.height - 24px; font-size: 12px; font-weight: 600; color: Theme.muted; horizontal-alignment: left; }
+                        if r.header: Text { text: I18n.t(r.title); x: 4px; y: parent.height - 24px; font-size: 12px; font-weight: 600; color: Theme.muted; horizontal-alignment: left; }
                         if !r.header: Rectangle {
                             Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
                             HorizontalLayout {
@@ -787,17 +795,17 @@ export component Main inherits Window {
                                     horizontal-stretch: 1;
                                     alignment: center;
                                     spacing: 2px;
-                                    Text { text: r.title; font-size: 14px; color: Theme.text; overflow: elide; }
-                                    Text { text: r.desc; font-size: 12px; color: Theme.muted; overflow: elide; }
+                                    Text { text: I18n.t(r.title); font-size: 14px; color: Theme.text; overflow: elide; }
+                                    Text { text: I18n.t(r.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
                                 }
-                                if r.tag != "": Text { text: r.tag; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+                                if r.tag != "": Text { text: I18n.t(r.tag); font-size: 12px; color: Theme.muted; vertical-alignment: center; }
                             }
                         }
                     }
                     if opt-advanced > 0: HorizontalLayout {
                         alignment: start;
                         TextLink {
-                            text: show-advanced ? "Ocultar las opciones avanzadas" : "Mostrar las opciones avanzadas (\{opt-advanced})";
+                            text: show-advanced ? @tr("" => "Ocultar las opciones avanzadas") : @tr("" => "Mostrar las opciones avanzadas ({})", opt-advanced);
                             clicked => { show-advanced = !show-advanced; rebuild-opt(); }
                         }
                     }
@@ -808,18 +816,18 @@ export component Main inherits Window {
         if page == 7: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "\{apps.length} programas"; sub: "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: " + apps-sort-label + "."; }
+            Head { title: @tr("" => "{} programas", apps.length); sub: @tr("" => "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: {}.", I18n.t(apps-sort-label)); }
             HorizontalLayout {
                 spacing: 8px;
-                Search { placeholder: "Buscar programa o editor"; changed(t) => { apps-filter(t); } horizontal-stretch: 1; }
-                Btn { text: "Nombre"; clicked => { apps-sort(0); } }
-                Btn { text: "Peso"; clicked => { apps-sort(1); } }
-                Btn { text: "Editor"; clicked => { apps-sort(2); } }
+                Search { placeholder: @tr("" => "Buscar programa o editor"); changed(t) => { apps-filter(t); } horizontal-stretch: 1; }
+                Btn { text: @tr("" => "Nombre"); clicked => { apps-sort(0); } }
+                Btn { text: @tr("" => "Peso"); clicked => { apps-sort(1); } }
+                Btn { text: @tr("" => "Editor"); clicked => { apps-sort(2); } }
             }
-            if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
             if leftovers.length > 0: VerticalLayout {
                 spacing: 6px;
-                Text { text: "Quedaron \{leftovers.length} restos. Revisalos antes de limpiar:"; font-size: 14px; color: Theme.text; }
+                Text { text: @tr("" => "Quedaron {} restos. Revisalos antes de limpiar:", leftovers.length); font-size: 14px; color: Theme.text; }
                 for l in leftovers: HorizontalLayout {
                     spacing: 12px;
                     Text { text: l.size; width: 64px; font-size: 12px; color: Theme.muted; }
@@ -828,11 +836,11 @@ export component Main inherits Window {
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: start;
-                    Btn { text: "Mover a la reserva"; strong: true; clicked => { clean-leftovers(); } }
-                    Btn { text: "Dejarlos"; clicked => { dismiss-leftovers(); } }
+                    Btn { text: @tr("" => "Mover a la reserva"); strong: true; clicked => { clean-leftovers(); } }
+                    Btn { text: @tr("" => "Dejarlos"); clicked => { dismiss-leftovers(); } }
                 }
             }
-            if can-undo-leftovers: Btn { text: "Deshacer limpieza de restos"; clicked => { undo-leftovers(); } }
+            if can-undo-leftovers: Btn { text: @tr("" => "Deshacer limpieza de restos"); clicked => { undo-leftovers(); } }
             Scroll {
                 content-h: apps.length * 40px;
                 vertical-stretch: 1;
@@ -865,7 +873,7 @@ export component Main inherits Window {
                             Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
                         }
                         Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; un-btn := Btn { text: "Desinstalar"; danger: true; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
+                        VerticalLayout { alignment: center; un-btn := Btn { text: @tr("" => "Desinstalar"); danger: true; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
                     }
                 }
             }
@@ -875,7 +883,7 @@ export component Main inherits Window {
         if page == 8: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Seguridad"; sub: "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."; }
+            Head { title: @tr("" => "Seguridad"); sub: @tr("" => "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."); }
 
             // Antes del primer análisis: solo el botón, grande y en el centro.
             if !behavior-run: VerticalLayout {
@@ -887,7 +895,7 @@ export component Main inherits Window {
                     ScanButton { size: 220px; busy: behavior-busy; progress: progress; clicked => { if (!behavior-busy) { scan-behavior(); } } }
                 }
                 if !behavior-busy: Text {
-                    text: "Toca para revisar tu PC. Tarda unos segundos.";
+                    text: @tr("" => "Toca para revisar tu PC. Tarda unos segundos.");
                     font-size: 12px;
                     color: Theme.muted;
                     horizontal-alignment: center;
@@ -905,12 +913,12 @@ export component Main inherits Window {
                         alignment: center;
                         spacing: 4px;
                         Text {
-                            text: behavior-busy ? progress : (findings.length == 0 ? "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia." : (findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar"));
+                            text: behavior-busy ? progress : (findings.length == 0 ? @tr("" => "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia.") : (findings.length == 1 ? @tr("" => "Encontré 1 cosa para revisar") : @tr("" => "Encontré {} cosas para revisar", findings.length)));
                             font-size: 14px;
                             color: Theme.text;
                             wrap: word-wrap;
                         }
-                        if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                        if sec-status != "": Text { text: I18n.t(sec-status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
                     }
                 }
                 Scroll {
@@ -931,7 +939,7 @@ export component Main inherits Window {
                             restore => { sec-confirm-action = 3; sec-confirm = i; }
                         }
                         for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
-                        if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
+                        if threats.length > 0: Text { text: @tr("" => "Detecciones registradas por Defender ({})", threats.length); font-size: 14px; color: Theme.text; }
                         for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
                     }
                 }
@@ -941,19 +949,24 @@ export component Main inherits Window {
         if page == 9: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Configuración"; sub: "Se guarda sola y se recuerda la próxima vez que abras lumen."; }
+            Head { title: @tr("" => "Configuración"); sub: @tr("" => "Se guarda sola y se recuerda la próxima vez que abras lumen."); }
             ConfigRow {
-                title: "Tema";
-                desc: "Claro, oscuro o el mismo que usa Windows.";
-                Segmented { options: ["Automático", "Claro", "Oscuro"]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
+                title: @tr("" => "Tema");
+                desc: @tr("" => "Claro, oscuro o el mismo que usa Windows.");
+                Segmented { options: [@tr("" => "Automático"), @tr("" => "Claro"), @tr("" => "Oscuro")]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
             }
             ConfigRow {
-                title: "Actualización del panel";
-                desc: "Cada cuánto se renuevan el uso del procesador, la memoria y la red.";
-                Segmented { options: ["1 segundo", "2 segundos", "5 segundos"]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
+                title: @tr("" => "Actualización del panel");
+                desc: @tr("" => "Cada cuánto se renuevan el uso del procesador, la memoria y la red.");
+                Segmented { options: [@tr("" => "1 segundo"), @tr("" => "2 segundos"), @tr("" => "5 segundos")]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
+            }
+            ConfigRow {
+                title: @tr("" => "Idioma");
+                desc: @tr("" => "El idioma de todos los textos de lumen.");
+                Segmented { options: ["Español", "English"]; current: cfg-lang; picked(i) => { cfg-lang = i; config-changed(); } }
             }
             Rectangle { vertical-stretch: 1; }
-            Text { text: "lumen \{app-version} · Licencia MIT · github.com/vitorinoluca/lumen"; font-size: 12px; color: Theme.muted; }
+            Text { text: @tr("" => "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen", app-version); font-size: 12px; color: Theme.muted; }
         }
     }
 
@@ -962,9 +975,9 @@ export component Main inherits Window {
         y: 0;
         width: root.width;
         height: root.height;
-        title: "¿Desinstalar \{confirm-app-name}?";
-        body: "Se abre el desinstalador del programa. Cuando termine, te mostramos lo que haya quedado para que decidas si lo limpiás. Si lumen corre como administrador, antes se crea un punto de restauración.";
-        ok-text: "Desinstalar";
+        title: @tr("" => "¿Desinstalar {}?", confirm-app-name);
+        body: @tr("" => "Se abre el desinstalador del programa. Cuando termine, te mostramos lo que haya quedado para que decidas si lo limpiás. Si lumen corre como administrador, antes se crea un punto de restauración.");
+        ok-text: @tr("" => "Desinstalar");
         danger: true;
         ok => { uninstall(confirm-app); confirm-app = -1; }
         cancel => { confirm-app = -1; }
@@ -974,9 +987,9 @@ export component Main inherits Window {
         y: 0;
         width: root.width;
         height: root.height;
-        title: "¿Cerrar \{kill-name}?";
-        body: "Perdés lo que no hayas guardado en ese programa. No se puede deshacer.";
-        ok-text: "Cerrar proceso";
+        title: @tr("" => "¿Cerrar {}?", kill-name);
+        body: @tr("" => "Perdés lo que no hayas guardado en ese programa. No se puede deshacer.");
+        ok-text: @tr("" => "Cerrar proceso");
         danger: true;
         ok => { kill(kill-pid); kill-pid = -1; }
         cancel => { kill-pid = -1; }
@@ -986,11 +999,11 @@ export component Main inherits Window {
         y: 0;
         width: root.width;
         height: root.height;
-        title: sec-confirm-action == 1 ? "¿Ignorar este hallazgo?" : (sec-confirm-action == 2 ? "¿Deshabilitar esto?" : "¿Restaurar lo que deshabilitó lumen?");
-        body: sec-confirm-action == 1 ? "Se agrega a la línea base y no se vuelve a mostrar. No cambia nada en tu PC."
-            : (sec-confirm-action == 2 ? "Se desactiva y antes se guarda un respaldo. Podés volver atrás con Restaurar. Algunos cambios necesitan abrir lumen como administrador."
-            : "Se vuelve a dejar como estaba antes de que lumen lo deshabilitara.");
-        ok-text: sec-confirm-action == 1 ? "Ignorar" : (sec-confirm-action == 2 ? "Deshabilitar" : "Restaurar");
+        title: sec-confirm-action == 1 ? @tr("" => "¿Ignorar este hallazgo?") : (sec-confirm-action == 2 ? @tr("" => "¿Deshabilitar esto?") : @tr("" => "¿Restaurar lo que deshabilitó lumen?"));
+        body: sec-confirm-action == 1 ? @tr("" => "Se agrega a la línea base y no se vuelve a mostrar. No cambia nada en tu PC.")
+            : (sec-confirm-action == 2 ? @tr("" => "Se desactiva y antes se guarda un respaldo. Podés volver atrás con Restaurar. Algunos cambios necesitan abrir lumen como administrador.")
+            : @tr("" => "Se vuelve a dejar como estaba antes de que lumen lo deshabilitara."));
+        ok-text: sec-confirm-action == 1 ? @tr("" => "Ignorar") : (sec-confirm-action == 2 ? @tr("" => "Deshabilitar") : @tr("" => "Restaurar"));
         danger: sec-confirm-action == 2;
         ok => { finding-do(sec-confirm, sec-confirm-action); sec-confirm = -1; }
         cancel => { sec-confirm = -1; }
@@ -1000,9 +1013,9 @@ export component Main inherits Window {
         y: 0;
         width: root.width;
         height: root.height;
-        title: "¿Aplicar las mejoras recomendadas?";
-        body: "Se desactivan cosas que casi nadie necesita: anuncios, sugerencias, telemetría y servicios que casi no se usan. Se puede volver atrás desde acá, cambio por cambio. Algunos necesitan abrir lumen como administrador.";
-        ok-text: "Aplicar";
+        title: @tr("" => "¿Aplicar las mejoras recomendadas?");
+        body: @tr("" => "Se desactivan cosas que casi nadie necesita: anuncios, sugerencias, telemetría y servicios que casi no se usan. Se puede volver atrás desde acá, cambio por cambio. Algunos necesitan abrir lumen como administrador.");
+        ok-text: @tr("" => "Aplicar");
         ok => { opt-confirm = false; apply-recommended(); }
         cancel => { opt-confirm = false; }
     }

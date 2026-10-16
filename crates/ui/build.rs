@@ -22,7 +22,7 @@ const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?
 "#;
 
 fn main() {
-    slint_build::compile("ui/main.slint").unwrap();
+    slint_build::compile_with_config("ui/main.slint", slint_build::CompilerConfiguration::new().with_bundled_translations("lang")).unwrap();
 
     // Ícono, nombre y versión del ejecutable: sin esto Windows lo muestra como un programa anónimo.
     // La versión (FileVersion/ProductVersion) sale de Cargo.toml.
