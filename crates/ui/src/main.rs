@@ -67,7 +67,11 @@ fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
 
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
 fn size(b: u64) -> String {
-    if b >= 1 << 30 { gb(b) } else { format!("{} MB", b >> 20) }
+    match b {
+        b if b >= 1 << 30 => gb(b),
+        b if b > 0 && b < 1 << 20 => "<1 MB".to_string(),
+        b => format!("{} MB", b >> 20),
+    }
 }
 
 fn show(ui: &Main, s: &Snapshot) {
@@ -236,14 +240,18 @@ fn main() {
             let mut view: Vec<uninstall::App> =
                 all.borrow().iter().filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q) || a.publisher.to_lowercase().contains(&q)).cloned().collect();
             let (key, desc) = sort.get();
-            match key {
-                1 => view.sort_by_key(|a| a.size_kb),
-                2 => view.sort_by_key(|a| (a.publisher.is_empty(), a.publisher.to_lowercase())),
-                _ => view.sort_by_key(|a| a.name.to_lowercase()),
-            }
-            if desc {
-                view.reverse();
-            }
+            // Lo que no tiene dato (peso o editor vacío) va siempre al final, en cualquier sentido.
+            let unknown = |a: &uninstall::App| (key == 1 && a.size_kb == 0) || (key == 2 && a.publisher.is_empty());
+            view.sort_by(|a, b| {
+                unknown(a).cmp(&unknown(b)).then_with(|| {
+                    let o = match key {
+                        1 => a.size_kb.cmp(&b.size_kb),
+                        2 => a.publisher.to_lowercase().cmp(&b.publisher.to_lowercase()),
+                        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                    };
+                    if desc { o.reverse() } else { o }
+                })
+            });
             let cache = icons.lock().unwrap();
             let rows: Vec<AppRow> = view
                 .iter()
@@ -645,5 +653,6 @@ mod tests {
         assert_eq!(size(900 * 1_048_576), "900 MB");
         assert_eq!(size(1_073_741_824), "1,0 GB");
         assert_eq!(size(0), "0 MB");
+        assert_eq!(size(12 * 1024), "<1 MB");
     }
 }
