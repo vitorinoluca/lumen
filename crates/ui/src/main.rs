@@ -578,6 +578,7 @@ fn main() {
             ui.set_behavior_busy(false);
             ui.set_behavior_run(true);
             rebuild();
+            load_security(ui.as_weak()); // el estado de Defender y sus detecciones forman parte de los resultados
         }
     });
     ui.on_finding_do({
@@ -831,7 +832,6 @@ fn main() {
             Some(5) => load_services(),
             Some(6) => load_profiles(),
             Some(7) => load_apps(),
-            Some(8) => load_security(weak.clone()),
             _ => {}
         }
     });

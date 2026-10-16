@@ -314,6 +314,45 @@ component FindingCard inherits Rectangle {
     }
 }
 
+// Botón circular de la revisión: grande y centrado al principio, chico cuando ya hay resultados.
+component ScanButton inherits Rectangle {
+    in property <length> size: 220px;
+    in property <bool> busy: false;
+    in property <bool> compact: false;
+    callback clicked;
+    width: size;
+    height: size;
+    border-radius: size / 2;
+    border-width: compact ? 2px : 3px;
+    border-color: Theme.accent;
+    background: busy ? Theme.card : (ta.has-hover ? Theme.accent.with-alpha(0.14) : Theme.card);
+    // Arco que gira mientras se analiza, para saber que sigue trabajando.
+    Path {
+        visible: root.busy;
+        width: root.size - 12px;
+        height: root.size - 12px;
+        x: 6px;
+        y: 6px;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 50 2 A 48 48 0 0 1 98 50";
+        stroke: Theme.accent;
+        stroke-width: 4px;
+        stroke-line-cap: round;
+        transform-rotation: root.busy ? 360deg : 0deg;
+        animate transform-rotation { duration: 1.2s; iteration-count: -1; easing: linear; }
+    }
+    Text {
+        text: root.busy ? "Analizando…" : "Analizar";
+        font-size: root.compact ? 12px : 28px;
+        font-weight: 600;
+        color: Theme.accent;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea { mouse-cursor: root.busy ? MouseCursor.default : MouseCursor.pointer; clicked => { root.clicked(); } }
+}
+
 component Sep inherits Rectangle {
     height: 13px;
     Rectangle { y: 6px; height: 1px; background: Theme.line; }
@@ -747,34 +786,66 @@ export component Main inherits Window {
         if page == 8: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "Seguridad"; sub: "Una sola revisión mira Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."; }
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-                Btn { text: behavior-busy ? "Revisando…" : "Revisar mi PC"; strong: !behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
-            }
-            if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            Scroll {
+            Head { title: "Seguridad"; sub: "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."; }
+
+            // Antes del primer análisis: solo el botón, grande y en el centro.
+            if !behavior-run: VerticalLayout {
                 vertical-stretch: 1;
-                content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px + (behavior-run ? 48px : 0px) + findings-h;
-                VerticalLayout {
-                    alignment: start;
-                    spacing: 12px;
-                    if behavior-run: Text { text: findings.length > 0 ? findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar" : "No se encontró nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."; font-size: 14px; color: Theme.text; wrap: word-wrap; }
-                    for f[i] in findings: FindingCard {
-                        title: f.title;
-                        detail: f.detail;
-                        decoded: f.decoded;
-                        severity: f.severity;
-                        can-disable: f.can-disable;
-                        can-restore: f.can-restore;
-                        ignore => { sec-confirm-action = 1; sec-confirm = i; }
-                        disable => { sec-confirm-action = 2; sec-confirm = i; }
-                        restore => { sec-confirm-action = 3; sec-confirm = i; }
+                alignment: center;
+                spacing: 20px;
+                HorizontalLayout {
+                    alignment: center;
+                    ScanButton { size: 220px; busy: behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                }
+                Text {
+                    text: behavior-busy ? sec-status : "Toca para revisar tu PC. Tarda unos segundos.";
+                    font-size: 12px;
+                    color: Theme.muted;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+
+            // Después: el botón se achica arriba y aparecen los resultados.
+            if behavior-run: VerticalLayout {
+                vertical-stretch: 1;
+                spacing: 12px;
+                HorizontalLayout {
+                    spacing: 16px;
+                    ScanButton { size: 88px; compact: true; busy: behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Text {
+                            text: behavior-busy ? "Analizando…" : (findings.length == 0 ? "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia." : (findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar"));
+                            font-size: 14px;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                        if sec-status != "": Text { text: sec-status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
                     }
-                    for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
-                    if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
-                    for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                }
+                Scroll {
+                    vertical-stretch: 1;
+                    content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px + findings-h;
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 12px;
+                        for f[i] in findings: FindingCard {
+                            title: f.title;
+                            detail: f.detail;
+                            decoded: f.decoded;
+                            severity: f.severity;
+                            can-disable: f.can-disable;
+                            can-restore: f.can-restore;
+                            ignore => { sec-confirm-action = 1; sec-confirm = i; }
+                            disable => { sec-confirm-action = 2; sec-confirm = i; }
+                            restore => { sec-confirm-action = 3; sec-confirm = i; }
+                        }
+                        for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
+                        if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
+                        for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                    }
                 }
             }
         }
