@@ -1,6 +1,6 @@
 //! Journal de acciones: toda modificación del sistema pasa por acá y se puede deshacer.
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
-use crate::{power, processes::Processes, ps, startup::{self, Source}};
+use crate::{power, processes::Processes, ps, startup::{self, Source}, tasks::Task};
 use serde::{Deserialize, Serialize};
 use winreg::{enums::*, RegKey};
 use std::{fs, io, path::{Path, PathBuf}};
@@ -45,6 +45,11 @@ pub enum Action {
     RemoveApp { package: String },
     /// Cierra procesos por nombre (modo juego). No se puede deshacer: lo cerrado no se reabre solo.
     CloseProcesses { names: Vec<String> },
+    /// Cambia los servidores DNS de los adaptadores activos. `prev` = (adaptador, DNS fijos de antes);
+    /// vacío = automático. Revert deja cada adaptador como estaba.
+    SetDns { servers: Vec<String>, prev: Vec<(String, Vec<String>)> },
+    /// Tarea de mantenimiento de Windows (DNS, red, SFC, DISM...). Casi ninguna se puede deshacer.
+    Maintenance { task: Task },
 }
 
 impl Action {
@@ -79,6 +84,12 @@ impl Action {
             Action::SetRegText { hive, path, name, new, prev } => format!("{}: {} → {}", hive.reg_path(&format!(r"{path}\{name}")), text(prev), text(new)),
             Action::SetPowerPlan { new, prev } => format!("Plan de energía: {} → {}", power::name(prev), power::name(new)),
             Action::SetStartup { name, enable, .. } => format!("{} {name} al iniciar Windows", on(enable)),
+            Action::SetDns { servers, prev } => {
+                let show = |s: &Vec<String>| if s.is_empty() { "automático".to_string() } else { s.join(", ") };
+                let before = prev.first().map_or("automático".to_string(), |(_, s)| show(s));
+                format!("DNS de los adaptadores activos: {before} → {}", show(servers))
+            }
+            Action::Maintenance { task } => task.describe().to_string(),
             Action::CloseProcesses { names } => format!("Cerrar estas apps si están abiertas: {} (no se reabren solas)", names.join(", ")),
             Action::RemoveApp { package } => format!("Quitar la app {package} (para tenerla otra vez hay que reinstalarla desde Microsoft Store)"),
         }
@@ -86,7 +97,24 @@ impl Action {
 
     /// Si `revert` puede dejar todo como estaba.
     pub fn undoable(&self) -> bool {
-        !matches!(self, Action::RemoveApp { .. } | Action::CloseProcesses { .. })
+        match self {
+            Action::RemoveApp { .. } | Action::CloseProcesses { .. } => false,
+            Action::Maintenance { task } => task.read_only(),
+            _ => true,
+        }
+    }
+
+    /// Solo lee: no cambia nada, así que no va al historial.
+    pub fn is_read_only(&self) -> bool {
+        matches!(self, Action::Maintenance { task } if task.read_only())
+    }
+
+    /// Ejecuta y devuelve, si lo hay, un resumen de lo que pasó (tareas de mantenimiento).
+    pub fn execute(&self) -> io::Result<Option<String>> {
+        match self {
+            Action::Maintenance { task } => task.run().map(Some),
+            _ => self.apply().map(|_| None),
+        }
     }
 
     pub fn apply(&self) -> io::Result<()> {
@@ -115,6 +143,8 @@ impl Action {
                 Processes::default().kill_named(names);
                 Ok(())
             }
+            Action::SetDns { servers, prev } => prev.iter().try_for_each(|(alias, _)| set_dns(alias, servers)),
+            Action::Maintenance { task } => task.run().map(|_| ()),
             Action::RemoveApp { package } => ps::run(&format!("Get-AppxPackage -Name {} | Remove-AppxPackage -ErrorAction Stop", ps::quote(package))).map(|_| ()),
         }
     }
@@ -132,10 +162,23 @@ impl Action {
             Action::SetRegText { hive, path, name, prev, .. } => write_text(*hive, path, name, prev.as_deref()),
             Action::SetPowerPlan { prev, .. } => power::set(prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
+            Action::SetDns { prev, .. } => prev.iter().try_for_each(|(alias, old)| set_dns(alias, old)),
+            Action::Maintenance { .. } => Err(io::Error::new(io::ErrorKind::Unsupported, "esta tarea no se puede deshacer")),
             Action::CloseProcesses { .. } => Err(io::Error::new(io::ErrorKind::Unsupported, "las apps cerradas no se pueden reabrir desde lumen")),
             Action::RemoveApp { .. } => Err(io::Error::new(io::ErrorKind::Unsupported, "las apps quitadas no se pueden restaurar desde lumen; reinstalala desde Microsoft Store")),
         }
     }
+}
+
+/// Pone los DNS de un adaptador; sin servidores vuelve al automático.
+fn set_dns(alias: &str, servers: &[String]) -> io::Result<()> {
+    let script = if servers.is_empty() {
+        format!("Set-DnsClientServerAddress -InterfaceAlias {} -ResetServerAddresses -ErrorAction Stop", ps::quote(alias))
+    } else {
+        let list = servers.iter().map(|s| ps::quote(s)).collect::<Vec<_>>().join(",");
+        format!("Set-DnsClientServerAddress -InterfaceAlias {} -ServerAddresses {list} -ErrorAction Stop", ps::quote(alias))
+    };
+    ps::run(&script).map(|_| ())
 }
 
 fn reg_exe(args: &[&str]) -> io::Result<()> {

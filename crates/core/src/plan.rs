@@ -37,6 +37,8 @@ pub struct Item {
     pub more: bool,
     /// Título de grupo en vez de opción.
     pub header: bool,
+    /// Seguro pero largo o poco habitual: arranca desmarcado igual.
+    pub unchecked: bool,
     /// Programa cuyo ícono se muestra al lado (ruta del .exe); vacío = sin ícono.
     pub icon: String,
     pub steps: Vec<Step>,
@@ -44,7 +46,7 @@ pub struct Item {
 
 impl Item {
     pub fn new(id: &str, title: &str, desc: &str, risk: Risk, steps: Vec<Step>) -> Self {
-        Self { id: id.into(), title: title.into(), desc: desc.into(), risk, group: 0, done: false, more: false, header: false, icon: String::new(), steps }
+        Self { id: id.into(), title: title.into(), desc: desc.into(), risk, group: 0, done: false, more: false, header: false, unchecked: false, icon: String::new(), steps }
     }
 
     pub fn header(title: &str) -> Self {
@@ -53,7 +55,7 @@ impl Item {
 
     /// Marcada de entrada: solo lo verde que todavía no está aplicado.
     pub fn default_checked(&self) -> bool {
-        !self.header && !self.done && self.group == 0 && self.risk == Risk::Safe
+        !self.header && !self.done && !self.unchecked && self.group == 0 && self.risk == Risk::Safe
     }
 }
 
@@ -62,24 +64,65 @@ impl Item {
 pub struct Report {
     pub applied: usize,
     pub failed: Vec<(String, String)>,
+    /// Resúmenes de las tareas que los dejaron.
+    pub notes: Vec<String>,
 }
 
-/// Aplica las opciones elegidas, una por una, registrando cada paso en el journal.
+/// Lo que pasó al ejecutar una opción: cuántos pasos se hicieron y, si uno falló, por qué.
+#[derive(Debug, Clone, Default)]
+pub struct Run {
+    pub done: usize,
+    pub error: Option<String>,
+    /// Resúmenes que dejaron las tareas (ej. la salud del disco).
+    pub notes: Vec<String>,
+}
+
+/// Ejecuta las opciones elegidas sin tocar el journal. Puede tardar (SFC, DISM...): va en un hilo.
 /// Si un paso falla, esa opción se corta ahí y se sigue con la siguiente.
-pub fn apply(journal: &mut Journal, items: &[&Item]) -> Report {
+pub fn run(items: &[Item]) -> Vec<Run> {
+    items
+        .iter()
+        .map(|item| {
+            let mut run = Run::default();
+            for step in &item.steps {
+                match step.action.execute() {
+                    Ok(note) => {
+                        run.done += 1;
+                        run.notes.extend(note);
+                    }
+                    Err(e) => {
+                        run.error = Some(e.to_string());
+                        break;
+                    }
+                }
+            }
+            run
+        })
+        .collect()
+}
+
+/// Anota en el journal lo que `run` hizo (solo los pasos que salieron bien) y arma el resumen.
+pub fn record(journal: &mut Journal, items: &[Item], runs: &[Run]) -> Report {
     let mut report = Report::default();
-    for item in items {
-        let mut ok = true;
-        for step in &item.steps {
-            if let Err(e) = journal.apply(&item.title, step.action.clone()) {
-                report.failed.push((item.title.clone(), e.to_string()));
-                ok = false;
-                break;
+    for (item, run) in items.iter().zip(runs) {
+        report.notes.extend(run.notes.iter().cloned());
+        for step in item.steps[..run.done].iter().filter(|s| !s.action.is_read_only()) {
+            if let Err(e) = journal.record(&item.title, step.action.clone()) {
+                report.failed.push((item.title.clone(), format!("no se pudo anotar en el historial: {e}")));
             }
         }
-        report.applied += ok as usize;
+        match &run.error {
+            Some(e) => report.failed.push((item.title.clone(), e.clone())),
+            None => report.applied += 1,
+        }
     }
     report
+}
+
+/// Ejecuta y anota de una vez (para cuando no hace falta un hilo).
+pub fn apply(journal: &mut Journal, items: &[&Item]) -> Report {
+    let owned: Vec<Item> = items.iter().map(|i| (*i).clone()).collect();
+    record(journal, &owned, &run(&owned))
 }
 
 #[cfg(test)]

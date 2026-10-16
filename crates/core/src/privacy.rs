@@ -76,6 +76,17 @@ const BLOAT: &[(&str, &str, &str)] = &[
     ("Microsoft.YourPhone", "Vincular con el móvil", "Conecta el celular con la PC."),
 ];
 
+/// Paquetes que se ofrecen quitar (para comprobar textos y traducciones).
+pub const BLOAT_PACKAGES: [&str; BLOAT.len()] = {
+    let mut out = [""; BLOAT.len()];
+    let mut i = 0;
+    while i < BLOAT.len() {
+        out[i] = BLOAT[i].0;
+        i += 1;
+    }
+    out
+};
+
 /// Nombres de los paquetes Appx instalados para este usuario (tarda un par de segundos).
 pub fn installed_apps() -> Vec<String> {
     crate::ps::run("Get-AppxPackage | Select-Object -ExpandProperty Name").map(|t| t.lines().map(|l| l.trim().to_string()).collect()).unwrap_or_default()

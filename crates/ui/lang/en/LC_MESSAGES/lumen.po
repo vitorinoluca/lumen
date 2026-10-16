@@ -1077,3 +1077,216 @@ msgstr "Done: you freed {} ({} copies in the reserve)."
 
 msgid "Se conserva el de {} · 1 copia"
 msgstr "Keeping the one in {} · 1 copy"
+
+msgid "Revisando tu PC…"
+msgstr "Checking your PC…"
+
+msgid "Aplicando los cambios, puede tardar…"
+msgstr "Applying the changes, it may take a while…"
+
+msgid "Arreglá problemas de conexión y elegí qué servidor DNS usar."
+msgstr "Fix connection problems and choose which DNS server to use."
+
+msgid "Reparación"
+msgstr "Repair"
+
+msgid "Revisá y reparás Windows cuando algo anda mal. Son tareas largas: no cierres lumen mientras corren."
+msgstr "Check and repair Windows when something goes wrong. These are long tasks: don't close lumen while they run."
+
+msgid "Reparar"
+msgstr "Repair"
+
+msgid "Actualizaciones"
+msgstr "Updates"
+
+msgid "Elegí cómo se actualiza Windows."
+msgstr "Choose how Windows updates."
+
+msgid "Limpiar la caché de DNS"
+msgstr "Clear the DNS cache"
+
+msgid "Borra las direcciones que Windows recuerda. Sirve si una página no carga o muestra una versión vieja."
+msgstr "Clears the addresses Windows remembers. Helps if a page won't load or shows an old version."
+
+msgid "Restablecer la configuración de red"
+msgstr "Reset the network configuration"
+
+msgid "Arregla problemas de conexión raros. Hay que reiniciar la PC y no se puede deshacer."
+msgstr "Fixes odd connection problems. The PC must restart and it can't be undone."
+
+msgid "Servidor DNS"
+msgstr "DNS server"
+
+msgid "DNS automático"
+msgstr "Automatic DNS"
+
+msgid "Usa el que te da tu proveedor de internet."
+msgstr "Uses the one your internet provider gives you."
+
+msgid "DNS de Cloudflare (1.1.1.1)"
+msgstr "Cloudflare DNS (1.1.1.1)"
+
+msgid "Rápido y que no guarda tu actividad."
+msgstr "Fast and doesn't keep your activity."
+
+msgid "DNS de Google (8.8.8.8)"
+msgstr "Google DNS (8.8.8.8)"
+
+msgid "Muy estable y disponible en todo el mundo."
+msgstr "Very stable and available worldwide."
+
+msgid "Quitar Noticias"
+msgstr "Remove News"
+
+msgid "Noticias de Microsoft con publicidad. No se puede deshacer desde lumen."
+msgstr "Microsoft news with ads. Can't be undone from lumen."
+
+msgid "Quitar El Tiempo"
+msgstr "Remove Weather"
+
+msgid "App del clima de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft weather app. Can't be undone from lumen."
+
+msgid "Quitar Obtener ayuda"
+msgstr "Remove Get Help"
+
+msgid "Chat de soporte de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft support chat. Can't be undone from lumen."
+
+msgid "Quitar Consejos"
+msgstr "Remove Tips"
+
+msgid "Consejos y novedades de Windows. No se puede deshacer desde lumen."
+msgstr "Windows tips and news. Can't be undone from lumen."
+
+msgid "Quitar Solitario"
+msgstr "Remove Solitaire"
+
+msgid "Juegos de cartas con anuncios. No se puede deshacer desde lumen."
+msgstr "Card games with ads. Can't be undone from lumen."
+
+msgid "Quitar Realidad mixta"
+msgstr "Remove Mixed Reality"
+
+msgid "Solo sirve con visores de realidad virtual. No se puede deshacer desde lumen."
+msgstr "Only useful with VR headsets. Can't be undone from lumen."
+
+msgid "Quitar Contactos"
+msgstr "Remove People"
+
+msgid "Libreta de contactos de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft contacts book. Can't be undone from lumen."
+
+msgid "Quitar Skype"
+msgstr "Remove Skype"
+
+msgid "Videollamadas de Skype. No se puede deshacer desde lumen."
+msgstr "Skype video calls. Can't be undone from lumen."
+
+msgid "Quitar Centro de opiniones"
+msgstr "Remove Feedback Hub"
+
+msgid "Envía opiniones y errores a Microsoft. No se puede deshacer desde lumen."
+msgstr "Sends feedback and errors to Microsoft. Can't be undone from lumen."
+
+msgid "Quitar Películas y TV"
+msgstr "Remove Movies & TV"
+
+msgid "Reproductor de video de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft video player. Can't be undone from lumen."
+
+msgid "Quitar Clipchamp"
+msgstr "Remove Clipchamp"
+
+msgid "Editor de video de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft video editor. Can't be undone from lumen."
+
+msgid "Quitar Microsoft 365"
+msgstr "Remove Microsoft 365"
+
+msgid "Acceso directo a Office con ofertas. No se puede deshacer desde lumen."
+msgstr "Office shortcut with offers. Can't be undone from lumen."
+
+msgid "Quitar Microsoft To Do"
+msgstr "Remove Microsoft To Do"
+
+msgid "Lista de tareas de Microsoft. No se puede deshacer desde lumen."
+msgstr "Microsoft task list. Can't be undone from lumen."
+
+msgid "Quitar Vincular con el móvil"
+msgstr "Remove Phone Link"
+
+msgid "Conecta el celular con la PC. No se puede deshacer desde lumen."
+msgstr "Connects the phone to the PC. Can't be undone from lumen."
+
+msgid "Ver la salud del disco (SMART)"
+msgstr "Check disk health (SMART)"
+
+msgid "Lee el estado, la temperatura y el desgaste de tus discos. No cambia nada."
+msgstr "Reads your disks' status, temperature and wear. Changes nothing."
+
+msgid "Reparar los archivos del sistema (SFC)"
+msgstr "Repair system files (SFC)"
+
+msgid "Busca archivos de Windows dañados y los reemplaza. Tarda varios minutos."
+msgstr "Looks for damaged Windows files and replaces them. Takes several minutes."
+
+msgid "Reparar la imagen de Windows (DISM)"
+msgstr "Repair the Windows image (DISM)"
+
+msgid "Arregla la base de componentes de Windows. Tarda varios minutos y necesita internet."
+msgstr "Fixes Windows' component store. Takes several minutes and needs internet."
+
+msgid "Reparar Windows Update"
+msgstr "Repair Windows Update"
+
+msgid "Reinicia las descargas de actualizaciones cuando se quedan trabadas. No se puede deshacer."
+msgstr "Restarts update downloads when they get stuck. Can't be undone."
+
+msgid "Por defecto"
+msgstr "Default"
+
+msgid "Windows decide cuándo y qué instalar. Recibís parches y novedades."
+msgstr "Windows decides when and what to install. You get patches and new features."
+
+msgid "Solo seguridad"
+msgstr "Security only"
+
+msgid "Los parches de seguridad llegan igual; las versiones nuevas de Windows se posponen un año."
+msgstr "Security patches still arrive; new Windows versions are postponed for a year."
+
+msgid "Pausadas"
+msgstr "Paused"
+
+msgid "Windows no busca ni instala nada solo. Te quedás sin parches de seguridad hasta volver a otro modo."
+msgstr "Windows doesn't look for or install anything on its own. You get no security patches until you switch back."
+
+msgid "Vaciar la caché de DNS (ipconfig /flushdns)"
+msgstr "Clear the DNS cache (ipconfig /flushdns)"
+
+msgid "Restablecer Winsock y TCP/IP (netsh winsock reset y netsh int ip reset). Hay que reiniciar la PC después"
+msgstr "Reset Winsock and TCP/IP (netsh winsock reset and netsh int ip reset). The PC must restart afterwards"
+
+msgid "Revisar y reparar los archivos del sistema (sfc /scannow). Tarda varios minutos"
+msgstr "Check and repair system files (sfc /scannow). Takes several minutes"
+
+msgid "Reparar la imagen de Windows (DISM /Online /Cleanup-Image /RestoreHealth). Tarda varios minutos"
+msgstr "Repair the Windows image (DISM /Online /Cleanup-Image /RestoreHealth). Takes several minutes"
+
+msgid "Detener los servicios de Windows Update y renombrar SoftwareDistribution y catroot2 (Windows los vuelve a crear)"
+msgstr "Stop the Windows Update services and rename SoftwareDistribution and catroot2 (Windows recreates them)"
+
+msgid "Leer la salud de los discos (SMART), sin cambiar nada"
+msgstr "Read disk health (SMART), changing nothing"
+
+msgid "Solo se lee información de tu PC: no se cambia nada."
+msgstr "Only information about your PC is read: nothing is changed."
+
+msgid "Listo: revisión terminada."
+msgstr "Done: check finished."
+
+msgid "No se pudo completar la revisión."
+msgstr "The check couldn't be completed."
+
+msgid "Revisando…"
+msgstr "Checking…"

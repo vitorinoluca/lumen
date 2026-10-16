@@ -94,6 +94,26 @@ pub fn t(text: impl AsRef<str>) -> String {
 mod tests {
     use super::*;
 
+    /// Todo texto de una sección que viene del núcleo tiene que estar en el .po; si no, en inglés queda en español.
+    #[test]
+    fn every_section_text_is_translated() {
+        use lumen_core::{network, performance, privacy, repair, updates};
+        set_english(true);
+        let installed: Vec<String> = privacy::BLOAT_PACKAGES.iter().map(|p| p.to_string()).collect();
+        let items = [network::items(), performance::items(), privacy::items(), privacy::bloat_items(&installed), repair::items(), updates::items()].concat();
+        let missing: Vec<String> = items
+            .iter()
+            .flat_map(|i| [i.title.clone(), i.desc.clone()])
+            // Lo que cambia con la PC (nombre de una app de inicio, su comando, el nombre de un adaptador) no se traduce.
+            .filter(|t| !t.is_empty() && !t.contains('\\') && lookup(t) == *t)
+            .filter(|t| !t.starts_with("No iniciar ") && !t.starts_with("Alto rendimiento y cierra"))
+            .collect();
+        set_english(false);
+        assert!(missing.is_empty(), "sin traducir:
+{}", missing.join("
+"));
+    }
+
     #[test]
     fn translates_exact_phrases_and_templates() {
         assert_eq!(lookup("Cancelar"), "Cancel");

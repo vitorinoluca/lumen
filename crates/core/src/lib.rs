@@ -1,6 +1,10 @@
 pub mod actions;
 pub mod plan;
 pub mod performance;
+pub mod network;
+pub mod repair;
+pub mod tasks;
+pub mod updates;
 pub mod monitor;
 pub mod gpu;
 pub mod processes;

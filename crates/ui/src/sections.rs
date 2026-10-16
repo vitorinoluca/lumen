@@ -5,7 +5,7 @@ use crate::{exe_icon, fetch_icons, ExeIcons, HistRow, Main, OptionRow, PreviewRo
 use lumen_core::{
     actions::Journal,
     plan::{self, Item},
-    performance, privacy, restore,
+    network, performance, privacy, repair, restore, updates,
 };
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{cell::{Cell, RefCell}, rc::Rc, sync::{Arc, Mutex}, thread};
@@ -23,6 +23,9 @@ const HISTORY: i32 = 15;
 const ROW_H: f32 = 66.0;
 const HEADER_H: f32 = 44.0;
 
+/// Opciones leídas por un hilo: (sección, opciones). Vacío mientras no llegó nada.
+type Loaded = Option<(i32, Vec<Item>)>;
+
 struct State {
     section: Cell<i32>,
     items: RefCell<Vec<Item>>,
@@ -34,21 +37,32 @@ struct State {
     /// Apps preinstaladas de este usuario: se leen en un hilo al abrir lumen porque Windows tarda un par de segundos.
     apps: Arc<Mutex<Vec<String>>>,
     icons: ExeIcons,
+    /// Opciones que llegaron del hilo que las leyó (sección, opciones).
+    loaded: Arc<Mutex<Loaded>>,
+    /// Lo que se está aplicando, y lo que pasó (lo deja el hilo que ejecuta).
+    running: RefCell<Vec<Item>>,
+    runs: Arc<Mutex<(Vec<plan::Run>, String)>>,
 }
 
 /// Título, explicación y texto del botón principal de cada sección.
 fn meta(section: i32) -> (&'static str, &'static str, &'static str) {
     match section {
         10 => ("Rendimiento", "Que la PC arranque y responda más rápido: inicio, servicios, energía, efectos y segundo plano.", "Optimizar"),
+        12 => ("Red", "Arreglá problemas de conexión y elegí qué servidor DNS usar.", "Optimizar"),
+        13 => ("Reparación", "Revisá y reparás Windows cuando algo anda mal. Son tareas largas: no cierres lumen mientras corren.", "Reparar"),
+        14 => ("Actualizaciones", "Elegí cómo se actualiza Windows.", "Aplicar"),
         11 => ("Privacidad", "Menos datos enviados a Microsoft y menos publicidad en Windows.", "Optimizar"),
         _ => ("", "", "Optimizar"),
     }
 }
 
-fn items_for(section: i32, st: &State) -> Vec<Item> {
+fn items_for(section: i32, apps: &Mutex<Vec<String>>) -> Vec<Item> {
     match section {
         10 => performance::items(),
-        11 => [privacy::items(), privacy::bloat_items(&st.apps.lock().unwrap())].concat(),
+        12 => network::items(),
+        13 => repair::items(),
+        14 => updates::items(),
+        11 => [privacy::items(), privacy::bloat_items(&apps.lock().unwrap())].concat(),
         _ => vec![],
     }
 }
@@ -91,16 +105,31 @@ fn show(ui: &Main, st: &State) {
     ui.set_sc_more_count(items.iter().filter(|it| it.more && !it.header).count() as i32);
 }
 
+/// Muestra la sección ya: las opciones se leen en un hilo (algunas consultan a Windows y tardan) y llegan por `sc-loaded`.
 fn load(ui: &Main, st: &State, section: i32) {
     let (title, sub, button) = meta(section);
     ui.set_sc_title(title.into());
     ui.set_sc_sub(sub.into());
     ui.set_sc_button(button.into());
-    let items = items_for(section, st);
+    st.section.set(section);
+    ui.set_sc_loading(true);
+    let (apps, loaded, weak) = (st.apps.clone(), st.loaded.clone(), ui.as_weak());
+    thread::spawn(move || {
+        *loaded.lock().unwrap() = Some((section, items_for(section, &apps)));
+        let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_sc_loaded());
+    });
+}
+
+/// Las opciones leídas llegaron: si todavía es la sección que se mira, se muestran.
+fn loaded(ui: &Main, st: &State) {
+    let Some((section, items)) = st.loaded.lock().unwrap().take() else { return };
+    if section != st.section.get() {
+        return;
+    }
     fetch_icons(&st.icons, items.iter().map(|it| it.icon.clone()), ui.as_weak());
     *st.checked.borrow_mut() = items.iter().map(Item::default_checked).collect();
     *st.items.borrow_mut() = items;
-    st.section.set(section);
+    ui.set_sc_loading(false);
     show(ui, st);
 }
 
@@ -128,6 +157,11 @@ fn chosen(st: &State) -> Vec<usize> {
     st.items.borrow().iter().enumerate().filter(|(i, it)| checked[*i] && !it.done && !it.header).map(|(i, _)| i).collect()
 }
 
+/// ¿Alguno de estos pasos cambia algo en la PC? Si todo es lectura no hace falta punto de restauración.
+fn changes_system(items: &[Item]) -> bool {
+    items.iter().flat_map(|it| &it.steps).any(|s| !s.action.is_read_only())
+}
+
 /// Muestra qué se va a hacer, con los valores exactos, antes de aplicar nada.
 fn preview(ui: &Main, st: &State) {
     let items = st.items.borrow();
@@ -144,35 +178,52 @@ fn preview(ui: &Main, st: &State) {
         .collect();
     ui.set_sc_preview_rows(ModelRc::new(VecModel::from(rows)));
     ui.set_sc_preview_h(height);
+    let picked: Vec<Item> = chosen(st).into_iter().map(|i| items[i].clone()).collect();
     ui.set_sc_preview_note(
-        "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Lo que se puede deshacer, se deshace desde Historial.".into(),
+        if changes_system(&picked) {
+            "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Lo que se puede deshacer, se deshace desde Historial."
+        } else {
+            "Solo se lee información de tu PC: no se cambia nada."
+        }
+        .into(),
     );
     ui.set_sc_preview(true);
 }
 
-/// Aplica lo marcado y cuenta el resultado.
-fn finish(ui: &Main, st: &State, restore_note: &str) {
-    let items = st.items.borrow().clone();
-    let picked: Vec<&Item> = chosen(st).into_iter().map(|i| &items[i]).collect();
-    let report = plan::apply(&mut st.journal.borrow_mut(), &picked);
+/// Terminó de ejecutarse: se anota en el historial y se cuenta el resultado.
+fn finish(ui: &Main, st: &State) {
+    let items = std::mem::take(&mut *st.running.borrow_mut());
+    let (runs, restore_note) = std::mem::take(&mut *st.runs.lock().unwrap());
+    let report = plan::record(&mut st.journal.borrow_mut(), &items, &runs);
     // Las apps quitadas ya no figuran en la lista guardada.
-    for it in picked.iter().filter(|it| !report.failed.iter().any(|(t, _)| *t == it.title)) {
+    for it in items.iter().filter(|it| !report.failed.iter().any(|(t, _)| *t == it.title)) {
         if let Some(pkg) = it.id.strip_prefix("app:") {
             st.apps.lock().unwrap().retain(|a| a != pkg);
         }
     }
     let mut msg = match report.applied {
+        0 if !changes_system(&items) => "No se pudo completar la revisión.".to_string(),
+        n if n > 0 && !changes_system(&items) => "Listo: revisión terminada.".to_string(),
         0 => "No se aplicó ningún cambio.".to_string(),
         1 => "Listo: 1 cambio aplicado.".to_string(),
         n => format!("Listo: {n} cambios aplicados."),
     };
+    for note in &report.notes {
+        msg += &format!(" {}", capitalize(note));
+    }
     if let Some((title, why)) = report.failed.first() {
         msg += &format!(" No se pudo \"{title}\": {why}");
     }
-    msg += restore_note;
+    msg += &restore_note;
     load(ui, st, st.section.get());
     ui.set_sc_result(msg.into());
     ui.set_sc_busy(false);
+}
+
+/// Primera letra en mayúscula, para que el resumen de una tarea quede como frase.
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().chain(c).collect::<String>() + ".").unwrap_or_default()
 }
 
 fn load_history(ui: &Main, journal: &Journal) {
@@ -188,7 +239,7 @@ fn load_history(ui: &Main, journal: &Journal) {
 
 /// Conecta las pantallas con opciones y el Historial. Devuelve lo que hay que llamar al abrir una página.
 pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenPage, Redraw) {
-    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone(), apps: Arc::default(), icons });
+    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone(), apps: Arc::default(), icons, loaded: Arc::default(), running: RefCell::default(), runs: Arc::default() });
     {
         let apps = st.apps.clone();
         thread::spawn(move || *apps.lock().unwrap() = privacy::installed_apps());
@@ -218,16 +269,23 @@ pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenP
             }
         }
     });
-    // Tras confirmar: el punto de restauración tarda unos segundos, va en un hilo; después se aplica acá.
+    // Tras confirmar: punto de restauración (tarda unos segundos) y ejecución, todo en un hilo.
+    // El journal vive en la pantalla: lo que pasó vuelve por `sc-finish` y recién ahí se anota.
     ui.on_sc_run({
         let (weak, st) = (ui.as_weak(), st.clone());
         move || {
             let Some(ui) = weak.upgrade() else { return };
+            let picked: Vec<Item> = {
+                let items = st.items.borrow();
+                chosen(&st).into_iter().map(|i| items[i].clone()).collect()
+            };
+            *st.running.borrow_mut() = picked.clone();
             ui.set_sc_busy(true);
-            ui.set_sc_result("Creando el punto de restauración, puede tardar unos segundos…".into());
-            let first = !st.restore_tried.replace(true);
+            ui.set_sc_result(if changes_system(&picked) { "Creando el punto de restauración, puede tardar unos segundos…" } else { "Revisando…" }.into());
+            // El punto de restauración se pide la primera vez que algo cambia, no por leer información.
+            let first = changes_system(&picked) && !st.restore_tried.replace(true);
             let section = st.section.get();
-            let weak = weak.clone();
+            let (weak, runs) = (weak.clone(), st.runs.clone());
             thread::spawn(move || {
                 let note = if first {
                     match restore::create(&format!("sección {}", meta(section).0)) {
@@ -237,15 +295,26 @@ pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenP
                 } else {
                     String::new()
                 };
-                let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_sc_finish(note.into()));
+                let _ = weak.upgrade_in_event_loop(|ui| ui.set_sc_result("Aplicando los cambios, puede tardar…".into()));
+                let done = plan::run(&picked);
+                *runs.lock().unwrap() = (done, note);
+                let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_sc_finish());
             });
         }
     });
     ui.on_sc_finish({
         let (weak, st) = (ui.as_weak(), st.clone());
-        move |note| {
+        move || {
             if let Some(ui) = weak.upgrade() {
-                finish(&ui, &st, note.as_str());
+                finish(&ui, &st);
+            }
+        }
+    });
+    ui.on_sc_loaded({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                loaded(&ui, &st);
             }
         }
     });
