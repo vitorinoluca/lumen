@@ -159,28 +159,45 @@ pub fn ensure_fresh() -> io::Result<bool> {
 
 // ------------------------------------------------------------- caché de hashes
 
+/// Caché de huellas por archivo: si la ruta, el tamaño y la fecha no cambiaron, no se vuelve a leer el archivo.
+/// Calcular las huellas de lo que arranca solo son ~1 GB de lectura: sin caché cuesta unos 2 s de CPU por análisis.
 #[derive(Serialize, Deserialize, Default)]
 pub struct Cache {
     /// ruta -> (tamaño, fecha de modificación, sha256)
     files: HashMap<String, (u64, u64, String)>,
     #[serde(skip)]
     dirty: bool,
-}
-
-fn cache_file() -> PathBuf {
-    dir().join("hash-cache.json")
+    #[serde(skip)]
+    name: String,
 }
 
 impl Cache {
-    pub fn load() -> Cache {
-        fs::read(cache_file()).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+    fn path(name: &str) -> PathBuf {
+        dir().join(name)
+    }
+
+    /// Carga la caché guardada con ese nombre (vacía si no existe o está dañada).
+    pub fn load(name: &str) -> Cache {
+        let mut c = Cache::load_from(&Cache::path(name));
+        c.name = name.to_string();
+        c
+    }
+
+    fn load_from(path: &Path) -> Cache {
+        fs::read(path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
     }
 
     pub fn save(&self) {
-        if self.dirty {
-            let _ = fs::create_dir_all(dir());
-            let _ = fs::write(cache_file(), serde_json::to_vec(&self.files).unwrap_or_default());
+        if self.dirty && !self.name.is_empty() {
+            self.save_to(&Cache::path(&self.name));
         }
+    }
+
+    fn save_to(&self, path: &Path) {
+        if let Some(d) = path.parent() {
+            let _ = fs::create_dir_all(d);
+        }
+        let _ = fs::write(path, serde_json::to_vec(self).unwrap_or_default());
     }
 
     /// SHA-256 del archivo; si no cambió (misma ruta, tamaño y fecha) no se recalcula.
@@ -276,7 +293,7 @@ pub fn check() -> (Vec<Finding>, String) {
         return (vec![], "No pude revisar los drivers: hace falta conexión a internet una vez para bajar la lista de drivers peligrosos conocidos.".into());
     };
     let files = driver_files();
-    let mut cache = Cache::load();
+    let mut cache = Cache::load("hash-cache.json");
     let findings = check_files(&db, &files, &mut cache);
     cache.save();
     (findings, format!("Revisé {} drivers.", files.len()))
@@ -334,6 +351,27 @@ mod tests {
         // cambia el contenido (y el tamaño): se vuelve a calcular
         fs::write(&f, "abcd").unwrap();
         assert_ne!(c.sha256(&f).as_deref(), Some("guardado"));
+        let _ = fs::remove_dir_all(d);
+    }
+
+    #[test]
+    fn cache_survives_being_saved_and_loaded() {
+        let d = temp("persist");
+        let (f, store) = (d.join("a.sys"), d.join("cache.json"));
+        fs::write(&f, "abc").unwrap();
+        let mut c1 = Cache::default();
+        assert_eq!(c1.sha256(&f).as_deref(), Some(SHA_ABC));
+        c1.save_to(&store);
+
+        // tras reiniciar, el valor guardado se usa sin releer el archivo (lo probamos adulterándolo)
+        let mut c2 = Cache::load_from(&store);
+        assert_eq!(c2.files.len(), 1);
+        c2.files.values_mut().for_each(|v| v.2 = "desde-la-cache".into());
+        c2.dirty = true;
+        c2.save_to(&store);
+        let mut c3 = Cache::load_from(&store);
+        assert_eq!(c3.sha256(&f).as_deref(), Some("desde-la-cache"));
+        assert!(Cache::load_from(&d.join("no-existe.json")).files.is_empty());
         let _ = fs::remove_dir_all(d);
     }
 

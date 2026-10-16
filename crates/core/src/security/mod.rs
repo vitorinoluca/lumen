@@ -139,15 +139,17 @@ pub fn scan_with(progress: &dyn Fn(&str)) -> ScanResult {
     result.entries = entries.len();
     let (hashed, driver_check): (Vec<(Entry, String)>, _) = std::thread::scope(|s| {
         let drivers = s.spawn(crate::hashdb::check);
-        // Muchos servicios comparten el mismo ejecutable (svchost.exe): se calcula una vez por archivo.
-        let mut hashes: HashMap<PathBuf, String> = HashMap::new();
+        // Muchos servicios comparten el mismo ejecutable (svchost.exe) y casi nada cambia entre un análisis
+        // y el siguiente: la caché evita volver a leer ~1 GB de archivos cada vez.
+        let mut cache = crate::hashdb::Cache::load("startup-hash-cache.json");
         let hashed = entries
             .into_iter()
             .map(|e| {
-                let sha = e.target.as_ref().map(|t| hashes.entry(t.clone()).or_insert_with(|| signature::sha256(t).unwrap_or_default()).clone()).unwrap_or_default();
+                let sha = e.target.as_deref().and_then(|t| cache.sha256(t)).unwrap_or_default();
                 (e, sha)
             })
             .collect();
+        cache.save();
         (hashed, drivers.join().unwrap_or_default())
     });
     let needs_sig = |e: &Entry, sha: &str| base.entries.get(&e.key).is_none_or(|old| old.sha256 != sha || old.command != e.command);
