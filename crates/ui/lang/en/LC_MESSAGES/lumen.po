@@ -807,3 +807,81 @@ msgstr "Language"
 msgid "El idioma de todos los textos de lumen."
 msgstr "The language of all lumen text."
 
+
+msgid "Procesador"
+msgstr "Processor"
+
+msgid "Memoria"
+msgstr "Memory"
+
+msgid "Gráficos"
+msgstr "Graphics"
+
+msgid "Equipo"
+msgstr "This PC"
+
+msgid "Sistema"
+msgstr "System"
+
+msgid "Placa base"
+msgstr "Motherboard"
+
+msgid "Red"
+msgstr "Network"
+
+msgid "Se puede liberar"
+msgstr "Can be freed"
+
+msgid "Ubicación"
+msgstr "Location"
+
+msgid "Ordenados por uso de CPU. Tocá un proceso para cerrarlo."
+msgstr "Sorted by CPU usage. Tap a process to close it."
+
+msgid "Ordenados por memoria. Tocá un proceso para cerrarlo."
+msgstr "Sorted by memory. Tap a process to close it."
+
+msgid "Ordenados por nombre. Tocá un proceso para cerrarlo."
+msgstr "Sorted by name. Tap a process to close it."
+
+msgid "Se puede liberar. Esto es lo que se va a mover:"
+msgstr "Can be freed. This is what will be moved:"
+
+msgid "No se borra al instante: queda guardado 7 días y podés deshacerlo."
+msgstr "Nothing is deleted right away: it's kept for 7 days and you can undo it."
+
+msgid "Temporales del usuario"
+msgstr "User temporary files"
+
+msgid "Temporales de Windows"
+msgstr "Windows temporary files"
+
+msgid "Caché de Chrome"
+msgstr "Chrome cache"
+
+msgid "Caché de Edge"
+msgstr "Edge cache"
+
+msgid "Caché de Firefox"
+msgstr "Firefox cache"
+
+msgid "Papelera de reciclaje"
+msgstr "Recycle Bin"
+
+msgid "Archivos que los programas dejan en tu carpeta temporal mientras trabajan."
+msgstr "Files programs leave in your temp folder while they work."
+
+msgid "Archivos temporales del sistema que Windows ya no necesita."
+msgstr "System temporary files Windows no longer needs."
+
+msgid "Páginas e imágenes que Chrome guardó para cargar más rápido. Las vuelve a bajar solo."
+msgstr "Pages and images Chrome saved to load faster. It downloads them again on its own."
+
+msgid "Páginas e imágenes que Edge guardó para cargar más rápido. Las vuelve a bajar solo."
+msgstr "Pages and images Edge saved to load faster. It downloads them again on its own."
+
+msgid "Páginas e imágenes que Firefox guardó para cargar más rápido. Las vuelve a bajar solo."
+msgstr "Pages and images Firefox saved to load faster. It downloads them again on its own."
+
+msgid "Lo que ya borraste y sigue en la Papelera. Después de limpiar no se recupera desde ahí."
+msgstr "What you already deleted and is still in the Recycle Bin. After cleaning it can't be restored from there."

@@ -1,34 +1,42 @@
 import { Palette } from "std-widgets.slint";
 
-export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
-export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
+export struct Row { pid: int, name: string, cpu: string, mem: string, path: string, icon: image, has-icon: bool, initial: string }
+export struct StartupRow { name: string, command: string, scope: string, enabled: bool, icon: image, has-icon: bool, initial: string }
 export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
 export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
 export struct SecRow { title: string, sub: string, icon: string, alert: bool }
 export struct FindingRow { title: string, detail: string, decoded: string, severity: int, can-disable: bool, can-restore: bool }
-export struct OptRow { header: bool, title: string, desc: string, tag: string, enabled: bool, locked: bool, kind: int, src: int }
+export struct OptRow { header: bool, title: string, desc: string, tag: string, enabled: bool, locked: bool, kind: int, src: int, icon: string, col: int, y: float }
 export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
+export struct CleanRow { name: string, desc: string, size: string }
 
-// Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
+// Lo que se ve es el material de Windows (Mica) a través de la ventana: nada de fondos sólidos.
+// Las superficies son capas translúcidas (blanco o negro con poca opacidad) y el texto, el mismo color con alfa.
+// Un solo acento. Tamaños: 12 / 14 / 28 (títulos) / 32 (cifras).
 export global Theme {
     // 0 = como Windows, 1 = claro, 2 = oscuro
     in-out property <int> mode: 0;
     out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
-    out property <color> bg: dark ? #101012 : #f7f7f8;
-    out property <color> side: dark ? #161618 : #eeeef0;
-    out property <color> line: dark ? #26262a : #dcdce0;
-    out property <color> text: dark ? #ececee : #1d1d1f;
-    out property <color> muted: dark ? #9a9aa0 : #6b6b72;
-    out property <color> card: dark ? #151517 : #ffffff;
-    out property <color> hover: dark ? #1f1f23 : #e4e4e8;
-    out property <color> accent: dark ? #4fb39d : #2a7a68;
-    out property <color> danger: dark ? #e5736a : #b3261e;
-    out property <length> radius: 4px;
+    out property <color> text: dark ? #f5f5f7 : #1a1a1c;
+    out property <color> muted: dark ? #ffffff9e : #0000009e;
+    out property <color> faint: dark ? #ffffff5c : #00000066;
+    // La hoja donde vive el contenido, y las piezas que se apoyan encima.
+    out property <color> sheet: dark ? #ffffff0a : #ffffff80;
+    out property <color> raised: dark ? #ffffff0f : #ffffffb3;
+    out property <color> hover: dark ? #ffffff14 : #0000000b;
+    out property <color> pressed: dark ? #ffffff1f : #00000014;
+    out property <color> chosen: dark ? #ffffff24 : #ffffffe6;
+    out property <color> line: dark ? #ffffff17 : #0000001a;
+    out property <color> accent: dark ? #62c9b2 : #1d7a65;
+    out property <color> on-accent: dark ? #04211b : #ffffff;
+    out property <color> danger: dark ? #ff8f85 : #c42b1c;
+    // Lo único opaco: los diálogos, para que el texto se lea siempre.
+    out property <color> pop: dark ? #2a2a2e : #fbfbfb;
+    out property <length> radius: 6px;
 }
 
-// Botón plano: borde fino, sin relleno.
 // Íconos de línea (viewbox 24x24), mismo trazo en todos.
 component Icon inherits Path {
     in property <string> kind;
@@ -38,7 +46,7 @@ component Icon inherits Path {
     viewbox-width: 24;
     viewbox-height: 24;
     stroke: tint;
-    stroke-width: 1.7px;
+    stroke-width: 1.6px;
     stroke-line-cap: round;
     stroke-line-join: round;
     commands:
@@ -56,6 +64,16 @@ component Icon inherits Path {
         kind == "windows" ? "M3 5 L11 4 V11 H3 Z M13 3.8 L21 3 V11 H13 Z M3 13 H11 V20 L3 19 Z M13 13 H21 V21 L13 20 Z" :
         kind == "gear" ? "M12 9 A3 3 0 1 0 12 15 A3 3 0 1 0 12 9 M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M5.6 18.4 L7 17 M17 7 L18.4 5.6" :
         kind == "search" ? "M11 4 A7 7 0 1 0 11 18 A7 7 0 1 0 11 4 M16 16 L21 21" :
+        kind == "game" ? "M6 8 H18 A4 4 0 0 1 22 12 V14 A2.5 2.5 0 0 1 17.5 15 L16 13 H8 L6.5 15 A2.5 2.5 0 0 1 2 14 V12 A4 4 0 0 1 6 8 Z M8 10 V12 M7 11 H9 M15.5 10.5 H15.6 M17.5 12 H17.6" :
+        kind == "battery" ? "M3 8 H19 V16 H3 Z M21 11 V13 M6 11 V13 M9 11 V13" :
+        kind == "megaphone" ? "M4 10 V14 H7 L14 18 V6 L7 10 Z M17 9 C18.5 10.5 18.5 13.5 17 15" :
+        kind == "bulb" ? "M9 18 H15 M10 21 H14 M12 3 A6 6 0 0 0 8.5 14 C9 15 9 16 9 17 H15 C15 16 15 15 15.5 14 A6 6 0 0 0 12 3 Z" :
+        kind == "bell" ? "M6 16 V11 A6 6 0 0 1 18 11 V16 L20 18 H4 Z M10 21 H14" :
+        kind == "cloud" ? "M7 18 A4 4 0 0 1 6.5 10 A6 6 0 0 1 18 9 A4.5 4.5 0 0 1 17.5 18 Z" :
+        kind == "print" ? "M7 9 V4 H17 V9 M7 17 H4 V10 H20 V17 H17 M7 14 H17 V21 H7 Z" :
+        kind == "bluetooth" ? "M7 7 L17 17 L12 22 V2 L17 7 L7 17" :
+        kind == "map" ? "M3 6 L9 4 L15 6 L21 4 V18 L15 20 L9 18 L3 20 Z M9 4 V18 M15 6 V20" :
+        kind == "refresh" ? "M20 12 A8 8 0 1 1 17.7 6.3 M20 4 V9 H15" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -67,22 +85,24 @@ export global I18n {
     public pure function t(s: string) -> string { return translate(s, lang); }
 }
 
+// Tres jerarquías: principal (acento relleno), normal (relleno sutil) y destructiva (rojo suave). Sin bordes.
 component Btn inherits Rectangle {
     in property <string> text;
     in property <bool> strong: false;
-    // Acción destructiva: fondo rojo suave, un poco más marcado al pasar el mouse.
     in property <bool> danger: false;
+    in property <length> pad: 14px;
+    in property <length> font: 12px;
     out property <bool> hovered: ta.has-hover;
     callback clicked;
-    height: 28px;
+    height: 30px;
     border-radius: Theme.radius;
-    border-width: 1px;
-    border-color: danger ? Theme.danger.with-alpha(0.5) : (strong ? Theme.accent : Theme.line);
-    background: danger ? Theme.danger.with-alpha(ta.has-hover ? 0.28 : 0.16) : (ta.has-hover ? Theme.hover : transparent);
+    background: strong ? (ta.has-hover ? Theme.accent.with-alpha(0.85) : Theme.accent)
+        : (danger ? Theme.danger.with-alpha(ta.has-hover ? 0.24 : 0.13) : (ta.has-hover ? Theme.pressed : Theme.hover));
+    animate background { duration: 90ms; }
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        Text { text: root.text; font-size: 12px; color: root.danger ? Theme.danger : (root.strong ? Theme.accent : Theme.text); vertical-alignment: center; }
+        padding-left: root.pad;
+        padding-right: root.pad;
+        Text { text: root.text; font-size: root.font; font-weight: 600; color: root.danger ? Theme.danger : (root.strong ? Theme.on-accent : Theme.text); vertical-alignment: center; }
     }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
@@ -92,51 +112,73 @@ component Toggle inherits Rectangle {
     in property <bool> locked: false;
     callback toggled(bool);
     opacity: locked ? 0.4 : 1.0;
-    width: 30px;
-    height: 16px;
-    border-radius: 8px;
-    background: checked ? Theme.accent : Theme.line;
+    width: 38px;
+    height: 20px;
+    border-radius: 10px;
+    border-width: checked ? 0px : 1px;
+    border-color: Theme.faint;
+    background: checked ? Theme.accent : (ta.has-hover && !locked ? Theme.hover : transparent);
+    animate background { duration: 90ms; }
     Rectangle {
-        x: root.checked ? 16px : 2px;
-        y: 2px;
-        width: 12px;
-        height: 12px;
-        border-radius: 6px;
-        background: white;
+        x: root.checked ? 21px : 4px;
+        y: root.checked ? 3px : 4px;
+        width: root.checked ? 14px : 12px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.checked ? Theme.on-accent : Theme.muted;
+        animate x { duration: 110ms; easing: ease-out; }
     }
-    TouchArea { enabled: !root.locked; mouse-cursor: root.locked ? MouseCursor.default : MouseCursor.pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
+    ta := TouchArea { enabled: !root.locked; mouse-cursor: root.locked ? MouseCursor.default : MouseCursor.pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
 }
 
 component Bar inherits Rectangle {
     in property <float> value;
-    height: 4px;
-    border-radius: 2px;
+    height: 3px;
+    border-radius: 1.5px;
     background: Theme.line;
-    Rectangle { x: 0; width: parent.width * Math.min(1, Math.max(0, root.value)); border-radius: 2px; background: Theme.accent; }
+    Rectangle { x: 0; width: parent.width * Math.min(1, Math.max(0, root.value)); border-radius: 1.5px; background: Theme.accent; animate width { duration: 900ms; easing: ease-in-out; } }
 }
 
+// Entrada del menú lateral: sin caja, solo una marca de acento a la izquierda cuando está activa.
 component NavItem inherits Rectangle {
     in property <string> text;
     in property <string> icon;
     in property <bool> active;
     callback clicked;
-    height: 32px;
+    height: 36px;
     border-radius: Theme.radius;
     background: active ? Theme.hover : (ta.has-hover ? Theme.hover.with-alpha(0.5) : transparent);
-    Rectangle { x: 0; y: 8px; width: 2px; height: 16px; background: active ? Theme.accent : transparent; }
-    Icon { x: 12px; y: 8px; kind: root.icon; tint: root.active ? Theme.accent : Theme.muted; }
-    Text { x: 36px; text: root.text; font-size: 14px; color: Theme.text; vertical-alignment: center; }
+    Rectangle { x: 0; y: 10px; width: 3px; height: 16px; border-radius: 1.5px; background: active ? Theme.accent : transparent; }
+    Icon { x: 16px; y: 10px; kind: root.icon; tint: root.active ? Theme.accent : Theme.muted; }
+    Text { x: 44px; text: root.text; font-size: 14px; color: root.active ? Theme.text : Theme.muted; vertical-alignment: center; }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
+// Título grande y una línea que explica la pantalla.
 component Head inherits VerticalLayout {
     in property <string> title;
     in property <string> sub;
-    spacing: 2px;
-    Text { text: title; font-size: 22px; color: Theme.text; }
-    Text { text: sub; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+    spacing: 4px;
+    Text { text: title; font-size: 28px; font-weight: 600; color: Theme.text; overflow: elide; }
+    Text { text: sub; font-size: 14px; color: Theme.muted; wrap: word-wrap; }
 }
 
+// Cada pantalla: margen generoso y aire entre bloques.
+component Page inherits VerticalLayout {
+    padding-left: 32px;
+    padding-right: 32px;
+    padding-top: 28px;
+    padding-bottom: 12px;
+    spacing: 16px;
+}
+
+// Título de sección, chico y apagado.
+component Label inherits Text {
+    font-size: 12px;
+    font-weight: 600;
+    color: Theme.muted;
+    vertical-alignment: center;
+}
 
 component Search inherits Rectangle {
     in-out property <string> text;
@@ -145,8 +187,8 @@ component Search inherits Rectangle {
     height: 32px;
     border-radius: Theme.radius;
     border-width: 1px;
-    border-color: input.has-focus ? Theme.accent : Theme.line;
-    background: Theme.card;
+    border-color: input.has-focus ? Theme.accent : transparent;
+    background: input.has-focus ? Theme.raised : Theme.hover;
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
@@ -154,7 +196,7 @@ component Search inherits Rectangle {
         Icon { kind: "search"; tint: Theme.muted; y: 8px; }
         Rectangle {
             horizontal-stretch: 1;
-            if input.text == "": Text { text: root.placeholder; color: Theme.muted; font-size: 14px; vertical-alignment: center; }
+            if input.text == "": Text { text: root.placeholder; color: Theme.faint; font-size: 14px; vertical-alignment: center; }
             input := TextInput {
                 width: parent.width;
                 height: parent.height;
@@ -240,23 +282,23 @@ component Confirm inherits Rectangle {
     in property <bool> danger: false;
     callback ok();
     callback cancel();
-    background: Theme.dark ? #000000a0 : #00000060;
+    background: Theme.dark ? #00000090 : #00000050;
     TouchArea { }  // evita que los clics lleguen a lo que está debajo
     Rectangle {
         width: min(420px, parent.width - 48px);
         height: box.preferred-height;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: Theme.card;
+        background: Theme.pop;
         border-width: 1px;
         border-color: Theme.line;
-        border-radius: 8px;
+        border-radius: 12px;
         box := VerticalLayout {
-            padding: 20px;
+            padding: 24px;
             spacing: 8px;
             Text { text: root.title; font-size: 14px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
             Text { text: root.body; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            Rectangle { height: 8px; }
+            Rectangle { height: 12px; }
             HorizontalLayout {
                 spacing: 8px;
                 alignment: end;
@@ -268,6 +310,7 @@ component Confirm inherits Rectangle {
 }
 
 // Hallazgo de la revisión de comportamiento: severidad, qué es, y las acciones (siempre con confirmación).
+// El alto lo estima Rust (finding_height): si se cambia el espaciado hay que cambiarlo allá también.
 component FindingCard inherits Rectangle {
     in property <string> title;
     in property <string> detail;
@@ -278,10 +321,10 @@ component FindingCard inherits Rectangle {
     callback ignore();
     callback disable();
     callback restore();
-    background: Theme.card;
-    border-width: 1px;
-    border-color: severity == 0 ? Theme.danger.with-alpha(0.55) : Theme.line;
-    border-radius: 6px;
+    background: Theme.raised;
+    border-width: severity == 0 ? 1px : 0px;
+    border-color: Theme.danger.with-alpha(0.55);
+    border-radius: 10px;
     VerticalLayout {
         padding: 14px;
         spacing: 8px;
@@ -290,12 +333,12 @@ component FindingCard inherits Rectangle {
             Rectangle {
                 height: 20px;
                 width: chip.preferred-width + 16px;
-                border-radius: 3px;
-                border-width: 1px;
-                border-color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.line);
+                border-radius: 10px;
+                background: severity == 0 ? Theme.danger.with-alpha(0.18) : Theme.hover;
                 chip := Text {
                     text: severity == 0 ? @tr("" => "Alta") : (severity == 1 ? @tr("" => "Media") : @tr("" => "Baja"));
                     font-size: 12px;
+                    font-weight: 600;
                     color: severity == 0 ? Theme.danger : (severity == 1 ? Theme.text : Theme.muted);
                     horizontal-alignment: center;
                     vertical-alignment: center;
@@ -305,7 +348,7 @@ component FindingCard inherits Rectangle {
         }
         Text { text: I18n.t(root.detail); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
         if root.decoded != "": Rectangle {
-            background: Theme.bg;
+            background: Theme.hover;
             border-radius: Theme.radius;
             VerticalLayout {
                 padding: 8px;
@@ -317,15 +360,15 @@ component FindingCard inherits Rectangle {
         HorizontalLayout {
             spacing: 8px;
             alignment: end;
-            Btn { text: @tr("" => "Ignorar"); clicked => { root.ignore(); } }
-            if root.can-disable: Btn { text: @tr("" => "Deshabilitar"); danger: true; clicked => { root.disable(); } }
-            if root.can-restore: Btn { text: @tr("" => "Restaurar"); strong: true; clicked => { root.restore(); } }
+            Btn { height: 28px; text: @tr("" => "Ignorar"); clicked => { root.ignore(); } }
+            if root.can-disable: Btn { height: 28px; text: @tr("" => "Deshabilitar"); danger: true; clicked => { root.disable(); } }
+            if root.can-restore: Btn { height: 28px; text: @tr("" => "Restaurar"); strong: true; clicked => { root.restore(); } }
         }
     }
 }
 
 // Botón circular de la revisión: grande y centrado al principio, chico cuando ya hay resultados.
-// Mientras analiza gira un arco y dice qué está haciendo.
+// Un anillo fino; mientras analiza gira un arco y dice qué está haciendo.
 component ScanButton inherits Rectangle {
     in property <length> size: 220px;
     in property <bool> busy: false;
@@ -335,20 +378,17 @@ component ScanButton inherits Rectangle {
     in property <string> busy-label: @tr("" => "Analizando");
     in property <bool> enabled: true;
     callback clicked;
-    property <angle> spin;
+    // Una vuelta por segundo, calculada con el reloj de la animación: se redibuja en cada cuadro de la pantalla.
+    // Solo depende del reloj mientras `busy`, así que parado no gasta nada.
+    property <angle> spin: busy ? Math.mod(animation-tick() / 1s, 1) * 360deg : 0deg;
     opacity: enabled ? 1.0 : 0.45;
     width: size;
     height: size;
     border-radius: size / 2;
-    border-width: compact ? 2px : 3px;
-    border-color: Theme.accent;
-    background: busy ? Theme.card : ((ta.has-hover && enabled) ? Theme.accent.with-alpha(0.14) : Theme.card);
-    // La rotación la mueve un temporizador: sigue girando todo el tiempo que dure el análisis.
-    Timer {
-        interval: 80ms;
-        running: root.busy;
-        triggered => { root.spin += 16deg; }
-    }
+    border-width: busy ? 1px : 2px;
+    border-color: busy ? Theme.line : Theme.accent;
+    background: (ta.has-hover && enabled && !busy) ? Theme.accent.with-alpha(0.14) : Theme.raised;
+    animate background { duration: 120ms; }
     Path {
         visible: root.busy;
         width: root.size - 12px;
@@ -361,7 +401,7 @@ component ScanButton inherits Rectangle {
         // porque el renderizador liviano de la app no rota las formas.
         commands: "M \{50 + 48 * Math.sin(root.spin)} \{50 - 48 * Math.cos(root.spin)} A 48 48 0 0 1 \{50 + 48 * Math.sin(root.spin + 120deg)} \{50 - 48 * Math.cos(root.spin + 120deg)}";
         stroke: Theme.accent;
-        stroke-width: 4px;
+        stroke-width: 3px;
         stroke-line-cap: round;
     }
     VerticalLayout {
@@ -371,7 +411,7 @@ component ScanButton inherits Rectangle {
         spacing: 8px;
         Text {
             text: root.busy ? root.busy-label : root.label;
-            font-size: root.compact ? 12px : (root.busy ? 20px : 28px);
+            font-size: root.compact ? 12px : (root.busy ? 14px : 28px);
             font-weight: 600;
             color: Theme.accent;
             horizontal-alignment: center;
@@ -397,39 +437,41 @@ component TextLink inherits Rectangle {
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
-// Elegir una opción entre pocas: una fila de botones pegados.
+// Elegir una opción entre pocas: una pista con la elegida en relieve.
 component Segmented inherits Rectangle {
     in property <[string]> options;
     in property <int> current;
     callback picked(int);
-    height: 30px;
+    height: 32px;
     border-radius: Theme.radius;
-    border-width: 1px;
-    border-color: Theme.line;
-    background: Theme.card;
-    clip: true;
+    background: Theme.hover;
     HorizontalLayout {
+        padding: 2px;
+        spacing: 2px;
         for o[i] in options: Rectangle {
-            background: i == root.current ? Theme.accent.with-alpha(0.18) : (ta.has-hover ? Theme.hover : transparent);
+            border-radius: 4px;
+            background: i == root.current ? Theme.chosen : (ta.has-hover ? Theme.hover : transparent);
+            animate background { duration: 90ms; }
             HorizontalLayout {
                 padding-left: 14px;
                 padding-right: 14px;
-                Text { text: o; font-size: 12px; color: i == root.current ? Theme.accent : Theme.text; vertical-alignment: center; }
+                Text { text: o; font-size: 12px; font-weight: i == root.current ? 600 : 400; color: i == root.current ? Theme.text : Theme.muted; vertical-alignment: center; }
             }
             ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(i); } }
         }
     }
 }
 
-// Una fila de configuración: qué es a la izquierda y el control a la derecha.
+// Una fila de configuración: qué es a la izquierda y el control a la derecha. Dentro de una tarjeta.
 component ConfigRow inherits Rectangle {
     in property <string> title;
     in property <string> desc;
-    height: 68px;
-    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+    in property <bool> last: false;
+    height: 72px;
+    if !root.last: Rectangle { x: 20px; y: parent.height - 1px; width: parent.width - 40px; height: 1px; background: Theme.line; }
     HorizontalLayout {
-        padding-left: 4px;
-        padding-right: 4px;
+        padding-left: 20px;
+        padding-right: 20px;
         spacing: 16px;
         VerticalLayout {
             horizontal-stretch: 1;
@@ -442,22 +484,119 @@ component ConfigRow inherits Rectangle {
     }
 }
 
-component Sep inherits Rectangle {
-    height: 13px;
-    Rectangle { y: 6px; height: 1px; background: Theme.line; }
+// Ícono de un programa; si no se pudo sacar, la inicial en un cuadrito.
+component AppIcon inherits Rectangle {
+    in property <image> img;
+    in property <bool> has-icon;
+    in property <string> initial;
+    in property <length> size: 24px;
+    width: size;
+    height: size;
+    if root.has-icon: Image { source: root.img; width: parent.width; height: parent.height; image-fit: contain; }
+    if !root.has-icon: Rectangle {
+        border-radius: Theme.radius;
+        background: Theme.hover;
+        Text { text: root.initial; font-size: root.size * 0.5; color: Theme.muted; horizontal-alignment: center; vertical-alignment: center; }
+    }
 }
 
-// Tarjeta de datos del equipo: ícono, título, detalle y barra opcional.
+// Cabecera de columna que ordena la tabla al tocarla.
+component ColHead inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    in property <TextHorizontalAlignment> align: left;
+    in property <length> inset: 0px;
+    callback clicked;
+    height: 24px;
+    Text { x: root.inset; width: parent.width - root.inset; height: parent.height; text: root.text; font-size: 12px; font-weight: 600; color: root.active ? Theme.accent : (ta.has-hover ? Theme.text : Theme.muted); horizontal-alignment: root.align; vertical-alignment: center; }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+// Barra sin fin para lo que tarda un tiempo que no se sabe: un tramo que va y viene, siguiendo el reloj de la animación.
+component Busy inherits Rectangle {
+    height: 3px;
+    border-radius: 1.5px;
+    background: Theme.line;
+    clip: true;
+    Rectangle {
+        width: 90px;
+        height: parent.height;
+        border-radius: 1.5px;
+        background: Theme.accent;
+        x: (parent.width + 90px) * Math.mod(animation-tick() / 1.4s, 1) - 90px;
+    }
+}
+
+// Aire entre grupos del menú.
+component Gap inherits Rectangle {
+    height: 16px;
+}
+
+// Cifra grande del panel: qué es, cuánto, una barra fina y un detalle.
+component Metric inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> caption;
+    in property <float> fraction: -1;
+    height: 120px;
+    background: Theme.raised;
+    border-radius: 10px;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 4px;
+        Label { text: root.label; }
+        Text { text: root.value; font-size: 32px; font-weight: 300; color: Theme.text; }
+        Rectangle { height: 2px; }
+        Bar { value: root.fraction; opacity: root.fraction >= 0 ? 1.0 : 0.0; }
+        Text { text: root.caption; font-size: 12px; color: Theme.muted; overflow: elide; }
+    }
+}
+
+// Un disco: nombre, barra de uso y cuánto queda.
+component Meter inherits Rectangle {
+    in property <string> title;
+    in property <string> sub;
+    in property <float> fraction;
+    height: 64px;
+    VerticalLayout {
+        alignment: center;
+        spacing: 6px;
+        Text { text: I18n.t(root.title); font-size: 14px; color: Theme.text; overflow: elide; }
+        Bar { value: root.fraction; }
+        Text { text: I18n.t(root.sub); font-size: 12px; color: Theme.muted; overflow: elide; }
+    }
+}
+
+// Dato del equipo: nombre a la izquierda, valor y detalle a la derecha.
+component Fact inherits Rectangle {
+    in property <string> key;
+    in property <string> value;
+    in property <string> sub;
+    height: 52px;
+    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+    HorizontalLayout {
+        spacing: 16px;
+        Text { text: root.key; width: 110px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px;
+            Text { text: I18n.t(root.value); font-size: 14px; color: Theme.text; overflow: elide; }
+            if root.sub != "": Text { text: I18n.t(root.sub); font-size: 12px; color: Theme.muted; overflow: elide; }
+        }
+    }
+}
+
+// Tarjeta de Seguridad: ícono, título y detalle.
 component Info inherits Rectangle {
     in property <string> icon;
     in property <string> title;
     in property <string> sub;
-    in property <float> fraction: -1;
     in property <bool> alert: false;
-    background: Theme.card;
-    border-width: 1px;
-    border-color: alert ? Theme.danger.with-alpha(0.55) : Theme.line;
-    border-radius: 6px;
+    background: Theme.raised;
+    border-width: alert ? 1px : 0px;
+    border-color: Theme.danger.with-alpha(0.55);
+    border-radius: 10px;
     min-height: 68px;
     HorizontalLayout {
         padding: 14px;
@@ -468,7 +607,6 @@ component Info inherits Rectangle {
             alignment: center;
             Text { text: I18n.t(title); font-size: 14px; color: Theme.text; overflow: elide; }
             Text { text: I18n.t(sub); font-size: 12px; color: Theme.muted; overflow: elide; }
-            if fraction >= 0: Bar { value: fraction; }
         }
     }
 }
@@ -476,15 +614,17 @@ component Info inherits Rectangle {
 export component Main inherits Window {
     title: "lumen";
     icon: @image-url("../assets/icon.png");
-    preferred-width: 920px;
-    preferred-height: 620px;
-    min-width: 640px;
-    min-height: 420px;
-    background: Theme.bg;
-    default-font-family: "Segoe UI";
+    preferred-width: 980px;
+    preferred-height: 660px;
+    min-width: 720px;
+    min-height: 460px;
+    // Transparente: Rust le pone el material de Windows (Mica) por detrás.
+    background: transparent;
+    default-font-family: "Segoe UI Variable Text";
 
     in property <float> cpu;
     in property <float> ram;
+    in property <float> gpu: -1;
     in property <float> disk;
     in property <string> ram-text;
     in property <string> disk-text;
@@ -529,6 +669,7 @@ export component Main inherits Window {
     // Limpieza de disco: una sola acción. 0 = listo para limpiar, 1 = limpiando, 2 = limpiado (se puede deshacer), 3 = terminado.
     in property <bool> disk-loading;
     in property <bool> disk-nothing;
+    in property <[CleanRow]> disk-items;
     in property <string> disk-total;
     in property <string> disk-parts;
     in property <string> disk-old;
@@ -558,6 +699,7 @@ export component Main inherits Window {
     callback behavior-ready();
     callback finding-do(int, int);
     callback apps-reload();
+    callback icons-ready();
     callback apps-rebuild();
     callback apps-filter(string);
     callback apps-sort(int);
@@ -576,401 +718,546 @@ export component Main inherits Window {
     changed page => { opened(); }
 
     HorizontalLayout {
-        Rectangle {
-            width: 168px;
-            background: Theme.side;
-            Rectangle { x: parent.width - 1px; width: 1px; background: Theme.line; }
+        // Menú: sin fondo propio, se ve el material de la ventana.
+        VerticalLayout {
+            width: 208px;
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 12px;
             VerticalLayout {
-                padding: 12px;
+                vertical-stretch: 1;
                 spacing: 2px;
-                VerticalLayout {
-                    vertical-stretch: 1;
-                    spacing: 2px;
-                    alignment: start;
-                    Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
-                    Rectangle { height: 12px; }
-                    NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
-                    NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
-                    NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
-                    Sep { }
-                    NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
-                    NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
-                    NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
-                    Sep { }
-                    NavItem { text: @tr("" => "Seguridad"); icon: "shield"; active: page == 8; clicked => { page = 8; } }
-                }
-                NavItem { text: @tr("" => "Configuración"); icon: "gear"; active: page == 9; clicked => { page = 9; } }
-            }
-        }
-
-        if page == 0: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            alignment: start;
-            Head { title: @tr("" => "Panel"); sub: @tr("" => "Resumen de tu equipo. Se actualiza cada segundo."); }
-            HorizontalLayout {
-                spacing: 12px;
-                Info { icon: "windows"; title: hw.os; sub: hw.os-sub; }
-                Info { icon: "chip"; title: hw.cpu; sub: @tr("" => "{} % en uso · {}", Math.round(cpu * 100), hw.cpu-sub); fraction: cpu; }
-            }
-            HorizontalLayout {
-                spacing: 12px;
-                Info { icon: "memory"; title: hw.ram; sub: @tr("" => "{} en uso", ram-text); fraction: ram; }
-                Info { icon: "monitor"; title: hw.gpu; sub: hw.gpu-sub; }
-            }
-            Info { icon: "board"; title: hw.board; sub: @tr("" => "{} · Red: {}", hw.board-sub, net-text); }
-            Text { text: @tr("" => "Almacenamiento"); font-size: 12px; color: Theme.muted; }
-            for d in disks: Info { icon: "disk"; title: d.name; sub: d.sub; fraction: d.fraction; }
-        }
-
-        if page == 1: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "{} procesos", procs.length); sub: sort-by == 0 ? @tr("" => "Ordenados por uso de CPU.") : (sort-by == 1 ? @tr("" => "Ordenados por memoria.") : @tr("" => "Ordenados por nombre.")); }
-            HorizontalLayout {
                 alignment: start;
-                Segmented { options: [@tr("" => "Por CPU"), @tr("" => "Por memoria"), @tr("" => "Por nombre")]; current: sort-by; picked(i) => { sort-by = i; sort(i); } }
-            }
-            Scroll {
-                content-h: procs.length * 32px;
-                vertical-stretch: 1;
-                VerticalLayout {
-                    alignment: start;
-                for p in procs: Rectangle {
-                    height: 32px;
-                    background: (ta.has-hover || close-btn.hovered) ? Theme.hover : transparent;
-                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-                    ta := TouchArea { }
-                    HorizontalLayout {
-                        spacing: 12px;
-                        padding-left: 4px;
-                        padding-right: 10px;
-                        Text { text: p.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
-                        Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; close-btn := Btn { text: @tr("" => "Cerrar"); danger: true; height: 24px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
-                    }
+                HorizontalLayout {
+                    height: 44px;
+                    padding-left: 16px;
+                    spacing: 10px;
+                    Rectangle { width: 8px; VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.accent; } } }
+                    Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                 }
+                NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
+                NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
+                NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
+                Gap { }
+                NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
+                NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
+                NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
+                Gap { }
+                NavItem { text: @tr("" => "Seguridad"); icon: "shield"; active: page == 8; clicked => { page = 8; } }
             }
-            }
+            NavItem { text: @tr("" => "Configuración"); icon: "gear"; active: page == 9; clicked => { page = 9; } }
         }
 
-        if page == 2: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "{} apps arrancan con Windows", startup.length); sub: @tr("" => "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."); }
-            if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.danger; }
-            Scroll {
-                content-h: startup.length * 52px;
-                vertical-stretch: 1;
-                VerticalLayout {
-                    alignment: start;
-                for e[i] in startup: Rectangle {
-                    height: 52px;
-                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-                    HorizontalLayout {
-                        spacing: 14px;
-                        padding-left: 4px;
-                        padding-right: 10px;
-                        Toggle { y: 14px; checked: e.enabled; toggled(on) => { toggle-startup(i, on); } }
+        // Hoja de contenido: una capa translúcida con las esquinas redondeadas apoyada sobre el material.
+        VerticalLayout {
+            padding-right: 8px;
+            padding-bottom: 8px;
+            sheet := Rectangle {
+                background: Theme.sheet;
+                border-radius: 10px;
+                border-width: 1px;
+                border-color: Theme.line;
+                // Sin `clip`: un recorte redondeado sobre un fondo translúcido rompe el repintado parcial (queda más claro).
+
+                if page == 0: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Panel"); sub: @tr("" => "Resumen de tu equipo. Se actualiza cada segundo."); }
+                    Scroll {
+                        vertical-stretch: 1;
+                        content-h: 484px + disks.length * 64px;
                         VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: e.name; font-size: 14px; color: Theme.text; overflow: elide; }
-                            Text { text: e.command; font-size: 12px; color: Theme.muted; overflow: elide; }
-                        }
-                        Text { text: I18n.t(e.scope); font-size: 12px; color: Theme.muted; vertical-alignment: center; }
-                    }
-                }
-            }
-            }
-        }
-
-        if page == 3: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "Limpieza de disco"); sub: @tr("" => "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."); }
-
-            // Antes de limpiar: cuánto se puede liberar y el botón.
-            if disk-phase < 2: VerticalLayout {
-                vertical-stretch: 1;
-                alignment: center;
-                spacing: 16px;
-                Text {
-                    text: disk-loading ? @tr("" => "Calculando…") : (disk-nothing ? @tr("" => "No hay nada para limpiar") : @tr("" => "Podés liberar {}", disk-total));
-                    font-size: 22px;
-                    color: Theme.text;
-                    horizontal-alignment: center;
-                }
-                HorizontalLayout {
-                    alignment: center;
-                    ScanButton {
-                        size: 200px;
-                        label: @tr("" => "Limpiar");
-                        busy-label: @tr("" => "Limpiando");
-                        busy: disk-phase == 1;
-                        enabled: !disk-loading && !disk-nothing;
-                        clicked => { if (disk-phase == 0) { clean-all(); } }
-                    }
-                }
-                if !disk-loading && !disk-nothing: Text { text: I18n.t(disk-parts); font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
-                if disk-old != "": Text { text: I18n.t(disk-old); font-size: 12px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
-            }
-
-            // Después: qué pasó y, si se puede, deshacerlo.
-            if disk-phase >= 2: VerticalLayout {
-                vertical-stretch: 1;
-                alignment: center;
-                spacing: 14px;
-                Text { text: I18n.t(disk-result); font-size: 22px; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
-                if disk-phase == 2: Text {
-                    text: @tr("" => "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.");
-                    font-size: 12px;
-                    color: Theme.muted;
-                    horizontal-alignment: center;
-                    wrap: word-wrap;
-                }
-                HorizontalLayout {
-                    alignment: center;
-                    spacing: 8px;
-                    if disk-phase == 2: Btn { text: @tr("" => "Deshacer"); clicked => { undo-clean(); } }
-                    if disk-phase == 2: Btn { text: @tr("" => "Borrar ahora"); strong: true; clicked => { purge(); } }
-                    if disk-phase == 3: Btn { text: @tr("" => "Volver"); clicked => { disk-reset(); } }
-                }
-            }
-
-            // Lo secundario, discreto y al final.
-            // Dentro de una fila: un elemento de ancho fijo limitaría el ancho máximo de toda la página.
-            HorizontalLayout {
-                alignment: start;
-                TextLink { text: show-map ? @tr("" => "Ocultar qué ocupa más espacio") : @tr("" => "Ver qué ocupa más espacio en tu usuario"); clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
-            }
-            if show-map: Scroll {
-                height: 190px;
-                content-h: space-map.length * 24px;
-                VerticalLayout {
-                    alignment: start;
-                    for m in space-map: HorizontalLayout {
-                        spacing: 12px;
-                        height: 24px;
-                        Text { text: m.size; width: 80px; font-size: 12px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                        Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
-                    }
-                }
-            }
-        }
-
-        if page == 4: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "Optimizar"); sub: @tr("" => "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."); }
-            HorizontalLayout {
-                spacing: 16px;
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    alignment: center;
-                    spacing: 2px;
-                    Text { text: @tr("" => "Aplicaste {} de {} mejoras recomendadas", opt-done, opt-total); font-size: 14px; color: Theme.text; }
-                    if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                }
-                if opt-done < opt-total: VerticalLayout {
-                    alignment: center;
-                    Btn { text: @tr("" => "Aplicar las recomendadas"); strong: true; clicked => { opt-confirm = true; } }
-                }
-            }
-            Scroll {
-                vertical-stretch: 1;
-                content-h: opt-h;
-                VerticalLayout {
-                    alignment: start;
-                    for r[i] in opt-rows: Rectangle {
-                        height: r.header ? 44px : 56px;
-                        if r.header: Text { text: I18n.t(r.title); x: 4px; y: parent.height - 24px; font-size: 12px; font-weight: 600; color: Theme.muted; horizontal-alignment: left; }
-                        if !r.header: Rectangle {
-                            Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+                            alignment: start;
                             HorizontalLayout {
-                                spacing: 14px;
-                                padding-left: 4px;
-                                padding-right: 8px;
-                                VerticalLayout { alignment: center; Toggle { checked: r.enabled; locked: r.locked; toggled(on) => { toggle-opt(r.kind, r.src, on); } } }
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    alignment: center;
-                                    spacing: 2px;
-                                    Text { text: I18n.t(r.title); font-size: 14px; color: Theme.text; overflow: elide; }
-                                    Text { text: I18n.t(r.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
-                                }
-                                if r.tag != "": Text { text: I18n.t(r.tag); font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+                                spacing: 12px;
+                                height: 120px;
+                                Metric { label: @tr("" => "Procesador"); value: "\{Math.round(cpu * 100)} %"; caption: hw.cpu; fraction: cpu; }
+                                Metric { label: @tr("" => "Memoria"); value: "\{Math.round(ram * 100)} %"; caption: @tr("" => "{} en uso", ram-text); fraction: ram; }
+                                Metric { label: @tr("" => "Gráficos"); value: gpu >= 0 ? "\{Math.round(gpu * 100)} %" : "—"; caption: hw.gpu; fraction: gpu; }
                             }
-                        }
-                    }
-                    if opt-advanced > 0: HorizontalLayout {
-                        alignment: start;
-                        TextLink {
-                            text: show-advanced ? @tr("" => "Ocultar las opciones avanzadas") : @tr("" => "Mostrar las opciones avanzadas ({})", opt-advanced);
-                            clicked => { show-advanced = !show-advanced; rebuild-opt(); }
+                            Rectangle { height: 28px; }
+                            Label { height: 28px; text: @tr("" => "Almacenamiento"); }
+                            for d in disks: Meter { title: d.name; sub: d.sub; fraction: d.fraction; }
+                            Rectangle { height: 20px; }
+                            Label { height: 28px; text: @tr("" => "Equipo"); }
+                            Fact { key: @tr("" => "Sistema"); value: hw.os; sub: hw.os-sub; }
+                            Fact { key: @tr("" => "Procesador"); value: hw.cpu; sub: hw.cpu-sub; }
+                            Fact { key: @tr("" => "Gráficos"); value: hw.gpu; sub: hw.gpu-sub; }
+                            Fact { key: @tr("" => "Placa base"); value: hw.board; sub: hw.board-sub; }
+                            Fact { key: @tr("" => "Red"); value: net-text; }
                         }
                     }
                 }
-            }
-        }
 
-        if page == 7: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "{} programas", apps.length); sub: @tr("" => "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: {}.", I18n.t(apps-sort-label)); }
-            HorizontalLayout {
-                spacing: 8px;
-                Search { placeholder: @tr("" => "Buscar programa o editor"); changed(t) => { apps-filter(t); } horizontal-stretch: 1; }
-                Btn { text: @tr("" => "Nombre"); clicked => { apps-sort(0); } }
-                Btn { text: @tr("" => "Peso"); clicked => { apps-sort(1); } }
-                Btn { text: @tr("" => "Editor"); clicked => { apps-sort(2); } }
-            }
-            if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            if leftovers.length > 0: VerticalLayout {
-                spacing: 6px;
-                Text { text: @tr("" => "Quedaron {} restos. Revisalos antes de limpiar:", leftovers.length); font-size: 14px; color: Theme.text; }
-                for l in leftovers: HorizontalLayout {
-                    spacing: 12px;
-                    Text { text: l.size; width: 64px; font-size: 12px; color: Theme.muted; }
-                    Text { text: l.name; font-size: 12px; color: Theme.text; overflow: elide; horizontal-stretch: 1; }
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: start;
-                    Btn { text: @tr("" => "Mover a la reserva"); strong: true; clicked => { clean-leftovers(); } }
-                    Btn { text: @tr("" => "Dejarlos"); clicked => { dismiss-leftovers(); } }
-                }
-            }
-            if can-undo-leftovers: Btn { text: @tr("" => "Deshacer limpieza de restos"); clicked => { undo-leftovers(); } }
-            Scroll {
-                content-h: apps.length * 40px;
-                vertical-stretch: 1;
-                VerticalLayout {
-                    alignment: start;
-                for a[i] in apps: Rectangle {
-                    height: 40px;
-                    background: (app-ta.has-hover || un-btn.hovered) ? Theme.hover : transparent;
-                    app-ta := TouchArea { }
+                if page == 1: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "{} procesos", procs.length); sub: sort-by == 0 ? @tr("" => "Ordenados por uso de CPU. Tocá un proceso para cerrarlo.") : (sort-by == 1 ? @tr("" => "Ordenados por memoria. Tocá un proceso para cerrarlo.") : @tr("" => "Ordenados por nombre. Tocá un proceso para cerrarlo.")); }
+                    // Tabla: tocar el título de una columna la ordena.
                     HorizontalLayout {
+                        height: 24px;
                         spacing: 12px;
-                        padding-left: 4px;
-                        padding-right: 10px;
-                        Rectangle {
-                            width: 28px;
-                            if a.has-icon: Image { source: a.icon; width: 24px; height: 24px; y: (parent.height - 24px) / 2; image-fit: contain; }
-                            if !a.has-icon: Rectangle {
-                                width: 24px;
-                                height: 24px;
-                                y: (parent.height - 24px) / 2;
+                        padding-left: 10px;
+                        padding-right: 26px;
+                        ColHead { width: 190px; inset: 30px; text: @tr("" => "Nombre"); active: sort-by == 2; clicked => { sort-by = 2; sort(2); } }
+                        ColHead { width: 44px; text: "CPU"; align: right; active: sort-by == 0; clicked => { sort-by = 0; sort(0); } }
+                        ColHead { width: 76px; text: @tr("" => "Memoria"); align: right; active: sort-by == 1; clicked => { sort-by = 1; sort(1); } }
+                        ColHead { text: @tr("" => "Ubicación"); horizontal-stretch: 1; }
+                    }
+                    Rectangle { height: 1px; background: Theme.line; }
+                    Scroll {
+                        content-h: procs.length * 34px;
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            for p in procs: Rectangle {
+                                height: 34px;
                                 border-radius: Theme.radius;
-                                background: Theme.hover;
-                                Text { text: a.initial; font-size: 12px; color: Theme.muted; horizontal-alignment: center; vertical-alignment: center; }
+                                // Sin botón: al pasar el mouse la fila se pone roja, y tocarla pide confirmar antes de cerrar.
+                                background: ta.has-hover ? Theme.danger.with-alpha(0.3) : transparent;
+                                animate background { duration: 90ms; }
+                                ta := TouchArea { mouse-cursor: pointer; clicked => { kill-name = p.name; kill-pid = p.pid; } }
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    HorizontalLayout {
+                                        width: 190px;
+                                        spacing: 10px;
+                                        VerticalLayout { alignment: center; AppIcon { size: 20px; img: p.icon; has-icon: p.has-icon; initial: p.initial; } }
+                                        Text { text: p.name; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
+                                    }
+                                    Text { text: p.cpu; width: 44px; font-size: 14px; color: p.cpu == "0%" ? Theme.faint : Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: p.path; font-size: 12px; color: Theme.faint; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
+                                }
                             }
                         }
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            Text { text: a.name; font-size: 14px; color: Theme.text; overflow: elide; }
-                            Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
-                        }
-                        Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; un-btn := Btn { text: @tr("" => "Desinstalar"); danger: true; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
                     }
                 }
-            }
-            }
-        }
 
-        if page == 8: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "Seguridad"); sub: @tr("" => "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."); }
-
-            // Antes del primer análisis: solo el botón, grande y en el centro.
-            if !behavior-run: VerticalLayout {
-                vertical-stretch: 1;
-                alignment: center;
-                spacing: 20px;
-                HorizontalLayout {
-                    alignment: center;
-                    ScanButton { size: 220px; busy: behavior-busy; progress: progress; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+if page == 2: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "{} apps arrancan con Windows", startup.length); sub: @tr("" => "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."); }
+                    if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.danger; }
+                    Scroll {
+                        content-h: startup.length * 60px;
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            for e[i] in startup: Rectangle {
+                                height: 60px;
+                                // Cada app es una pieza: las apagadas se ven más tenues.
+                                Rectangle {
+                                    height: 54px;
+                                    border-radius: 8px;
+                                    background: st-ta.has-hover ? Theme.chosen : Theme.raised;
+                                    animate background { duration: 90ms; }
+                                    st-ta := TouchArea { }
+                                    HorizontalLayout {
+                                        spacing: 16px;
+                                        padding-left: 16px;
+                                        padding-right: 16px;
+                                        VerticalLayout { alignment: center; AppIcon { size: 32px; img: e.icon; has-icon: e.has-icon; initial: e.initial; opacity: e.enabled ? 1.0 : 0.5; } }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 2px;
+                                            opacity: e.enabled ? 1.0 : 0.5;
+                                            Text { text: e.name; font-size: 14px; color: Theme.text; overflow: elide; }
+                                            Text { text: e.command; font-size: 12px; color: Theme.muted; overflow: elide; }
+                                        }
+                                        Text { text: I18n.t(e.scope); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
+                                        VerticalLayout { alignment: center; Toggle { checked: e.enabled; toggled(on) => { toggle-startup(i, on); } } }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                if !behavior-busy: Text {
-                    text: @tr("" => "Toca para revisar tu PC. Tarda unos segundos.");
-                    font-size: 12px;
-                    color: Theme.muted;
-                    horizontal-alignment: center;
-                }
-            }
 
-            // Después: el botón se achica arriba y aparecen los resultados.
-            if behavior-run: VerticalLayout {
-                vertical-stretch: 1;
-                spacing: 12px;
-                HorizontalLayout {
-                    spacing: 16px;
-                    ScanButton { size: 88px; compact: true; busy: behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
-                    VerticalLayout {
+if page == 3: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Limpieza de disco"); sub: @tr("" => "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."); }
+
+                    // Antes de limpiar: cuánto se libera, qué se va a mover y un solo botón.
+                    if disk-phase < 2: VerticalLayout {
+                        vertical-stretch: 1;
+                        spacing: 14px;
+                        VerticalLayout {
+                            Text {
+                                text: disk-loading ? @tr("" => "Calculando…") : (disk-nothing ? @tr("" => "No hay nada para limpiar") : disk-total);
+                                font-size: (disk-nothing || disk-loading) ? 28px : 48px;
+                                font-weight: 300;
+                                color: Theme.text;
+                            }
+                            if !disk-loading && !disk-nothing: Text { text: @tr("" => "Se puede liberar. Esto es lo que se va a mover:"); font-size: 14px; color: Theme.muted; }
+                        }
+                        if !disk-loading && !disk-nothing: Scroll {
+                            vertical-stretch: 1;
+                            content-h: disk-items.length * 66px;
+                            VerticalLayout {
+                                alignment: start;
+                                for it in disk-items: Rectangle {
+                                    height: 66px;
+                                    Rectangle {
+                                        height: 60px;
+                                        border-radius: 8px;
+                                        background: Theme.raised;
+                                        HorizontalLayout {
+                                            padding-left: 16px;
+                                            padding-right: 16px;
+                                            spacing: 16px;
+                                            VerticalLayout {
+                                                horizontal-stretch: 1;
+                                                alignment: center;
+                                                spacing: 2px;
+                                                Text { text: I18n.t(it.name); font-size: 14px; color: Theme.text; overflow: elide; }
+                                                Text { text: I18n.t(it.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
+                                            }
+                                            Text { text: it.size; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if disk-loading || disk-nothing: Rectangle { vertical-stretch: 1; }
+                        if disk-old != "": Text { text: I18n.t(disk-old); font-size: 12px; color: Theme.faint; wrap: word-wrap; }
+                        HorizontalLayout {
+                            spacing: 16px;
+                            if disk-phase == 0 && !disk-loading && !disk-nothing: Text {
+                                horizontal-stretch: 1;
+                                text: @tr("" => "No se borra al instante: queda guardado 7 días y podés deshacerlo.");
+                                font-size: 12px;
+                                color: Theme.muted;
+                                wrap: word-wrap;
+                                vertical-alignment: center;
+                            }
+                            if disk-phase == 0 && !disk-loading && !disk-nothing: Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Limpiar"); clicked => { clean-all(); } }
+                            if disk-phase == 1: VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 10px;
+                                Text { text: @tr("" => "Limpiando"); font-size: 14px; color: Theme.muted; }
+                                Busy { }
+                            }
+                        }
+                    }
+
+                    // Después: qué pasó y, si se puede, deshacerlo.
+                    if disk-phase >= 2: VerticalLayout {
+                        vertical-stretch: 1;
                         alignment: center;
-                        spacing: 4px;
-                        Text {
-                            text: behavior-busy ? progress : (findings.length == 0 ? @tr("" => "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia.") : (findings.length == 1 ? @tr("" => "Encontré 1 cosa para revisar") : @tr("" => "Encontré {} cosas para revisar", findings.length)));
-                            font-size: 14px;
-                            color: Theme.text;
+                        spacing: 16px;
+                        Text { text: I18n.t(disk-result); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
+                        if disk-phase == 2: Text {
+                            text: @tr("" => "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.");
+                            font-size: 12px;
+                            color: Theme.muted;
+                            horizontal-alignment: center;
                             wrap: word-wrap;
                         }
-                        if sec-status != "": Text { text: I18n.t(sec-status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                    }
-                }
-                Scroll {
-                    vertical-stretch: 1;
-                    content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px + findings-h;
-                    VerticalLayout {
-                        alignment: start;
-                        spacing: 12px;
-                        for f[i] in findings: FindingCard {
-                            title: f.title;
-                            detail: f.detail;
-                            decoded: f.decoded;
-                            severity: f.severity;
-                            can-disable: f.can-disable;
-                            can-restore: f.can-restore;
-                            ignore => { sec-confirm-action = 1; sec-confirm = i; }
-                            disable => { sec-confirm-action = 2; sec-confirm = i; }
-                            restore => { sec-confirm-action = 3; sec-confirm = i; }
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 8px;
+                            if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Deshacer"); clicked => { undo-clean(); } }
+                            if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Borrar ahora"); strong: true; clicked => { purge(); } }
+                            if disk-phase == 3: Btn { height: 36px; pad: 20px; text: @tr("" => "Volver"); clicked => { disk-reset(); } }
                         }
-                        for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
-                        if threats.length > 0: Text { text: @tr("" => "Detecciones registradas por Defender ({})", threats.length); font-size: 14px; color: Theme.text; }
-                        for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                    }
+
+                    // Lo secundario, discreto y al final.
+                    // Dentro de una fila: un elemento de ancho fijo limitaría el ancho máximo de toda la página.
+                    HorizontalLayout {
+                        alignment: start;
+                        TextLink { text: show-map ? @tr("" => "Ocultar qué ocupa más espacio") : @tr("" => "Ver qué ocupa más espacio en tu usuario"); clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
+                    }
+                    if show-map: Rectangle {
+                        height: 190px;
+                        background: Theme.raised;
+                        border-radius: 10px;
+                        Scroll {
+                            x: 8px;
+                            y: 8px;
+                            width: parent.width - 16px;
+                            height: parent.height - 16px;
+                            content-h: space-map.length * 24px;
+                            VerticalLayout {
+                                alignment: start;
+                                for m in space-map: HorizontalLayout {
+                                    spacing: 16px;
+                                    height: 24px;
+                                    Text { text: m.size; width: 80px; font-size: 12px; font-weight: 600; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        if page == 9: VerticalLayout {
-            padding: 24px;
-            spacing: 12px;
-            Head { title: @tr("" => "Configuración"); sub: @tr("" => "Se guarda sola y se recuerda la próxima vez que abras lumen."); }
-            ConfigRow {
-                title: @tr("" => "Tema");
-                desc: @tr("" => "Claro, oscuro o el mismo que usa Windows.");
-                Segmented { options: [@tr("" => "Automático"), @tr("" => "Claro"), @tr("" => "Oscuro")]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
+if page == 4: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Optimizar"); sub: @tr("" => "Mejoras opcionales para tu PC. Cada una se puede volver atrás desde acá."); }
+                    // Avance: cuántas de las recomendadas ya están aplicadas.
+                    VerticalLayout {
+                        vertical-stretch: 0;
+                        spacing: 10px;
+                        HorizontalLayout {
+                            spacing: 16px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Text { text: @tr("" => "Aplicaste {} de {} mejoras recomendadas", opt-done, opt-total); font-size: 14px; color: Theme.text; }
+                                if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                            }
+                            if opt-done < opt-total: VerticalLayout {
+                                alignment: center;
+                                Btn { text: @tr("" => "Aplicar las recomendadas"); strong: true; clicked => { opt-confirm = true; } }
+                            }
+                        }
+                        Bar { value: opt-total > 0 ? opt-done / opt-total : 0; }
+                    }
+                    Scroll {
+                        vertical-stretch: 1;
+                        content-h: opt-h;
+                        // Tarjetas en dos columnas. Rust calcula `y` y `col` de cada una (y el alto total en `opt-h`).
+                        Rectangle {
+                            x: 0px;
+                            y: 0px;
+                            // Ancho de la hoja menos los márgenes de la página (64) y la barra de scroll (16): `parent.width` en un Flickable no es el visible.
+                            width: sheet.width - 80px;
+                            height: opt-h;
+                            for r[i] in opt-rows: Rectangle {
+                                x: r.header ? 0px : r.col * (parent.width + 12px) / 2;
+                                y: r.y * 1px;
+                                width: r.header ? parent.width : (parent.width - 12px) / 2;
+                                height: r.header ? 44px : 112px;
+                                if r.header: Label { x: 4px; y: parent.height - 28px; height: 20px; text: I18n.t(r.title); }
+                                if !r.header: Rectangle {
+                                    border-radius: 12px;
+                                    background: opt-ta.has-hover ? Theme.chosen : Theme.raised;
+                                    border-width: r.enabled ? 1px : 0px;
+                                    border-color: Theme.accent.with-alpha(0.45);
+                                    animate background { duration: 90ms; }
+                                    opt-ta := TouchArea { }
+                                    // Arriba el ícono y el interruptor; abajo el nombre. Al pasar el mouse el nombre deja lugar a la explicación.
+                                    Rectangle {
+                                        x: 16px;
+                                        y: 16px;
+                                        width: 36px;
+                                        height: 36px;
+                                        border-radius: 10px;
+                                        background: r.enabled ? Theme.accent.with-alpha(0.18) : Theme.hover;
+                                        animate background { duration: 120ms; }
+                                        Icon { x: 10px; y: 10px; width: 16px; height: 16px; kind: r.icon; tint: r.enabled ? Theme.accent : Theme.muted; }
+                                    }
+                                    HorizontalLayout {
+                                        x: 0px;
+                                        y: 22px;
+                                        width: parent.width;
+                                        height: 24px;
+                                        padding-right: 16px;
+                                        spacing: 10px;
+                                        alignment: end;
+                                        if r.tag != "": Text { text: I18n.t(r.tag); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
+                                        Toggle { checked: r.enabled; locked: r.locked; y: 2px; toggled(on) => { toggle-opt(r.kind, r.src, on); } }
+                                    }
+                                    Text {
+                                        x: 16px;
+                                        y: 64px;
+                                        width: parent.width - 32px;
+                                        height: 38px;
+                                        text: I18n.t(r.title);
+                                        font-size: 14px;
+                                        color: Theme.text;
+                                        wrap: word-wrap;
+                                        overflow: elide;
+                                        opacity: opt-ta.has-hover ? 0.0 : 1.0;
+                                        animate opacity { duration: 100ms; }
+                                    }
+                                    Text {
+                                        x: 16px;
+                                        y: 62px;
+                                        width: parent.width - 32px;
+                                        height: 42px;
+                                        text: I18n.t(r.desc);
+                                        font-size: 12px;
+                                        color: Theme.muted;
+                                        wrap: word-wrap;
+                                        overflow: elide;
+                                        opacity: opt-ta.has-hover ? 1.0 : 0.0;
+                                        animate opacity { duration: 100ms; }
+                                    }
+                                }
+                            }
+                            if opt-advanced > 0: TextLink {
+                                x: 4px;
+                                y: parent.height - 32px;
+                                text: show-advanced ? @tr("" => "Ocultar las opciones avanzadas") : @tr("" => "Mostrar las opciones avanzadas ({})", opt-advanced);
+                                clicked => { show-advanced = !show-advanced; rebuild-opt(); }
+                            }
+                        }
+                    }
+                }
+
+                if page == 7: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "{} programas", apps.length); sub: @tr("" => "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: {}.", I18n.t(apps-sort-label)); }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Search { placeholder: @tr("" => "Buscar programa o editor"); changed(t) => { apps-filter(t); } horizontal-stretch: 1; }
+                        Btn { height: 32px; text: @tr("" => "Nombre"); clicked => { apps-sort(0); } }
+                        Btn { height: 32px; text: @tr("" => "Peso"); clicked => { apps-sort(1); } }
+                        Btn { height: 32px; text: @tr("" => "Editor"); clicked => { apps-sort(2); } }
+                    }
+                    if status != "": Text { text: I18n.t(status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                    if leftovers.length > 0: VerticalLayout {
+                        spacing: 6px;
+                        Text { text: @tr("" => "Quedaron {} restos. Revisalos antes de limpiar:", leftovers.length); font-size: 14px; color: Theme.text; }
+                        for l in leftovers: HorizontalLayout {
+                            spacing: 12px;
+                            Text { text: l.size; width: 64px; font-size: 12px; color: Theme.muted; }
+                            Text { text: l.name; font-size: 12px; color: Theme.text; overflow: elide; horizontal-stretch: 1; }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: start;
+                            Btn { text: @tr("" => "Mover a la reserva"); strong: true; clicked => { clean-leftovers(); } }
+                            Btn { text: @tr("" => "Dejarlos"); clicked => { dismiss-leftovers(); } }
+                        }
+                    }
+                    if can-undo-leftovers: HorizontalLayout { alignment: start; Btn { text: @tr("" => "Deshacer limpieza de restos"); clicked => { undo-leftovers(); } } }
+                    Scroll {
+                        content-h: apps.length * 44px;
+                        vertical-stretch: 1;
+                        VerticalLayout {
+                            alignment: start;
+                            for a[i] in apps: Rectangle {
+                                height: 44px;
+                                border-radius: Theme.radius;
+                                background: (app-ta.has-hover || un-btn.hovered) ? Theme.hover : transparent;
+                                app-ta := TouchArea { }
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    padding-left: 10px;
+                                    padding-right: 6px;
+                                    VerticalLayout { alignment: center; AppIcon { size: 24px; img: a.icon; has-icon: a.has-icon; initial: a.initial; } }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        alignment: center;
+                                        Text { text: a.name; font-size: 14px; color: Theme.text; overflow: elide; }
+                                        Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
+                                    }
+                                    Text { text: a.size; width: 70px; font-size: 12px; color: Theme.faint; horizontal-alignment: right; vertical-alignment: center; }
+                                    VerticalLayout { alignment: center; un-btn := Btn { text: @tr("" => "Desinstalar"); danger: true; height: 26px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if page == 8: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Seguridad"); sub: @tr("" => "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."); }
+
+                    // Antes del primer análisis: solo el botón, grande y en el centro.
+                    if !behavior-run: VerticalLayout {
+                        vertical-stretch: 1;
+                        alignment: center;
+                        spacing: 20px;
+                        HorizontalLayout {
+                            alignment: center;
+                            ScanButton { size: 200px; busy: behavior-busy; progress: progress; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                        }
+                        if !behavior-busy: Text {
+                            text: @tr("" => "Toca para revisar tu PC. Tarda unos segundos.");
+                            font-size: 12px;
+                            color: Theme.muted;
+                            horizontal-alignment: center;
+                        }
+                    }
+
+                    // Después: el botón se achica arriba y aparecen los resultados.
+                    if behavior-run: VerticalLayout {
+                        vertical-stretch: 1;
+                        spacing: 12px;
+                        HorizontalLayout {
+                            spacing: 16px;
+                            ScanButton { size: 80px; compact: true; busy: behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+                                Text {
+                                    text: behavior-busy ? progress : (findings.length == 0 ? @tr("" => "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia.") : (findings.length == 1 ? @tr("" => "Encontré 1 cosa para revisar") : @tr("" => "Encontré {} cosas para revisar", findings.length)));
+                                    font-size: 14px;
+                                    color: Theme.text;
+                                    wrap: word-wrap;
+                                }
+                                if sec-status != "": Text { text: I18n.t(sec-status); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                            }
+                        }
+                        Scroll {
+                            vertical-stretch: 1;
+                            content-h: sec-cards.length * 80px + (threats.length > 0 ? 40px : 0px) + threats.length * 96px + findings-h;
+                            VerticalLayout {
+                                alignment: start;
+                                spacing: 12px;
+                                for f[i] in findings: FindingCard {
+                                    title: f.title;
+                                    detail: f.detail;
+                                    decoded: f.decoded;
+                                    severity: f.severity;
+                                    can-disable: f.can-disable;
+                                    can-restore: f.can-restore;
+                                    ignore => { sec-confirm-action = 1; sec-confirm = i; }
+                                    disable => { sec-confirm-action = 2; sec-confirm = i; }
+                                    restore => { sec-confirm-action = 3; sec-confirm = i; }
+                                }
+                                for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
+                                if threats.length > 0: Label { text: @tr("" => "Detecciones registradas por Defender ({})", threats.length); }
+                                for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
+                            }
+                        }
+                    }
+                }
+
+                if page == 9: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Configuración"); sub: @tr("" => "Se guarda sola y se recuerda la próxima vez que abras lumen."); }
+                    Rectangle {
+                        height: 216px;
+                        background: Theme.raised;
+                        border-radius: 10px;
+                        VerticalLayout {
+                            ConfigRow {
+                                title: @tr("" => "Tema");
+                                desc: @tr("" => "Claro, oscuro o el mismo que usa Windows.");
+                                Segmented { options: [@tr("" => "Automático"), @tr("" => "Claro"), @tr("" => "Oscuro")]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
+                            }
+                            ConfigRow {
+                                title: @tr("" => "Actualización del panel");
+                                desc: @tr("" => "Cada cuánto se renuevan el uso del procesador, la memoria y la red.");
+                                Segmented { options: [@tr("" => "1 segundo"), @tr("" => "2 segundos"), @tr("" => "5 segundos")]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
+                            }
+                            ConfigRow {
+                                last: true;
+                                title: @tr("" => "Idioma");
+                                desc: @tr("" => "El idioma de todos los textos de lumen.");
+                                Segmented { options: ["Español", "English"]; current: cfg-lang; picked(i) => { cfg-lang = i; config-changed(); } }
+                            }
+                        }
+                    }
+                    Rectangle { vertical-stretch: 1; }
+                    Text { text: @tr("" => "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen", app-version); font-size: 12px; color: Theme.faint; }
+                }
             }
-            ConfigRow {
-                title: @tr("" => "Actualización del panel");
-                desc: @tr("" => "Cada cuánto se renuevan el uso del procesador, la memoria y la red.");
-                Segmented { options: [@tr("" => "1 segundo"), @tr("" => "2 segundos"), @tr("" => "5 segundos")]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
-            }
-            ConfigRow {
-                title: @tr("" => "Idioma");
-                desc: @tr("" => "El idioma de todos los textos de lumen.");
-                Segmented { options: ["Español", "English"]; current: cfg-lang; picked(i) => { cfg-lang = i; config-changed(); } }
-            }
-            Rectangle { vertical-stretch: 1; }
-            Text { text: @tr("" => "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen", app-version); font-size: 12px; color: Theme.muted; }
         }
     }
 

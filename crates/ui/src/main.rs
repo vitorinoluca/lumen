@@ -18,6 +18,62 @@ slint::include_modules!();
 /// Íconos ya extraídos por programa: ancho, alto y píxeles RGBA.
 type IconCache = Arc<Mutex<HashMap<String, (u32, u32, Vec<u8>)>>>;
 
+/// Íconos por ruta de ejecutable (procesos e inicio). `None` = ya se intentó y no tiene.
+type ExeIcons = Arc<Mutex<HashMap<String, Option<(u32, u32, Vec<u8>)>>>>;
+
+/// Ícono ya cargado de ese ejecutable, y si lo hay.
+fn exe_icon(cache: &ExeIcons, path: &str) -> (slint::Image, bool) {
+    match cache.lock().unwrap().get(path) {
+        Some(Some((w, h, px))) => (slint::Image::from_rgba8(slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(px, *w, *h)), true),
+        _ => (slint::Image::default(), false),
+    }
+}
+
+/// Saca en un hilo los íconos que faltan y avisa a la pantalla cuando están, sin frenar la lista.
+fn fetch_icons(cache: &ExeIcons, paths: impl Iterator<Item = String>, weak: slint::Weak<Main>) {
+    let todo: Vec<String> = {
+        let mut c = cache.lock().unwrap();
+        paths
+            .filter(|p| {
+                let new = !p.is_empty() && !c.contains_key(p);
+                if new {
+                    c.insert(p.clone(), None); // marcado ya: los próximos refrescos no lo piden de nuevo
+                }
+                new
+            })
+            .collect()
+    };
+    if todo.is_empty() {
+        return;
+    }
+    let cache = cache.clone();
+    thread::spawn(move || {
+        for p in todo {
+            if let Some(i) = icons::load(&format!("\"{p}\"")) {
+                cache.lock().unwrap().insert(p, Some((i.width, i.height, i.rgba)));
+            }
+        }
+        let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_icons_ready());
+    });
+}
+
+fn initial(name: &str) -> slint::SharedString {
+    name.chars().find(|c| c.is_alphanumeric()).map(|c| c.to_uppercase().to_string()).unwrap_or_default().into()
+}
+
+/// Qué es cada cosa que se limpia, para que se sepa qué se va a mover antes de tocar nada.
+fn clean_desc(name: &str) -> &'static str {
+    match name {
+        "Temporales del usuario" => "Archivos que los programas dejan en tu carpeta temporal mientras trabajan.",
+        "Temporales de Windows" => "Archivos temporales del sistema que Windows ya no necesita.",
+        "Caché de Chrome" => "Páginas e imágenes que Chrome guardó para cargar más rápido. Las vuelve a bajar solo.",
+        "Caché de Edge" => "Páginas e imágenes que Edge guardó para cargar más rápido. Las vuelve a bajar solo.",
+        "Caché de Firefox" => "Páginas e imágenes que Firefox guardó para cargar más rápido. Las vuelve a bajar solo.",
+        "Papelera de reciclaje" => "Lo que ya borraste y sigue en la Papelera. Después de limpiar no se recupera desde ahí.",
+        _ => "",
+    }
+}
+
 fn gb(b: u64) -> String {
     // Base 1024, como muestra Windows (34,2 GB en base 10 son 31,9 GB para el sistema).
     format!("{:.1} GB", b as f64 / 1_073_741_824.0).replace('.', ",")
@@ -76,7 +132,12 @@ fn apply_theme(ui: &Main, mode: i32) {
         2 => Some(WinTheme::Dark),
         _ => None, // None = que la barra siga a Windows
     };
-    ui.window().with_winit_window(|w| w.set_theme(t));
+    ui.window().with_winit_window(|w| {
+        use slint::winit_030::winit::platform::windows::{BackdropType, WindowExtWindows};
+        w.set_theme(t);
+        w.set_transparent(true);
+        w.set_system_backdrop(BackdropType::MainWindow);
+    });
 }
 
 /// Pone el idioma ("es" o "en"): textos de las pantallas (Slint) y los que arma Rust.
@@ -210,6 +271,46 @@ fn finding_height(f: &security::Finding) -> f32 {
 
 /// Arma la lista de Optimizar a partir de los tres orígenes (modos, privacidad, servicios).
 /// Muestra pocas cosas: lo delicado queda en "avanzadas" y lo crítico (que no se puede tocar) no se muestra.
+/// Ícono de cada mejora: por palabra clave del título y, si no hay, por el grupo (0 privacidad, 1 servicios, 2 modos).
+fn opt_icon(title: &str, kind: i32) -> &'static str {
+    let t = title.to_lowercase();
+    let has = |w: &[&str]| w.iter().any(|w| t.contains(w));
+    if has(&["juego", "xbox"]) {
+        "game"
+    } else if has(&["batería", "bateria"]) {
+        "battery"
+    } else if has(&["publicidad", "anuncio"]) {
+        "megaphone"
+    } else if has(&["sugerencia", "sugerida", "consejo"]) {
+        "bulb"
+    } else if has(&["notificaci"]) {
+        "bell"
+    } else if has(&["telemetr", "diagn"]) {
+        "cloud"
+    } else if has(&["mapa"]) {
+        "map"
+    } else if has(&["impresi", "fax"]) {
+        "print"
+    } else if has(&["bluetooth"]) {
+        "bluetooth"
+    } else if has(&["búsqueda", "busqueda"]) {
+        "search"
+    } else if has(&["update", "actualiz"]) {
+        "refresh"
+    } else if has(&["defender", "firewall", "antivirus"]) {
+        "shield"
+    } else if has(&["precarga", "memoria"]) {
+        "chip"
+    } else {
+        ["eye", "gear", "bolt"][kind.clamp(0, 2) as usize]
+    }
+}
+
+/// Las tarjetas van en dos columnas: se calcula acá dónde cae cada una porque la pantalla no acomoda una lista en grilla.
+const TILE_PITCH: f32 = 124.0; // tarjeta de 112 + 12 de aire
+const OPT_HEADER: f32 = 44.0;
+const OPT_LINK: f32 = 40.0;
+
 fn rebuild_opt(ui: &Main) {
     use slint::Model;
     let row = |r: &ServiceRow, kind: i32, src: usize| OptRow {
@@ -221,8 +322,11 @@ fn rebuild_opt(ui: &Main) {
         locked: r.locked,
         kind,
         src: src as i32,
+        icon: opt_icon(&r.title, kind).into(),
+        col: 0,
+        y: 0.0,
     };
-    let header = |t: &str| OptRow { header: true, title: t.into(), desc: "".into(), tag: "".into(), enabled: false, locked: false, kind: 0, src: 0 };
+    let header = |t: &str| OptRow { header: true, title: t.into(), desc: "".into(), tag: "".into(), enabled: false, locked: false, kind: 0, src: 0, icon: "".into(), col: 0, y: 0.0 };
     let (profiles, privacy, services): (Vec<ServiceRow>, Vec<ServiceRow>, Vec<ServiceRow>) = (ui.get_profiles().iter().collect(), ui.get_privacy().iter().collect(), ui.get_services().iter().collect());
     let level = |r: &ServiceRow| r.level.to_string();
 
@@ -241,7 +345,27 @@ fn rebuild_opt(ui: &Main) {
 
     let total = (privacy.len() + safe.len()) as i32;
     let done = (privacy.iter().filter(|r| r.enabled).count() + safe.iter().filter(|(_, r)| r.enabled).count()) as i32;
-    let height: f32 = rows.iter().map(|r| if r.header { 44.0 } else { 56.0 }).sum::<f32>() + if careful.is_empty() { 0.0 } else { 40.0 };
+    let (mut y, mut col) = (0.0, 0);
+    for r in rows.iter_mut() {
+        if r.header {
+            if col != 0 {
+                y += TILE_PITCH;
+                col = 0;
+            }
+            r.y = y;
+            y += OPT_HEADER;
+        } else {
+            (r.col, r.y) = (col, y);
+            if col == 1 {
+                y += TILE_PITCH;
+            }
+            col = 1 - col;
+        }
+    }
+    if col != 0 {
+        y += TILE_PITCH;
+    }
+    let height = y + if careful.is_empty() { 0.0 } else { OPT_LINK };
     ui.set_opt_rows(ModelRc::new(VecModel::from(rows)));
     ui.set_opt_h(height);
     ui.set_opt_total(total);
@@ -277,6 +401,7 @@ fn show(ui: &Main, s: &Snapshot) {
     ui.set_ram_text(format!("{} / {}", gb(s.ram_used), gb(s.ram_total)).into());
     ui.set_disk(frac(s.disk_used, s.disk_total));
     ui.set_disk_text(format!("{} / {}", gb(s.disk_used), gb(s.disk_total)).into());
+    ui.set_gpu(s.gpu.map_or(-1.0, |g| g / 100.0));
     ui.set_net_text(format!("{} KB/s bajada, {} KB/s subida", s.net_rx / 1024, s.net_tx / 1024).into());
 }
 
@@ -319,25 +444,33 @@ fn main() {
     // Procesos: solo se refresca mientras la página está abierta.
     let procs = Rc::new(std::cell::RefCell::new(Processes::default()));
     let procs_model = Rc::new(VecModel::<Row>::default());
+    let exe_icons: ExeIcons = Arc::default();
     ui.set_procs(ModelRc::from(procs_model.clone()));
     let sort = Rc::new(Cell::new(SortBy::Cpu));
     let refresh = {
-        let (weak, procs, sort, model) = (ui.as_weak(), procs.clone(), sort.clone(), procs_model.clone());
+        let (weak, procs, sort, model, exe_icons) = (ui.as_weak(), procs.clone(), sort.clone(), procs_model.clone(), exe_icons.clone());
         move || {
             let Some(ui) = weak.upgrade() else { return };
             if ui.get_page() != 1 {
                 return;
             }
-            let rows: Vec<Row> = procs
-                .borrow_mut()
-                .list(sort.get())
+            let list = procs.borrow_mut().list(sort.get());
+            fetch_icons(&exe_icons, list.iter().filter_map(|p| p.path.as_ref().map(|p| p.display().to_string())), weak.clone());
+            let rows: Vec<Row> = list
                 .into_iter()
-                .map(|p| Row {
-                    pid: p.pid as i32,
-                    name: p.name.into(),
-                    cpu: format!("{:.0}%", p.cpu).into(),
-                    mem: format!("{} MB", p.mem / 1_048_576).into(),
-                    path: p.path.map(|p| p.display().to_string()).unwrap_or_default().into(),
+                .map(|p| {
+                    let path = p.path.map(|p| p.display().to_string()).unwrap_or_default();
+                    let (icon, has_icon) = exe_icon(&exe_icons, &path);
+                    Row {
+                        pid: p.pid as i32,
+                        initial: initial(&p.name),
+                        name: p.name.into(),
+                        cpu: format!("{:.0}%", p.cpu).into(),
+                        mem: format!("{} MB", p.mem / 1_048_576).into(),
+                        path: path.into(),
+                        icon,
+                        has_icon,
+                    }
                 })
                 .collect();
             sync_rows(&model, rows);
@@ -359,14 +492,22 @@ fn main() {
         Rc::new(RefCell::new(Journal::open(dir.join("journal.json")).expect("journal ilegible")))
     };
     let load_startup = {
-        let (weak, entries) = (ui.as_weak(), entries.clone());
+        let (weak, entries, exe_icons) = (ui.as_weak(), entries.clone(), exe_icons.clone());
         move || {
             let Some(ui) = weak.upgrade() else { return };
             *entries.borrow_mut() = startup::list();
+            let exes: Vec<String> = entries.borrow().iter().map(|e| icons::exe_of_command(&e.command).unwrap_or_default()).collect();
+            fetch_icons(&exe_icons, exes.iter().cloned(), weak.clone());
             let rows: Vec<StartupRow> = entries
                 .borrow()
                 .iter()
-                .map(|e| StartupRow {
+                .zip(&exes)
+                .map(|(e, exe)| {
+                    let (icon, has_icon) = exe_icon(&exe_icons, exe);
+                    StartupRow {
+                    icon,
+                    has_icon,
+                    initial: initial(&e.name),
                     name: e.name.clone().into(),
                     command: e.command.clone().into(),
                     scope: match e.source {
@@ -376,6 +517,7 @@ fn main() {
                     }
                     .into(),
                     enabled: e.enabled,
+                    }
                 })
                 .collect();
             ui.set_startup(ModelRc::new(VecModel::from(rows)));
@@ -517,6 +659,13 @@ fn main() {
         }
     };
     ui.on_apps_reload(load_apps.clone());
+    ui.on_icons_ready({
+        let (refresh, load_startup) = (refresh.clone(), load_startup.clone());
+        move || {
+            refresh();
+            load_startup();
+        }
+    });
     ui.on_apps_rebuild(rebuild_apps.clone());
     ui.on_apps_filter({
         let (query, rebuild) = (query.clone(), rebuild_apps.clone());
@@ -950,7 +1099,14 @@ fn main() {
             let weak = weak.clone();
             thread::spawn(move || {
                 disk::purge_older_than(&disk::stash_root(), 7);
-                let parts: Vec<(&'static str, u64)> = disk::targets().iter().map(|t| (t.name, disk::dir_size(&t.path))).collect();
+                let mut parts: Vec<(&'static str, u64)> = vec![];
+                for t in disk::targets() {
+                    let b = disk::dir_size(&t.path);
+                    match parts.iter_mut().find(|p| p.0 == t.name) {
+                        Some(p) => p.1 += b,
+                        None => parts.push((t.name, b)),
+                    }
+                }
                 let total: u64 = parts.iter().map(|p| p.1).sum();
                 let old = disk::dir_size(&disk::stash_root());
                 let _ = weak.upgrade_in_event_loop(move |ui| {
@@ -959,6 +1115,12 @@ fn main() {
                     ui.set_disk_total(size(total).into());
                     let line = parts.iter().filter(|p| p.1 >= 1 << 20).map(|(n, b)| format!("{n} {}", size(*b))).collect::<Vec<_>>().join(" · ");
                     ui.set_disk_parts(line.into());
+                    let items: Vec<CleanRow> = parts
+                        .iter()
+                        .filter(|p| p.1 >= 1 << 20)
+                        .map(|(n, b)| CleanRow { name: (*n).into(), desc: clean_desc(n).into(), size: size(*b).into() })
+                        .collect();
+                    ui.set_disk_items(ModelRc::new(VecModel::from(items)));
                     let note = if old >= 1 << 20 { format!("Hay {} guardados de una limpieza anterior. Se borran solos a los 7 días.", size(old)) } else { String::new() };
                     ui.set_disk_old(note.into());
                 });

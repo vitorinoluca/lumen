@@ -9,14 +9,16 @@ Dense where needed (processes, files), calm on the home screen.
 - Fast: opens instantly, no long animations or welcome screens.
 
 ## Visual rules
+- The window is transparent: Windows 11 Mica shows through, and light/dark follows the theme setting. Surfaces are translucent layers (white or black at low opacity), never solid fills. Only dialogs are opaque.
+- Content sits on one rounded "sheet" next to a menu with no background of its own. No borders on controls; hairlines only between list rows.
 - No gradients, glow or heavy shadows. No emoji or sparkle icons. Simple line icons.
-- Cards are used for hardware info (Panel) and optimization options (Optimizar), laid out like the reference below. Every other screen is a plain list. Each screen keeps a hierarchy (important = big, secondary = small).
-- Small radii (4 px), left-aligned on an 8 px grid.
-- One sans typeface (Segoe UI, tabular numbers). Three sizes: 12 / 14 / 22.
+- Big numbers for what matters (Panel), plain rows for everything else. Cards only on Panel, Settings and Security.
+- Radii: 6 px controls, 10 px sheet and cards. Left-aligned, 8 px grid, generous margins (32 px).
+- One typeface (Segoe UI Variable). Sizes: 12 / 14 / 28 (titles) / 32 (figures).
 - Neutral colors with a single accent. Red only for real danger.
-- Light and dark (follows the system). Translucent window (Acrylic) on Windows 11, solid fallback elsewhere.
-- Layout: grouped side menu (Panel / Optimizar, Programas / Inicio, Procesos, Disco / Seguridad) with Settings at the bottom; Optimizar has tabs and two-column cards with a risk badge and a switch.
-- References: Windows 11 Task Manager, Linear, macOS Settings, optimizerDuck.
+- Layout: grouped side menu (Panel / Optimizar, Programas / Inicio, Procesos, Disco / Seguridad) with Settings at the bottom.
+- Slint gotcha: no `clip` on the translucent sheet; a rounded clip over a translucent fill breaks partial repaints (the repainted area turns lighter).
+- References: Windows 11 Settings and Files, Linear.
 
 ## Example data
 Real and uneven (14.7 GB, 63 °C, 187 processes), never round.
