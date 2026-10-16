@@ -33,5 +33,8 @@ Requiere Rust y las herramientas de compilación de MSVC.
 ## Plan
 Ver [PLAN.es.md](docs/PLAN.es.md). Reglas de diseño: [docs/DISENO.md](docs/DISENO.md).
 
+## Fuentes de datos
+La revisión de hashes usa LOLDrivers (Apache-2.0), que se descarga solo cuando lo pedís. Ver [docs/SOURCES.es.md](docs/SOURCES.es.md).
+
 ## Licencia
 MIT

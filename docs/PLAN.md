@@ -49,7 +49,8 @@ Every system change goes through `actions` (`apply()` / `revert()`). Heavy reads
 ### Phase 3 — Local, free security check (in progress)
 - [x] Layer 1: Windows Defender status, detections and quick scan.
 - [x] Behavior review (baseline + diff): persistence, reverse shells, obfuscated commands, Defender and Windows Update tampering, fake system processes. Actions: ignore, disable with backup, restore.
-- [ ] Known hashes, YARA rules, optional ClamAV and the remaining heuristics below.
+- [x] Layer 2: known hashes (LOLDrivers, installed drivers, with a hash cache).
+- [ ] YARA rules, optional ClamAV and the remaining heuristics.
 Layered detection, all offline: Windows Defender, known hashes (abuse.ch, LOLDrivers), YARA rules (`yara-x`),
 optional ClamAV (separate download, GPL) and our own scored heuristics. Reversible quarantine.
 Fixed wording: "Security check, not a replacement for antivirus". Never claim "PC is clean".

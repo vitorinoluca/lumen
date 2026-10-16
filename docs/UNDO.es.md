@@ -10,6 +10,7 @@ lumen guarda cada cambio en `%APPDATA%\lumen\journal.json`, así que se puede de
 | Perfiles | Apagá el perfil: vuelve el plan de energía anterior. Las apps que cerró el modo juego no se reabren. |
 | Programas | Las carpetas que sobran van a la reserva y las claves de registro se respaldan en un `.reg`. "Deshacer limpieza de restos" restaura ambas. La desinstalación del programa en sí no se deshace (usá el punto de restauración). |
 | Seguridad | "Deshabilitar" guarda un respaldo antes y pasa por el journal; "Restaurar" lo deja exactamente como estaba. "Ignorar" solo agrega el elemento a la línea base (no cambia nada en tu PC) y se deshace borrando `%APPDATA%\lumen\security-baseline.json`. Los respaldos de tareas programadas quedan en `%APPDATA%\lumen\backups`. |
+| Hashes | No hay nada que deshacer: la revisión de hashes solo lee archivos. La base descargada está en `%APPDATA%\lumen\db` y se puede borrar. |
 | Disco | Los archivos se mueven a `%APPDATA%\lumen\stash`, no se borran. "Deshacer última limpieza" los devuelve. |
 
 ## Lo que no se puede deshacer
