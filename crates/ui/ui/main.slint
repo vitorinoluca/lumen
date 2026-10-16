@@ -4,6 +4,8 @@ export struct Row { pid: int, name: string, cpu: string, mem: string, path: stri
 
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
 
+export struct DiskRow { name: string, size: string }
+
 export component Main inherits Window {
     title: "lumen";
     preferred-width: 900px;
@@ -18,6 +20,11 @@ export component Main inherits Window {
     in property <[Row]> procs;
     in property <[StartupRow]> startup;
     in-out property <string> status;
+    in property <[DiskRow]> targets;
+    in property <[DiskRow]> space-map;
+    in property <string> stash-text;
+    in-out property <string> disk-status;
+    in-out property <bool> confirm-purge;
     in-out property <int> page: 0;
     // pid pendiente de confirmar para finalizar (-1 = ninguno)
     in-out property <int> kill-pid: -1;
@@ -27,6 +34,10 @@ export component Main inherits Window {
     callback sort(int);
     callback kill(int);
     callback opened();
+    callback clean(int);
+    callback undo-clean();
+    callback purge();
+    callback scan-map();
     callback toggle-startup(int, bool);
     changed page => { opened(); }
 
@@ -109,7 +120,39 @@ export component Main inherits Window {
                 }
             }
         }
-        if page > 2: Text {
+        if page == 3: VerticalLayout {
+            padding: 12px;
+            spacing: 6px;
+            Text { text: "Limpieza (se mueve a una reserva, se puede deshacer)"; font-size: 16px; }
+            Text { text: disk-status; color: #c9a227; }
+            for t[i] in targets: HorizontalLayout {
+                spacing: 8px;
+                Text { text: t.name; width: 200px; vertical-alignment: center; }
+                Text { text: t.size; width: 90px; horizontal-alignment: right; vertical-alignment: center; }
+                Button { text: "Limpiar"; clicked => { clean(i); } }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "En reserva: " + stash-text; vertical-alignment: center; }
+                Button { text: "Deshacer última limpieza"; clicked => { undo-clean(); } }
+                if !confirm-purge: Button { text: "Vaciar reserva"; clicked => { confirm-purge = true; } }
+                if confirm-purge: Button { text: "¿Seguro? No se puede deshacer"; primary: true; clicked => { confirm-purge = false; purge(); } }
+            }
+            Rectangle { height: 8px; }
+            HorizontalLayout {
+                spacing: 8px;
+                Text { text: "Espacio por carpeta (tu usuario)"; font-size: 16px; vertical-alignment: center; }
+                Button { text: "Analizar"; clicked => { scan-map(); } }
+            }
+            ListView {
+                for m in space-map: HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: m.size; width: 90px; horizontal-alignment: right; }
+                    Text { text: m.name; overflow: elide; }
+                }
+            }
+        }
+        if page > 3: Text {
             text: pages[page];
             horizontal-alignment: center;
             vertical-alignment: center;

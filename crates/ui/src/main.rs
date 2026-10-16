@@ -4,6 +4,7 @@ use lumen_core::{
     monitor::{Monitor, Snapshot},
     processes::{Processes, SortBy},
     startup::{self, Source},
+    disk,
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
@@ -12,6 +13,10 @@ slint::include_modules!();
 
 fn gb(b: u64) -> String {
     format!("{:.1} GB", b as f64 / 1e9)
+}
+
+fn mb(b: u64) -> String {
+    format!("{} MB", b / 1_048_576)
 }
 
 fn show(ui: &Main, s: &Snapshot) {
@@ -116,11 +121,90 @@ fn main() {
             reload();
         }
     });
+    // Disco: los tamaños se calculan en un hilo; limpiar y deshacer son renames rápidos.
+    let load_disk = {
+        let weak = ui.as_weak();
+        move || {
+            let weak = weak.clone();
+            thread::spawn(move || {
+                let rows: Vec<(String, String)> =
+                    disk::targets().iter().map(|t| (t.name.into(), mb(disk::dir_size(&t.path)))).collect();
+                let stash = mb(disk::dir_size(&disk::stash_root()));
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
+                    ui.set_targets(ModelRc::new(VecModel::from(rows)));
+                    ui.set_stash_text(stash.into());
+                });
+            });
+        }
+    };
+    ui.on_clean({
+        let (weak, journal, reload) = (ui.as_weak(), journal.clone(), load_disk.clone());
+        move |i| {
+            let Some(ui) = weak.upgrade() else { return };
+            let t = &disk::targets()[i as usize];
+            let msg = match disk::clean(&mut journal.borrow_mut(), t.name, &t.path, &disk::stash_root()) {
+                Ok((n, skip)) => format!("{} elementos movidos a la reserva, {skip} en uso omitidos", n),
+                Err(e) => format!("No se pudo: {e}"),
+            };
+            ui.set_disk_status(msg.into());
+            reload();
+        }
+    });
+    ui.on_undo_clean({
+        let (weak, journal, reload) = (ui.as_weak(), journal.clone(), load_disk.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let mut j = journal.borrow_mut();
+            let last = j.entries.iter().rposition(|e| e.applied && matches!(e.action, Action::Stash { .. }));
+            let msg = match last.map(|id| j.revert(id)) {
+                Some(Ok(())) => "Limpieza deshecha".to_string(),
+                Some(Err(e)) => format!("No se pudo deshacer: {e}"),
+                None => "No hay limpiezas para deshacer".to_string(),
+            };
+            ui.set_disk_status(msg.into());
+            reload();
+        }
+    });
+    ui.on_purge({
+        let (weak, reload) = (ui.as_weak(), load_disk.clone());
+        move || {
+            let weak = weak.clone();
+            let reload = reload.clone();
+            thread::spawn(move || {
+                let freed = disk::purge(&disk::stash_root());
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    ui.set_disk_status(format!("Liberados {}", mb(freed)).into());
+                    reload();
+                });
+            });
+        }
+    });
+    ui.on_scan_map({
+        let weak = ui.as_weak();
+        move || {
+            let weak = weak.clone();
+            thread::spawn(move || {
+                let home = PathBuf::from(env::var_os("USERPROFILE").unwrap_or_default());
+                let rows: Vec<(String, String)> = disk::space_map(&home)
+                    .into_iter()
+                    .take(15)
+                    .map(|(p, s)| (p.file_name().unwrap_or_default().to_string_lossy().into_owned(), mb(s)))
+                    .collect();
+                let _ = weak.upgrade_in_event_loop(move |ui| {
+                    let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
+                    ui.set_space_map(ModelRc::new(VecModel::from(rows)));
+                });
+            });
+        }
+    });
+
     ui.on_opened({
-        let (refresh, load_startup, weak) = (refresh.clone(), load_startup.clone(), ui.as_weak());
+        let (refresh, load_startup, load_disk, weak) = (refresh.clone(), load_startup.clone(), load_disk.clone(), ui.as_weak());
         move || match weak.upgrade().map(|u| u.get_page()) {
             Some(1) => refresh(),
             Some(2) => load_startup(),
+            Some(3) => load_disk(),
             _ => {}
         }
     });
