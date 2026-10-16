@@ -34,7 +34,7 @@ Requires Rust and the MSVC build tools.
 See [PLAN.md](docs/PLAN.md). Design rules: [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Data sources
-The hash check uses LOLDrivers (Apache-2.0), downloaded only when you ask. See [docs/SOURCES.md](docs/SOURCES.md).
+The driver check uses LOLDrivers (Apache-2.0), downloaded during a review and refreshed at most once a week. See [docs/SOURCES.md](docs/SOURCES.md).
 
 ## License
 MIT
