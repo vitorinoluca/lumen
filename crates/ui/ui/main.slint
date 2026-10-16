@@ -331,9 +331,9 @@ component ScanButton inherits Rectangle {
     background: busy ? Theme.card : (ta.has-hover ? Theme.accent.with-alpha(0.14) : Theme.card);
     // La rotación la mueve un temporizador: sigue girando todo el tiempo que dure el análisis.
     Timer {
-        interval: 40ms;
+        interval: 80ms;
         running: root.busy;
-        triggered => { root.spin += 8deg; }
+        triggered => { root.spin += 16deg; }
     }
     Path {
         visible: root.busy;

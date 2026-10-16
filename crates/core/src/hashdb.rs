@@ -50,8 +50,9 @@ struct RawSample {
 }
 
 /// (sha256 en minúsculas, info) de cada muestra del JSON de LOLDrivers.
-pub fn parse_source(json: &[u8]) -> Result<Vec<(String, Info)>, serde_json::Error> {
-    let raw: Vec<RawEntry> = serde_json::from_slice(json)?;
+/// Se lee en flujo: el archivo pesa 33 MB y no hace falta tenerlo entero en memoria.
+pub fn parse_source<R: io::Read>(json: R) -> Result<Vec<(String, Info)>, serde_json::Error> {
+    let raw: Vec<RawEntry> = serde_json::from_reader(json)?;
     Ok(raw
         .into_iter()
         .flat_map(|e| {
@@ -117,7 +118,7 @@ impl Db {
 }
 
 /// Descarga la base de LOLDrivers y guarda solo los hashes. Es lo único de lumen que usa internet,
-/// y solo cuando el usuario lo pide. Devuelve cuántos hashes quedaron. Usa unos 40 MB mientras procesa.
+/// y solo cuando el usuario lo pide. Devuelve cuántos hashes quedaron.
 pub fn update() -> io::Result<usize> {
     let tmp = env::temp_dir().join(format!("lumen-loldrivers-{}.json", std::process::id()));
     let script = format!(
@@ -126,7 +127,7 @@ pub fn update() -> io::Result<usize> {
         ps::quote(&tmp.to_string_lossy())
     );
     let downloaded = ps::run(&script);
-    let result = downloaded.and_then(|_| fs::read(&tmp)).and_then(|bytes| parse_source(&bytes).map_err(io::Error::other));
+    let result = downloaded.and_then(|_| fs::File::open(&tmp)).and_then(|f| parse_source(io::BufReader::new(f)).map_err(io::Error::other));
     let _ = fs::remove_file(&tmp);
     let items = result?;
     if items.is_empty() {
@@ -299,7 +300,7 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(items[0], (SHA_ABC.to_string(), Info { name: "a.sys".into(), malicious: true }));
         assert!(!items[1].1.malicious && items[1].0 == "ab".repeat(32)); // se normaliza a minúsculas
-        assert!(parse_source(b"no es json").is_err());
+        assert!(parse_source(&b"no es json"[..]).is_err());
     }
 
     #[test]
