@@ -62,8 +62,9 @@ fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
     }
 }
 
-fn mb(b: u64) -> String {
-    format!("{} MB", b / 1_048_576)
+/// Tamaño legible: GB desde 1 GB, MB por debajo.
+fn size(b: u64) -> String {
+    if b >= 1 << 30 { gb(b) } else { format!("{} MB", b >> 20) }
 }
 
 fn show(ui: &Main, s: &Snapshot) {
@@ -228,7 +229,7 @@ fn main() {
                 .map(|a| AppRow {
                     name: a.name.clone().into(),
                     detail: [a.publisher.as_str(), a.version.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ").into(),
-                    size: if a.size_kb > 0 { mb(a.size_kb * 1024) } else { String::new() }.into(),
+                    size: if a.size_kb > 0 { size(a.size_kb * 1024) } else { String::new() }.into(),
                 })
                 .collect();
             ui.set_apps(ModelRc::new(VecModel::from(rows)));
@@ -453,8 +454,8 @@ fn main() {
             let weak = weak.clone();
             thread::spawn(move || {
                 let rows: Vec<(String, String)> =
-                    disk::targets().iter().map(|t| (t.name.into(), mb(disk::dir_size(&t.path)))).collect();
-                let stash = mb(disk::dir_size(&disk::stash_root()));
+                    disk::targets().iter().map(|t| (t.name.into(), size(disk::dir_size(&t.path)))).collect();
+                let stash = size(disk::dir_size(&disk::stash_root()));
                 let _ = weak.upgrade_in_event_loop(move |ui| {
                     let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
                     ui.set_targets(ModelRc::new(VecModel::from(rows)));
@@ -499,7 +500,7 @@ fn main() {
             thread::spawn(move || {
                 let freed = disk::purge(&disk::stash_root());
                 let _ = weak.upgrade_in_event_loop(move |ui| {
-                    ui.set_disk_status(format!("Liberados {}", mb(freed)).into());
+                    ui.set_disk_status(format!("Liberados {}", size(freed)).into());
                     reload();
                 });
             });
@@ -514,7 +515,7 @@ fn main() {
                 let rows: Vec<(String, String)> = disk::space_map(&home)
                     .into_iter()
                     .take(15)
-                    .map(|(p, s)| (p.file_name().unwrap_or_default().to_string_lossy().into_owned(), mb(s)))
+                    .map(|(p, s)| (p.file_name().unwrap_or_default().to_string_lossy().into_owned(), size(s)))
                     .collect();
                 let _ = weak.upgrade_in_event_loop(move |ui| {
                     let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
@@ -554,4 +555,18 @@ fn main() {
         }
     });
     ui.run().unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::size;
+
+    #[test]
+    fn size_uses_gb_from_one_gb_and_mb_below() {
+        assert_eq!(size(1369 * 1_048_576), "1,3 GB");
+        assert_eq!(size(3355 * 1_048_576), "3,3 GB");
+        assert_eq!(size(900 * 1_048_576), "900 MB");
+        assert_eq!(size(1_073_741_824), "1,0 GB");
+        assert_eq!(size(0), "0 MB");
+    }
 }
