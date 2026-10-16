@@ -11,8 +11,7 @@ No telemetry, no accounts, no paid services.
 - **Startup:** turn startup apps on or off without deleting them (the same mechanism Task Manager uses).
 - **Disk:** clean temp files and Chrome/Edge caches, and see what takes the most space.
 - **Privacy:** switch off Windows advertising ID, suggestions, Bing in Start search, telemetry and activity history.
-
-On Windows 11 the window is translucent (Acrylic). On other systems it falls back to a solid background.
+- **Services:** a curated list with plain descriptions. Critical ones are locked. Disabling creates a restore point first.
 
 ## How everything is undone
 Every change is recorded in `%APPDATA%\lumen\journal.json`. See [docs/UNDO.md](docs/UNDO.md).

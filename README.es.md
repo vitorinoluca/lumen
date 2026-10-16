@@ -11,8 +11,7 @@ Sin telemetría, sin cuentas, sin servicios pagos.
 - **Arranque:** activa o desactiva apps de inicio sin borrarlas (igual que el Administrador de tareas).
 - **Disco:** limpia temporales y cachés de Chrome/Edge, y muestra qué ocupa más espacio.
 - **Privacidad:** apaga el ID de publicidad, las sugerencias, Bing en la búsqueda de Inicio, la telemetría y el historial de actividades.
-
-En Windows 11 la ventana es translúcida (Acrylic). En otros sistemas usa un fondo sólido.
+- **Servicios:** lista curada con descripciones simples. Los críticos están bloqueados. Al desactivar se crea antes un punto de restauración.
 
 ## Cómo se deshace todo
 Cada cambio se guarda en `%APPDATA%\lumen\journal.json`. Ver [docs/UNDO.es.md](docs/UNDO.es.md).

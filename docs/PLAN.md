@@ -42,9 +42,9 @@ Every system change goes through `actions` (`apply()` / `revert()`). Heavy reads
 ### Phase 2 — Optimization (in progress)
 - [x] Privacy: reversible Windows settings.
 - [ ] Uninstaller with leftover cleanup.
-- [ ] Services with a curated "safe to disable" database.
+- [x] Services with a curated "safe to disable" database.
 - [ ] Profiles: game mode and battery mode.
-- [ ] Automatic restore point before big changes.
+- [x] Automatic restore point before big changes (so far: disabling services; the uninstaller and profiles will use it too).
 
 ### Phase 3 — Local, free security check
 Layered detection, all offline: Windows Defender, known hashes (abuse.ch, LOLDrivers), YARA rules (`yara-x`),

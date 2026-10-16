@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    privacy, services,
+    privacy, restore, services,
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
@@ -14,6 +14,14 @@ slint::include_modules!();
 
 fn gb(b: u64) -> String {
     format!("{:.1} GB", b as f64 / 1e9)
+}
+
+fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
+    match res {
+        Ok(()) => warn.to_string(),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => "Necesitás abrir lumen como administrador para cambiar servicios.".into(),
+        Err(e) => format!("No se pudo: {e}"),
+    }
 }
 
 fn mb(b: u64) -> String {
@@ -189,34 +197,49 @@ fn main() {
             ui.set_services(ModelRc::new(VecModel::from(rows)));
         }
     };
+    // Desactivar un servicio es un cambio grande: antes se crea un punto de restauración (en un hilo,
+    // tarda unos segundos) y recién después se aplica. Reactivar es solo deshacer, sin punto.
     ui.on_toggle_service({
         let (weak, svcs, journal, reload) = (ui.as_weak(), svcs.clone(), journal.clone(), load_services.clone());
         move |i, on| {
             let Some(ui) = weak.upgrade() else { return };
             let name = svcs.borrow()[i as usize].name.clone();
-            let mut j = journal.borrow_mut();
-            let res = if on {
-                // Volver a activar = deshacer el último cambio de lumen sobre este servicio.
-                let last = j.entries.iter().rposition(|e| {
-                    e.applied && matches!(&e.action, Action::SetDword { path, .. } if path.ends_with(&format!(r"Services\{name}")))
+            if !on {
+                ui.set_status("Creando punto de restauración, puede tardar unos segundos…".into());
+                let weak = weak.clone();
+                thread::spawn(move || {
+                    let warn = match restore::create(&format!("desactivar servicio {name}")) {
+                        Ok(()) => String::new(),
+                        Err(e) => format!("Sin punto de restauración ({e}). El cambio igual se puede deshacer desde lumen."),
+                    };
+                    let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_disable_service(i, warn.into()));
                 });
-                match last {
-                    Some(id) => j.revert(id),
-                    None => Err(std::io::Error::other("lumen no lo desactivó, no hay nada que revertir")),
-                }
-            } else {
-                match services::disable_action(&name) {
-                    Some(a) => j.apply(&format!("Desactivar servicio: {name}"), a).map(|_| ()),
-                    None => Err(std::io::Error::other("este servicio está protegido")),
-                }
+                return;
+            }
+            let mut j = journal.borrow_mut();
+            // Volver a activar = deshacer el último cambio de lumen sobre este servicio.
+            let last = j.entries.iter().rposition(|e| {
+                e.applied && matches!(&e.action, Action::SetDword { path, .. } if path.ends_with(&format!(r"Services\{name}")))
+            });
+            let res = match last {
+                Some(id) => j.revert(id),
+                None => Err(std::io::Error::other("lumen no lo desactivó, no hay nada que revertir")),
             };
-            let msg = match res {
-                Ok(()) => String::new(),
-                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => "Necesitás abrir lumen como administrador para cambiar servicios.".to_string(),
-                Err(e) => format!("No se pudo: {e}"),
-            };
-            ui.set_status(msg.into());
             drop(j);
+            ui.set_status(service_msg(res, "").into());
+            reload();
+        }
+    });
+    ui.on_disable_service({
+        let (weak, svcs, journal, reload) = (ui.as_weak(), svcs.clone(), journal.clone(), load_services.clone());
+        move |i, warn| {
+            let Some(ui) = weak.upgrade() else { return };
+            let name = svcs.borrow()[i as usize].name.clone();
+            let res = match services::disable_action(&name) {
+                Some(a) => journal.borrow_mut().apply(&format!("Desactivar servicio: {name}"), a).map(|_| ()),
+                None => Err(std::io::Error::other("este servicio está protegido")),
+            };
+            ui.set_status(service_msg(res, &warn).into());
             reload();
         }
     });

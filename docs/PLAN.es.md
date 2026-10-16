@@ -42,9 +42,9 @@ Toda modificación del sistema pasa por `actions` (`apply()` / `revert()`). Las 
 ### Fase 2 — Optimización (en curso)
 - [x] Privacidad: ajustes de Windows reversibles.
 - [ ] Desinstalador con limpieza de restos.
-- [ ] Servicios con base curada de "seguro de desactivar".
+- [x] Servicios con base curada de "seguro de desactivar".
 - [ ] Perfiles: modo juego y modo batería.
-- [ ] Punto de restauración automático antes de cambios grandes.
+- [x] Punto de restauración automático antes de cambios grandes (por ahora al desactivar servicios; el desinstalador y los perfiles también lo usarán).
 
 ### Fase 3 — Revisión de seguridad local y gratuita
 Detección en capas, todo offline: Windows Defender, hashes conocidos (abuse.ch, LOLDrivers), reglas YARA (`yara-x`),
