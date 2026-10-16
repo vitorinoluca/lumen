@@ -58,17 +58,19 @@ component Icon inherits Path {
 component Btn inherits Rectangle {
     in property <string> text;
     in property <bool> strong: false;
+    // Acción destructiva: fondo rojo suave, un poco más marcado al pasar el mouse.
+    in property <bool> danger: false;
     out property <bool> hovered: ta.has-hover;
     callback clicked;
     height: 28px;
     border-radius: Theme.radius;
     border-width: 1px;
-    border-color: strong ? Theme.accent : Theme.line;
-    background: ta.has-hover ? Theme.hover : transparent;
+    border-color: danger ? Theme.danger.with-alpha(0.5) : (strong ? Theme.accent : Theme.line);
+    background: danger ? Theme.danger.with-alpha(ta.has-hover ? 0.28 : 0.16) : (ta.has-hover ? Theme.hover : transparent);
     HorizontalLayout {
         padding-left: 12px;
         padding-right: 12px;
-        Text { text: root.text; font-size: 12px; color: root.strong ? Theme.accent : Theme.text; vertical-alignment: center; }
+        Text { text: root.text; font-size: 12px; color: root.danger ? Theme.danger : (root.strong ? Theme.accent : Theme.text); vertical-alignment: center; }
     }
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
@@ -223,6 +225,7 @@ component Confirm inherits Rectangle {
     in property <string> title;
     in property <string> body;
     in property <string> ok-text;
+    in property <bool> danger: false;
     callback ok();
     callback cancel();
     background: Theme.dark ? #000000a0 : #00000060;
@@ -246,7 +249,7 @@ component Confirm inherits Rectangle {
                 spacing: 8px;
                 alignment: end;
                 Btn { text: "Cancelar"; clicked => { root.cancel(); } }
-                Btn { text: root.ok-text; strong: true; clicked => { root.ok(); } }
+                Btn { text: root.ok-text; strong: !root.danger; danger: root.danger; clicked => { root.ok(); } }
             }
         }
     }
@@ -499,7 +502,7 @@ export component Main inherits Window {
                     alignment: start;
                 for p in procs: Rectangle {
                     height: 28px;
-                    background: ta.has-hover ? Theme.hover : transparent;
+                    background: (ta.has-hover || close-btn.hovered) ? Theme.hover : transparent;
                     ta := TouchArea { }
                     HorizontalLayout {
                         spacing: 12px;
@@ -509,7 +512,7 @@ export component Main inherits Window {
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; close-btn := Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
+                        VerticalLayout { alignment: center; close-btn := Btn { text: "Cerrar"; danger: true; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
                     }
                 }
             }
@@ -636,7 +639,7 @@ export component Main inherits Window {
                     alignment: start;
                 for a[i] in apps: Rectangle {
                     height: 40px;
-                    background: app-ta.has-hover ? Theme.hover : transparent;
+                    background: (app-ta.has-hover || un-btn.hovered) ? Theme.hover : transparent;
                     app-ta := TouchArea { }
                     HorizontalLayout {
                         spacing: 12px;
@@ -661,7 +664,7 @@ export component Main inherits Window {
                             Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
                         }
                         Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
-                        VerticalLayout { alignment: center; un-btn := Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
+                        VerticalLayout { alignment: center; un-btn := Btn { text: "Desinstalar"; danger: true; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
                     }
                 }
             }
@@ -683,6 +686,7 @@ export component Main inherits Window {
         title: "¿Desinstalar \{confirm-app-name}?";
         body: "Se abre el desinstalador del programa. Cuando termine, te mostramos lo que haya quedado para que decidas si lo limpiás. Si lumen corre como administrador, antes se crea un punto de restauración.";
         ok-text: "Desinstalar";
+        danger: true;
         ok => { uninstall(confirm-app); confirm-app = -1; }
         cancel => { confirm-app = -1; }
     }
@@ -694,6 +698,7 @@ export component Main inherits Window {
         title: "¿Cerrar \{kill-name}?";
         body: "Perdés lo que no hayas guardado en ese programa. No se puede deshacer.";
         ok-text: "Cerrar proceso";
+        danger: true;
         ok => { kill(kill-pid); kill-pid = -1; }
         cancel => { kill-pid = -1; }
     }
