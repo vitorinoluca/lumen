@@ -5,20 +5,43 @@ export struct StartupRow { name: string, command: string, scope: string, enabled
 export struct DiskRow { name: string, size: string }
 
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
-global Theme {
+export global Theme {
+    // true cuando Windows dibuja el material Mica detrás (la ventana es transparente)
+    in-out property <bool> mica: false;
     out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
-    out property <color> bg: dark ? #1c1c1e : #f7f7f8;
-    out property <color> side: dark ? #232326 : #eeeef0;
-    out property <color> line: dark ? #38383c : #dcdce0;
+    out property <color> bg: mica ? transparent : (dark ? #1c1c1e : #f7f7f8);
+    out property <color> side: mica ? (dark ? #00000030 : #ffffff40) : (dark ? #232326 : #eeeef0);
+    out property <color> line: mica ? (dark ? #ffffff18 : #00000018) : (dark ? #38383c : #dcdce0);
     out property <color> text: dark ? #ececee : #1d1d1f;
-    out property <color> muted: dark ? #9a9aa0 : #6b6b72;
-    out property <color> hover: dark ? #2c2c30 : #e4e4e8;
+    out property <color> muted: dark ? (mica ? #b4b4ba : #9a9aa0) : #5f5f66;
+    out property <color> hover: mica ? (dark ? #ffffff12 : #00000010) : (dark ? #2c2c30 : #e4e4e8);
     out property <color> accent: dark ? #4fb39d : #2a7a68;
     out property <color> danger: dark ? #e5736a : #b3261e;
     out property <length> radius: 4px;
 }
 
 // Botón plano: borde fino, sin relleno.
+// Íconos de línea (viewbox 24x24), mismo trazo en todos.
+component Icon inherits Path {
+    in property <string> kind;
+    in property <color> tint: Theme.muted;
+    width: 16px;
+    height: 16px;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    stroke: tint;
+    stroke-width: 1.7px;
+    stroke-line-cap: round;
+    stroke-line-join: round;
+    commands:
+        kind == "home" ? "M3 11 L12 3 L21 11 M5 9.5 V20 H19 V9.5" :
+        kind == "list" ? "M4 6 H20 M4 12 H20 M4 18 H13" :
+        kind == "power" ? "M12 3 V12 M6.3 6.8 A8 8 0 1 0 17.7 6.8" :
+        kind == "disk" ? "M4 14 H20 V19 H4 Z M4 14 L7 5 H17 L20 14 M16 16.5 H16.5" :
+        kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
+        "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
+}
+
 component Btn inherits Rectangle {
     in property <string> text;
     in property <bool> strong: false;
@@ -75,13 +98,15 @@ component Stat inherits VerticalLayout {
 
 component NavItem inherits Rectangle {
     in property <string> text;
+    in property <string> icon;
     in property <bool> active;
     callback clicked;
     height: 32px;
     border-radius: Theme.radius;
     background: active ? Theme.hover : (ta.has-hover ? Theme.hover.with-alpha(0.5) : transparent);
     Rectangle { x: 0; y: 8px; width: 2px; height: 16px; background: active ? Theme.accent : transparent; }
-    Text { x: 12px; text: root.text; font-size: 14px; color: Theme.text; vertical-alignment: center; }
+    Icon { x: 12px; y: 8px; kind: root.icon; tint: root.active ? Theme.accent : Theme.muted; }
+    Text { x: 36px; text: root.text; font-size: 14px; color: Theme.text; vertical-alignment: center; }
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
@@ -122,6 +147,7 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
+    property <[string]> icons: ["home", "list", "power", "disk", "eye", "shield"];
     property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Seguridad"];
 
     callback sort(int);
@@ -146,7 +172,7 @@ export component Main inherits Window {
                 alignment: start;
                 Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; }
                 Rectangle { height: 12px; }
-                for name[i] in pages: NavItem { text: name; active: i == page; clicked => { page = i; } }
+                for name[i] in pages: NavItem { text: name; icon: icons[i]; active: i == page; clicked => { page = i; } }
             }
         }
 
