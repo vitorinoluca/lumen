@@ -2,6 +2,7 @@ import { Palette, ListView } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
+export struct ServiceRow { title: string, desc: string, level: string, enabled: bool, locked: bool }
 export struct DiskRow { name: string, size: string }
 
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
@@ -36,6 +37,7 @@ component Icon inherits Path {
         kind == "list" ? "M4 6 H20 M4 12 H20 M4 18 H13" :
         kind == "power" ? "M12 3 V12 M6.3 6.8 A8 8 0 1 0 17.7 6.8" :
         kind == "disk" ? "M4 14 H20 V19 H4 Z M4 14 L7 5 H17 L20 14 M16 16.5 H16.5" :
+        kind == "sliders" ? "M4 7 H20 M4 12 H20 M4 17 H20 M9 5 V9 M15 10 V14 M8 15 V19" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -59,7 +61,9 @@ component Btn inherits Rectangle {
 
 component Toggle inherits Rectangle {
     in-out property <bool> checked;
+    in property <bool> locked: false;
     callback toggled(bool);
+    opacity: locked ? 0.4 : 1.0;
     width: 30px;
     height: 16px;
     border-radius: 8px;
@@ -72,7 +76,7 @@ component Toggle inherits Rectangle {
         border-radius: 6px;
         background: white;
     }
-    TouchArea { mouse-cursor: pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
+    TouchArea { enabled: !root.locked; mouse-cursor: root.locked ? MouseCursor.default : MouseCursor.pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
 }
 
 component Bar inherits Rectangle {
@@ -134,6 +138,7 @@ export component Main inherits Window {
     in property <[Row]> procs;
     in property <[StartupRow]> startup;
     in property <[StartupRow]> privacy;
+    in property <[ServiceRow]> services;
     in-out property <string> status;
     in property <[DiskRow]> targets;
     in property <[DiskRow]> space-map;
@@ -145,14 +150,15 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
-    property <[string]> icons: ["home", "list", "power", "disk", "eye", "shield"];
-    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Seguridad"];
+    property <[string]> icons: ["home", "list", "power", "disk", "eye", "sliders", "shield"];
+    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Servicios", "Seguridad"];
 
     callback sort(int);
     callback kill(int);
     callback opened();
     callback toggle-startup(int, bool);
     callback toggle-privacy(int, bool);
+    callback toggle-service(int, bool);
     callback clean(int);
     callback undo-clean();
     callback purge();
@@ -306,7 +312,33 @@ export component Main inherits Window {
             }
         }
 
-        if page > 4: VerticalLayout {
+        if page == 5: VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "Servicios"; sub: "Programas que Windows corre por detrás. Desactivar necesita administrador y rige desde el próximo arranque."; }
+            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; wrap: word-wrap; }
+            ListView {
+                for e[i] in services: Rectangle {
+                    height: 52px;
+                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        padding-left: 4px;
+                        Toggle { y: 18px; checked: e.enabled; locked: e.locked; toggled(on) => { toggle-service(i, on); } }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text { text: e.title; font-size: 14px; color: Theme.text; overflow: elide; }
+                            Text { text: e.desc; font-size: 12px; color: Theme.muted; overflow: elide; }
+                        }
+                        Text { text: e.level; width: 70px; font-size: 12px; color: e.locked ? Theme.danger : Theme.muted; vertical-alignment: center; }
+                    }
+                }
+            }
+        }
+
+        if page > 5: VerticalLayout {
             padding: 24px;
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }

@@ -5,7 +5,7 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    privacy,
+    privacy, services,
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
@@ -163,6 +163,64 @@ fn main() {
         }
     });
 
+    // Servicios: solo los de la base curada. Los críticos salen bloqueados.
+    let svcs = Rc::new(RefCell::new(Vec::<services::Service>::new()));
+    let load_services = {
+        let (weak, svcs) = (ui.as_weak(), svcs.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            *svcs.borrow_mut() = services::list();
+            let rows: Vec<ServiceRow> = svcs
+                .borrow()
+                .iter()
+                .map(|s| ServiceRow {
+                    title: s.title.clone().into(),
+                    desc: s.desc.clone().into(),
+                    level: match s.level {
+                        services::Level::Safe => "seguro",
+                        services::Level::Caution => "depende",
+                        services::Level::Critical => "bloqueado",
+                    }
+                    .into(),
+                    enabled: s.enabled(),
+                    locked: s.locked(),
+                })
+                .collect();
+            ui.set_services(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    ui.on_toggle_service({
+        let (weak, svcs, journal, reload) = (ui.as_weak(), svcs.clone(), journal.clone(), load_services.clone());
+        move |i, on| {
+            let Some(ui) = weak.upgrade() else { return };
+            let name = svcs.borrow()[i as usize].name.clone();
+            let mut j = journal.borrow_mut();
+            let res = if on {
+                // Volver a activar = deshacer el último cambio de lumen sobre este servicio.
+                let last = j.entries.iter().rposition(|e| {
+                    e.applied && matches!(&e.action, Action::SetDword { path, .. } if path.ends_with(&format!(r"Services\{name}")))
+                });
+                match last {
+                    Some(id) => j.revert(id),
+                    None => Err(std::io::Error::other("lumen no lo desactivó, no hay nada que revertir")),
+                }
+            } else {
+                match services::disable_action(&name) {
+                    Some(a) => j.apply(&format!("Desactivar servicio: {name}"), a).map(|_| ()),
+                    None => Err(std::io::Error::other("este servicio está protegido")),
+                }
+            };
+            let msg = match res {
+                Ok(()) => String::new(),
+                Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => "Necesitás abrir lumen como administrador para cambiar servicios.".to_string(),
+                Err(e) => format!("No se pudo: {e}"),
+            };
+            ui.set_status(msg.into());
+            drop(j);
+            reload();
+        }
+    });
+
     // Disco: los tamaños se calculan en un hilo; limpiar y deshacer son renames rápidos.
     let load_disk = {
         let weak = ui.as_weak();
@@ -242,13 +300,20 @@ fn main() {
     });
 
     ui.on_opened({
-        let (refresh, load_startup, load_disk, load_privacy, weak) =
-            (refresh.clone(), load_startup.clone(), load_disk.clone(), load_privacy.clone(), ui.as_weak());
+        let (refresh, load_startup, load_disk, load_privacy, load_services, weak) = (
+            refresh.clone(),
+            load_startup.clone(),
+            load_disk.clone(),
+            load_privacy.clone(),
+            load_services.clone(),
+            ui.as_weak(),
+        );
         move || match weak.upgrade().map(|u| u.get_page()) {
             Some(1) => refresh(),
             Some(2) => load_startup(),
             Some(3) => load_disk(),
             Some(4) => load_privacy(),
+            Some(5) => load_services(),
             _ => {}
         }
     });
