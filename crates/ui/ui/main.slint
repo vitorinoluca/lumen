@@ -12,7 +12,7 @@ export struct AppRow { name: string, detail: string, size: string, icon: image, 
 export struct DiskRow { name: string, size: string }
 export struct CleanRow { name: string, desc: string, size: string }
 // Una opción de sección: `idx` apunta a la lista que guarda Rust. risk: 0 = seguro (verde), 1 = revisar (amarillo).
-export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool }
+export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool, icon: image, has-icon: bool }
 // Lo que se va a hacer, antes de aplicar.
 export struct PreviewRow { title: string, detail: string, undoable: bool }
 // Un cambio del historial.
@@ -379,7 +379,7 @@ component PreviewDialog inherits Rectangle {
     TouchArea { }
     Rectangle {
         width: min(600px, parent.width - 48px);
-        height: min(parent.height - 64px, 540px);
+        height: min(parent.height - 64px, 250px + root.rows-h);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         background: Theme.pop;
@@ -870,8 +870,7 @@ export component Main inherits Window {
                 }
                 NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
                 NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
-                NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
-                NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
+                NavItem { text: @tr("" => "Rendimiento"); icon: "bolt"; active: page == 10; clicked => { sc-result = ""; page = 10; } }
                 NavItem { text: @tr("" => "Privacidad"); icon: "eye"; active: page == 11; clicked => { sc-result = ""; page = 11; } }
                 NavItem { text: @tr("" => "Historial"); icon: "clock"; active: page == 15; clicked => { page = 15; } }
                 Gap { }
@@ -1385,6 +1384,7 @@ if page == 4: Page {
                                         padding-left: 16px;
                                         padding-right: 16px;
                                         VerticalLayout { alignment: center; Check { checked: r.checked || r.done; radio: r.group > 0; } }
+                                        if r.has-icon: VerticalLayout { alignment: center; AppIcon { size: 28px; img: r.icon; has-icon: true; initial: ""; } }
                                         VerticalLayout {
                                             horizontal-stretch: 1;
                                             alignment: center;
@@ -1406,10 +1406,10 @@ if page == 4: Page {
                             alignment: center;
                             spacing: 2px;
                             if sc-result != "": Text { text: I18n.t(sc-result); font-size: 14px; color: Theme.accent; wrap: word-wrap; }
-                            if sc-result == "": Text { text: sc-selected == 0 ? @tr("" => "No hay nada marcado.") : @tr("" => "{} marcadas. Antes de aplicar te mostramos qué se va a hacer.", sc-selected); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                            if sc-more-count > 0: TextLink { text: sc-more ? @tr("" => "Ocultar más opciones") : @tr("" => "Más opciones ({})", sc-more-count); clicked => { sc-more = !sc-more; sc-reload(); } }
+                            if sc-result == "": Text { text: sc-selected == 0 ? @tr("" => "No hay nada marcado.") : (sc-selected == 1 ? @tr("" => "1 marcada. Antes de aplicar te mostramos qué se va a hacer.") : @tr("" => "{} marcadas. Antes de aplicar te mostramos qué se va a hacer.", sc-selected)); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                            if sc-more-count > 0: HorizontalLayout { alignment: start; TextLink { text: sc-more ? @tr("" => "Ocultar más opciones") : @tr("" => "Más opciones ({})", sc-more-count); clicked => { sc-more = !sc-more; sc-reload(); } } }
                         }
-                        VerticalLayout { alignment: center; Btn { height: 38px; pad: 28px; font: 14px; strong: true; enabled: sc-selected > 0 && !sc-busy; text: I18n.t(sc-button); clicked => { sc-apply(); } } }
+                        VerticalLayout { alignment: center; horizontal-stretch: 0; Btn { height: 38px; pad: 28px; font: 14px; strong: true; enabled: sc-selected > 0 && !sc-busy; text: I18n.t(sc-button); clicked => { sc-apply(); } } }
                     }
                 }
 

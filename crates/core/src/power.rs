@@ -3,6 +3,17 @@ use std::{io, os::windows::process::CommandExt, process::Command};
 
 pub const HIGH_PERFORMANCE: &str = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c";
 pub const POWER_SAVER: &str = "a1841308-3541-4fab-bc81-f71556f20b4a";
+pub const BALANCED: &str = "381b4222-f694-41f0-9685-ff5bb260df2e";
+
+/// Nombre legible de los planes conocidos; el resto se muestra con su GUID.
+pub fn name(guid: &str) -> String {
+    match guid {
+        HIGH_PERFORMANCE => "Alto rendimiento".into(),
+        POWER_SAVER => "Ahorro de energía".into(),
+        BALANCED => "Equilibrado".into(),
+        other => other.into(),
+    }
+}
 
 fn run(args: &[&str]) -> io::Result<String> {
     let out = Command::new("powercfg").args(args).creation_flags(0x0800_0000).output()?;

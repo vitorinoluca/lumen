@@ -37,12 +37,14 @@ pub struct Item {
     pub more: bool,
     /// Título de grupo en vez de opción.
     pub header: bool,
+    /// Programa cuyo ícono se muestra al lado (ruta del .exe); vacío = sin ícono.
+    pub icon: String,
     pub steps: Vec<Step>,
 }
 
 impl Item {
     pub fn new(id: &str, title: &str, desc: &str, risk: Risk, steps: Vec<Step>) -> Self {
-        Self { id: id.into(), title: title.into(), desc: desc.into(), risk, group: 0, done: false, more: false, header: false, steps }
+        Self { id: id.into(), title: title.into(), desc: desc.into(), risk, group: 0, done: false, more: false, header: false, icon: String::new(), steps }
     }
 
     pub fn header(title: &str) -> Self {
@@ -94,6 +96,26 @@ mod tests {
         assert!(safe.default_checked());
         assert!(!review.default_checked() && !done.default_checked() && !radio.default_checked());
         assert!(!Item::header("x").default_checked());
+    }
+
+    #[test]
+    fn apply_counts_successes_and_reports_failures_without_stopping() {
+        let dir = std::env::temp_dir().join(format!("lumen-plan-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let (a, b) = (dir.join("a.txt"), dir.join("b.txt"));
+        std::fs::write(&a, "x").unwrap();
+        let mv = |from: &std::path::Path, to: &std::path::Path| vec![Step { action: Action::MoveFile { from: from.into(), to: to.into() } }];
+        let ok = Item::new("ok", "Mover a", "", Risk::Safe, mv(&a, &b));
+        let bad = Item::new("bad", "Mover inexistente", "", Risk::Safe, mv(&dir.join("no-existe"), &dir.join("c.txt")));
+        let mut journal = Journal::open(dir.join("journal.json")).unwrap();
+        let report = apply(&mut journal, &[&bad, &ok]);
+        assert_eq!(report.applied, 1);
+        assert_eq!(report.failed.len(), 1);
+        assert_eq!(report.failed[0].0, "Mover inexistente");
+        assert!(b.exists() && !a.exists());
+        assert_eq!(journal.entries.len(), 1); // solo lo que se aplicó queda en el historial
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

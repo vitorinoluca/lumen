@@ -58,9 +58,59 @@ pub fn items() -> Vec<Item> {
         .collect()
 }
 
+/// Apps preinstaladas que casi nadie usa: (paquete, nombre, qué es).
+const BLOAT: &[(&str, &str, &str)] = &[
+    ("Microsoft.BingNews", "Noticias", "Noticias de Microsoft con publicidad."),
+    ("Microsoft.BingWeather", "El Tiempo", "App del clima de Microsoft."),
+    ("Microsoft.GetHelp", "Obtener ayuda", "Chat de soporte de Microsoft."),
+    ("Microsoft.Getstarted", "Consejos", "Consejos y novedades de Windows."),
+    ("Microsoft.MicrosoftSolitaireCollection", "Solitario", "Juegos de cartas con anuncios."),
+    ("Microsoft.MixedReality.Portal", "Realidad mixta", "Solo sirve con visores de realidad virtual."),
+    ("Microsoft.People", "Contactos", "Libreta de contactos de Microsoft."),
+    ("Microsoft.SkypeApp", "Skype", "Videollamadas de Skype."),
+    ("Microsoft.WindowsFeedbackHub", "Centro de opiniones", "Envía opiniones y errores a Microsoft."),
+    ("Microsoft.ZuneVideo", "Películas y TV", "Reproductor de video de Microsoft."),
+    ("Clipchamp.Clipchamp", "Clipchamp", "Editor de video de Microsoft."),
+    ("Microsoft.MicrosoftOfficeHub", "Microsoft 365", "Acceso directo a Office con ofertas."),
+    ("Microsoft.Todos", "Microsoft To Do", "Lista de tareas de Microsoft."),
+    ("Microsoft.YourPhone", "Vincular con el móvil", "Conecta el celular con la PC."),
+];
+
+/// Nombres de los paquetes Appx instalados para este usuario (tarda un par de segundos).
+pub fn installed_apps() -> Vec<String> {
+    crate::ps::run("Get-AppxPackage | Select-Object -ExpandProperty Name").map(|t| t.lines().map(|l| l.trim().to_string()).collect()).unwrap_or_default()
+}
+
+/// Opciones para quitar las apps preinstaladas que estén instaladas. Son de riesgo amarillo,
+/// vienen desmarcadas y no se pueden deshacer; van detrás de "Más opciones".
+pub fn bloat_items(installed: &[String]) -> Vec<Item> {
+    let mut items: Vec<Item> = BLOAT
+        .iter()
+        .filter(|(pkg, ..)| installed.iter().any(|i| i == pkg))
+        .map(|(pkg, name, desc)| {
+            let mut it = Item::new(&format!("app:{pkg}"), &format!("Quitar {name}"), &format!("{desc} No se puede deshacer desde lumen."), Risk::Review, vec![Step { action: Action::RemoveApp { package: (*pkg).into() } }]);
+            it.more = true;
+            it
+        })
+        .collect();
+    if !items.is_empty() {
+        items.insert(0, Item { more: true, ..Item::header("Apps preinstaladas") });
+    }
+    items
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bloat_items_only_list_installed_apps_and_start_unchecked() {
+        let items = bloat_items(&["Microsoft.BingNews".to_string(), "Otra.App".to_string()]);
+        assert_eq!(items.len(), 2); // el título y una app
+        assert!(items.iter().all(|i| i.more && !i.default_checked()));
+        assert!(!items[1].steps[0].action.undoable());
+        assert!(bloat_items(&[]).is_empty());
+    }
 
     #[test]
     fn turn_off_action_targets_the_private_value() {

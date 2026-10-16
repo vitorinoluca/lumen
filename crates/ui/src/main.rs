@@ -20,10 +20,10 @@ slint::include_modules!();
 type IconCache = Arc<Mutex<HashMap<String, (u32, u32, Vec<u8>)>>>;
 
 /// Íconos por ruta de ejecutable (procesos e inicio). `None` = ya se intentó y no tiene.
-type ExeIcons = Arc<Mutex<HashMap<String, Option<(u32, u32, Vec<u8>)>>>>;
+pub(crate) type ExeIcons = Arc<Mutex<HashMap<String, Option<(u32, u32, Vec<u8>)>>>>;
 
 /// Ícono ya cargado de ese ejecutable, y si lo hay.
-fn exe_icon(cache: &ExeIcons, path: &str) -> (slint::Image, bool) {
+pub(crate) fn exe_icon(cache: &ExeIcons, path: &str) -> (slint::Image, bool) {
     match cache.lock().unwrap().get(path) {
         Some(Some((w, h, px))) => (slint::Image::from_rgba8(slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(px, *w, *h)), true),
         _ => (slint::Image::default(), false),
@@ -31,7 +31,7 @@ fn exe_icon(cache: &ExeIcons, path: &str) -> (slint::Image, bool) {
 }
 
 /// Saca en un hilo los íconos que faltan y avisa a la pantalla cuando están, sin frenar la lista.
-fn fetch_icons(cache: &ExeIcons, paths: impl Iterator<Item = String>, weak: slint::Weak<Main>) {
+pub(crate) fn fetch_icons(cache: &ExeIcons, paths: impl Iterator<Item = String>, weak: slint::Weak<Main>) {
     let todo: Vec<String> = {
         let mut c = cache.lock().unwrap();
         paths
@@ -665,13 +665,6 @@ fn main() {
         }
     };
     ui.on_apps_reload(load_apps.clone());
-    ui.on_icons_ready({
-        let (refresh, load_startup) = (refresh.clone(), load_startup.clone());
-        move || {
-            refresh();
-            load_startup();
-        }
-    });
     ui.on_apps_rebuild(rebuild_apps.clone());
     ui.on_apps_filter({
         let (query, rebuild) = (query.clone(), rebuild_apps.clone());
@@ -1225,7 +1218,15 @@ fn main() {
         }
     });
 
-    let open_section = sections::wire(&ui, journal.clone());
+    let (open_section, redraw_section) = sections::wire(&ui, journal.clone(), exe_icons.clone());
+    ui.on_icons_ready({
+        let (refresh, load_startup) = (refresh.clone(), load_startup.clone());
+        move || {
+            refresh();
+            load_startup();
+            redraw_section();
+        }
+    });
     ui.on_opened({
         let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, load_apps, weak) = (
             refresh.clone(),

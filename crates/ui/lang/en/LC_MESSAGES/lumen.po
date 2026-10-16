@@ -928,8 +928,8 @@ msgstr "Can't be undone"
 msgid "Menos datos enviados a Microsoft y menos publicidad en Windows."
 msgstr "Less data sent to Microsoft and fewer ads in Windows."
 
-msgid "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Todo se puede deshacer desde Historial."
-msgstr "Before applying, a Windows restore point is created and each setting's original value is saved. Everything can be undone from History."
+msgid "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Lo que se puede deshacer, se deshace desde Historial."
+msgstr "Before applying, a Windows restore point is created and each setting's original value is saved. Whatever can be undone is undone from History."
 
 msgid "Creando el punto de restauración, puede tardar unos segundos…"
 msgstr "Creating the restore point, it may take a few seconds…"
@@ -945,3 +945,72 @@ msgstr "Done: {} changes applied."
 
 msgid "Deshecho: {}"
 msgstr "Undone: {}"
+
+msgid "Rendimiento"
+msgstr "Performance"
+
+msgid "Que la PC arranque y responda más rápido: inicio, servicios, energía, efectos y segundo plano."
+msgstr "Make the PC start and respond faster: startup, services, power, effects and background."
+
+msgid "Plan de energía"
+msgstr "Power plan"
+
+msgid "Equilibrado"
+msgstr "Balanced"
+
+msgid "El plan normal de Windows: rinde cuando hace falta y ahorra cuando no."
+msgstr "Windows' normal plan: performs when needed and saves when not."
+
+msgid "Alto rendimiento"
+msgstr "High performance"
+
+msgid "La PC no baja la velocidad del procesador. Gasta más energía y calienta más."
+msgstr "The PC doesn't slow the processor down. Uses more power and runs hotter."
+
+msgid "Ahorro de energía"
+msgstr "Power saver"
+
+msgid "Reduce el rendimiento para que la batería dure más."
+msgstr "Lowers performance so the battery lasts longer."
+
+msgid "Apps que arrancan con Windows"
+msgstr "Apps that start with Windows"
+
+msgid "No iniciar {} con Windows"
+msgstr "Don't start {} with Windows"
+
+msgid "Efectos visuales"
+msgstr "Visual effects"
+
+msgid "Quitar la animación al minimizar y maximizar"
+msgstr "Remove the minimize and maximize animation"
+
+msgid "Las ventanas aparecen y desaparecen al instante."
+msgstr "Windows appear and disappear instantly."
+
+msgid "Quitar las animaciones de la barra de tareas"
+msgstr "Remove taskbar animations"
+
+msgid "Los botones de la barra no se deslizan ni se animan."
+msgstr "Taskbar buttons don't slide or animate."
+
+msgid "Desactivar las transparencias de Windows"
+msgstr "Turn off Windows transparency"
+
+msgid "Los menús y la barra dejan de ser translúcidos. Ahorra algo de trabajo a la tarjeta gráfica."
+msgstr "Menus and the taskbar stop being translucent. Saves the graphics card some work."
+
+msgid "Segundo plano"
+msgstr "Background"
+
+msgid "No dejar que las apps trabajen en segundo plano"
+msgstr "Don't let apps work in the background"
+
+msgid "Las apps de la Tienda no se actualizan ni te avisan cuando están cerradas."
+msgstr "Store apps don't update or notify you while closed."
+
+msgid "Apps preinstaladas"
+msgstr "Preinstalled apps"
+
+msgid "1 marcada. Antes de aplicar te mostramos qué se va a hacer."
+msgstr "1 selected. Before applying we show you what will be done."

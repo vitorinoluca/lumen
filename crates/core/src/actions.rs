@@ -1,6 +1,6 @@
 //! Journal de acciones: toda modificación del sistema pasa por acá y se puede deshacer.
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
-use crate::{power, ps, startup::{self, Source}};
+use crate::{power, processes::Processes, ps, startup::{self, Source}};
 use serde::{Deserialize, Serialize};
 use winreg::{enums::*, RegKey};
 use std::{fs, io, path::{Path, PathBuf}};
@@ -40,6 +40,11 @@ pub enum Action {
     /// Cambia el plan de energía. Revert vuelve al plan anterior.
     SetPowerPlan { new: String, prev: String },
     SetStartup { source: Source, name: String, enable: bool },
+    /// Quita una app preinstalada de Windows (paquete Appx del usuario). No se puede deshacer:
+    /// para tenerla de nuevo hay que reinstalarla desde Microsoft Store.
+    RemoveApp { package: String },
+    /// Cierra procesos por nombre (modo juego). No se puede deshacer: lo cerrado no se reabre solo.
+    CloseProcesses { names: Vec<String> },
 }
 
 impl Action {
@@ -72,9 +77,16 @@ impl Action {
             Action::DeleteRegKey { hive, path, .. } => format!("Borrar la clave {} (con respaldo)", hive.reg_path(path)),
             Action::SetTaskEnabled { path, name, enable, .. } => format!("{} la tarea programada {path}{name}", on(enable)),
             Action::SetRegText { hive, path, name, new, prev } => format!("{}: {} → {}", hive.reg_path(&format!(r"{path}\{name}")), text(prev), text(new)),
-            Action::SetPowerPlan { new, prev } => format!("Plan de energía: {prev} → {new}"),
+            Action::SetPowerPlan { new, prev } => format!("Plan de energía: {} → {}", power::name(prev), power::name(new)),
             Action::SetStartup { name, enable, .. } => format!("{} {name} al iniciar Windows", on(enable)),
+            Action::CloseProcesses { names } => format!("Cerrar estas apps si están abiertas: {} (no se reabren solas)", names.join(", ")),
+            Action::RemoveApp { package } => format!("Quitar la app {package} (para tenerla otra vez hay que reinstalarla desde Microsoft Store)"),
         }
+    }
+
+    /// Si `revert` puede dejar todo como estaba.
+    pub fn undoable(&self) -> bool {
+        !matches!(self, Action::RemoveApp { .. } | Action::CloseProcesses { .. })
     }
 
     pub fn apply(&self) -> io::Result<()> {
@@ -96,8 +108,14 @@ impl Action {
                 set_task(path, name, *enable)
             }
             Action::SetRegText { hive, path, name, new, .. } => write_text(*hive, path, name, new.as_deref()),
-            Action::SetPowerPlan { new, .. } => power::set(new),
+            // El plan base (ej. "alto rendimiento") se crea si esta PC no lo trae.
+            Action::SetPowerPlan { new, .. } => power::set(&power::resolve(new)?),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
+            Action::CloseProcesses { names } => {
+                Processes::default().kill_named(names);
+                Ok(())
+            }
+            Action::RemoveApp { package } => ps::run(&format!("Get-AppxPackage -Name {} | Remove-AppxPackage -ErrorAction Stop", ps::quote(package))).map(|_| ()),
         }
     }
     pub fn revert(&self) -> io::Result<()> {
@@ -114,6 +132,8 @@ impl Action {
             Action::SetRegText { hive, path, name, prev, .. } => write_text(*hive, path, name, prev.as_deref()),
             Action::SetPowerPlan { prev, .. } => power::set(prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
+            Action::CloseProcesses { .. } => Err(io::Error::new(io::ErrorKind::Unsupported, "las apps cerradas no se pueden reabrir desde lumen")),
+            Action::RemoveApp { .. } => Err(io::Error::new(io::ErrorKind::Unsupported, "las apps quitadas no se pueden restaurar desde lumen; reinstalala desde Microsoft Store")),
         }
     }
 }
@@ -186,6 +206,12 @@ pub struct Entry {
     pub description: String,
     pub action: Action,
     pub applied: bool,
+}
+
+impl Entry {
+    pub fn undoable(&self) -> bool {
+        self.action.undoable()
+    }
 }
 
 /// Registro persistente en JSON (ej. `%APPDATA%\lumen\journal.json`).

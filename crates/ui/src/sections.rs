@@ -1,16 +1,20 @@
 //! Pantallas con opciones (Privacidad, Rendimiento, ...) e Historial.
 //! Cada sección devuelve una lista de `Item` (ver `lumen_core::plan`); acá se muestra, se marca,
 //! se enseña la vista previa y se aplica con punto de restauración y registro en el journal.
-use crate::{HistRow, Main, OptionRow, PreviewRow};
+use crate::{exe_icon, fetch_icons, ExeIcons, HistRow, Main, OptionRow, PreviewRow};
 use lumen_core::{
     actions::Journal,
     plan::{self, Item},
-    privacy, restore,
+    performance, privacy, restore,
 };
 use slint::{ComponentHandle, ModelRc, VecModel};
-use std::{cell::{Cell, RefCell}, rc::Rc, thread};
+use std::{cell::{Cell, RefCell}, rc::Rc, sync::{Arc, Mutex}, thread};
 
 /// Primera y última página que usan la pantalla genérica de opciones; 15 es el Historial.
+/// Qué llamar al abrir una página, y cómo volver a dibujar la lista (cuando llegan íconos).
+pub type OpenPage = Rc<dyn Fn(i32)>;
+pub type Redraw = Rc<dyn Fn()>;
+
 pub const FIRST: i32 = 10;
 pub const LAST: i32 = 15;
 const HISTORY: i32 = 15;
@@ -27,19 +31,24 @@ struct State {
     /// El punto de restauración se pide una vez por sesión: Windows no deja crear más de uno cada 24 h.
     restore_tried: Cell<bool>,
     journal: Rc<RefCell<Journal>>,
+    /// Apps preinstaladas de este usuario: se leen en un hilo al abrir lumen porque Windows tarda un par de segundos.
+    apps: Arc<Mutex<Vec<String>>>,
+    icons: ExeIcons,
 }
 
 /// Título, explicación y texto del botón principal de cada sección.
 fn meta(section: i32) -> (&'static str, &'static str, &'static str) {
     match section {
+        10 => ("Rendimiento", "Que la PC arranque y responda más rápido: inicio, servicios, energía, efectos y segundo plano.", "Optimizar"),
         11 => ("Privacidad", "Menos datos enviados a Microsoft y menos publicidad en Windows.", "Optimizar"),
         _ => ("", "", "Optimizar"),
     }
 }
 
-fn items_for(section: i32) -> Vec<Item> {
+fn items_for(section: i32, st: &State) -> Vec<Item> {
     match section {
-        11 => privacy::items(),
+        10 => performance::items(),
+        11 => [privacy::items(), privacy::bloat_items(&st.apps.lock().unwrap())].concat(),
         _ => vec![],
     }
 }
@@ -54,7 +63,10 @@ fn show(ui: &Main, st: &State) {
         if it.more && !more {
             continue;
         }
+        let (icon, has_icon) = exe_icon(&st.icons, &it.icon);
         rows.push(OptionRow {
+            icon,
+            has_icon,
             idx: i as i32,
             title: it.title.clone().into(),
             desc: it.desc.clone().into(),
@@ -84,7 +96,8 @@ fn load(ui: &Main, st: &State, section: i32) {
     ui.set_sc_title(title.into());
     ui.set_sc_sub(sub.into());
     ui.set_sc_button(button.into());
-    let items = items_for(section);
+    let items = items_for(section, st);
+    fetch_icons(&st.icons, items.iter().map(|it| it.icon.clone()), ui.as_weak());
     *st.checked.borrow_mut() = items.iter().map(Item::default_checked).collect();
     *st.items.borrow_mut() = items;
     st.section.set(section);
@@ -126,13 +139,13 @@ fn preview(ui: &Main, st: &State) {
             let detail = it.steps.iter().map(|s| s.preview()).collect::<Vec<_>>().join("\n");
             // Estimación del alto: título, una línea cada ~70 caracteres por paso y el aire de abajo.
             height += 22.0 + detail.lines().map(|l| (l.chars().count() / 70 + 1) as f32 * 16.0).sum::<f32>() + 12.0;
-            PreviewRow { title: it.title.clone().into(), detail: detail.into(), undoable: true }
+            PreviewRow { title: it.title.clone().into(), detail: detail.into(), undoable: it.steps.iter().all(|s| s.action.undoable()) }
         })
         .collect();
     ui.set_sc_preview_rows(ModelRc::new(VecModel::from(rows)));
     ui.set_sc_preview_h(height);
     ui.set_sc_preview_note(
-        "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Todo se puede deshacer desde Historial.".into(),
+        "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Lo que se puede deshacer, se deshace desde Historial.".into(),
     );
     ui.set_sc_preview(true);
 }
@@ -142,6 +155,12 @@ fn finish(ui: &Main, st: &State, restore_note: &str) {
     let items = st.items.borrow().clone();
     let picked: Vec<&Item> = chosen(st).into_iter().map(|i| &items[i]).collect();
     let report = plan::apply(&mut st.journal.borrow_mut(), &picked);
+    // Las apps quitadas ya no figuran en la lista guardada.
+    for it in picked.iter().filter(|it| !report.failed.iter().any(|(t, _)| *t == it.title)) {
+        if let Some(pkg) = it.id.strip_prefix("app:") {
+            st.apps.lock().unwrap().retain(|a| a != pkg);
+        }
+    }
     let mut msg = match report.applied {
         0 => "No se aplicó ningún cambio.".to_string(),
         1 => "Listo: 1 cambio aplicado.".to_string(),
@@ -162,14 +181,18 @@ fn load_history(ui: &Main, journal: &Journal) {
         .iter()
         .enumerate()
         .rev()
-        .map(|(id, e)| HistRow { id: id as i32, title: e.description.clone().into(), detail: e.action.describe().into(), applied: e.applied, undoable: true })
+        .map(|(id, e)| HistRow { id: id as i32, title: e.description.clone().into(), detail: e.action.describe().into(), applied: e.applied, undoable: e.undoable() })
         .collect();
     ui.set_hist(ModelRc::new(VecModel::from(rows)));
 }
 
 /// Conecta las pantallas con opciones y el Historial. Devuelve lo que hay que llamar al abrir una página.
-pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>) -> Rc<dyn Fn(i32)> {
-    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone() });
+pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenPage, Redraw) {
+    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone(), apps: Arc::default(), icons });
+    {
+        let apps = st.apps.clone();
+        thread::spawn(move || *apps.lock().unwrap() = privacy::installed_apps());
+    }
 
     ui.on_sc_toggle({
         let (weak, st) = (ui.as_weak(), st.clone());
@@ -240,7 +263,16 @@ pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>) -> Rc<dyn Fn(i32)> {
         }
     });
 
-    Rc::new({
+    // Cuando llegan íconos nuevos se vuelve a dibujar la lista sin tocar lo marcado.
+    let redraw: Redraw = Rc::new({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move || {
+            if let Some(ui) = weak.upgrade().filter(|ui| (FIRST..HISTORY).contains(&ui.get_page())) {
+                show(&ui, &st);
+            }
+        }
+    });
+    let open: OpenPage = Rc::new({
         let (weak, st) = (ui.as_weak(), st.clone());
         move |page| {
             let Some(ui) = weak.upgrade() else { return };
@@ -253,5 +285,6 @@ pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>) -> Rc<dyn Fn(i32)> {
                 load(&ui, &st, page);
             }
         }
-    })
+    });
+    (open, redraw)
 }
