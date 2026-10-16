@@ -1,10 +1,11 @@
 #![windows_subsystem = "windows"]
 use lumen_core::{
-    actions::{Action, Journal},
+    actions::{Action, Hive, Journal},
     monitor::{Monitor, Snapshot},
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
+    privacy,
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
@@ -121,6 +122,47 @@ fn main() {
             reload();
         }
     });
+    // Privacidad: activar = apagar la función de Windows (valor privado); desactivar = revertir.
+    let load_privacy = {
+        let weak = ui.as_weak();
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let rows: Vec<StartupRow> = privacy::SETTINGS
+                .iter()
+                .map(|s| StartupRow {
+                    name: s.name.into(),
+                    command: "".into(),
+                    scope: if s.hive == Hive::Machine { "administrador" } else { "" }.into(),
+                    enabled: s.is_off(),
+                })
+                .collect();
+            ui.set_privacy(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    ui.on_toggle_privacy({
+        let (weak, journal, reload) = (ui.as_weak(), journal.clone(), load_privacy.clone());
+        move |i, on| {
+            let Some(ui) = weak.upgrade() else { return };
+            let s = &privacy::SETTINGS[i as usize];
+            let mut j = journal.borrow_mut();
+            let res = if on {
+                j.apply(&format!("Privacidad: {}", s.name), s.turn_off()).map(|_| ())
+            } else {
+                // Revierte el último cambio aplicado a este ajuste.
+                let last = j.entries.iter().rposition(|e| {
+                    e.applied && matches!(&e.action, Action::SetDword { path, name, .. } if path == s.path && name == s.value)
+                });
+                match last {
+                    Some(id) => j.revert(id),
+                    None => Err(std::io::Error::other("no hay un cambio de lumen para revertir")),
+                }
+            };
+            ui.set_status(res.err().map(|e| format!("No se pudo: {e}")).unwrap_or_default().into());
+            drop(j);
+            reload();
+        }
+    });
+
     // Disco: los tamaños se calculan en un hilo; limpiar y deshacer son renames rápidos.
     let load_disk = {
         let weak = ui.as_weak();
@@ -200,11 +242,13 @@ fn main() {
     });
 
     ui.on_opened({
-        let (refresh, load_startup, load_disk, weak) = (refresh.clone(), load_startup.clone(), load_disk.clone(), ui.as_weak());
+        let (refresh, load_startup, load_disk, load_privacy, weak) =
+            (refresh.clone(), load_startup.clone(), load_disk.clone(), load_privacy.clone(), ui.as_weak());
         move || match weak.upgrade().map(|u| u.get_page()) {
             Some(1) => refresh(),
             Some(2) => load_startup(),
             Some(3) => load_disk(),
+            Some(4) => load_privacy(),
             _ => {}
         }
     });

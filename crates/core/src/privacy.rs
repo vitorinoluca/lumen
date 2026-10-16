@@ -21,8 +21,8 @@ pub const SETTINGS: &[Setting] = &[
     Setting { name: "Apps sugeridas en Inicio", hive: Hive::User, path: CDM, value: "SystemPaneSuggestionsEnabled", off: 0 },
     Setting { name: "Experiencias personalizadas con datos de diagnóstico", hive: Hive::User, path: r"Software\Microsoft\Windows\CurrentVersion\Privacy", value: "TailoredExperiencesWithDiagnosticDataEnabled", off: 0 },
     Setting { name: "Búsqueda web de Bing en el menú Inicio", hive: Hive::User, path: r"Software\Policies\Microsoft\Windows\Explorer", value: "DisableSearchBoxSuggestions", off: 1 },
-    Setting { name: "Telemetría de Windows (requiere administrador)", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", value: "AllowTelemetry", off: 0 },
-    Setting { name: "Historial de actividades (requiere administrador)", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\System", value: "EnableActivityFeed", off: 0 },
+    Setting { name: "Telemetría de Windows", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", value: "AllowTelemetry", off: 0 },
+    Setting { name: "Historial de actividades", hive: Hive::Machine, path: r"SOFTWARE\Policies\Microsoft\Windows\System", value: "EnableActivityFeed", off: 0 },
 ];
 
 impl Setting {

@@ -110,6 +110,7 @@ export component Main inherits Window {
     in property <string> net-text;
     in property <[Row]> procs;
     in property <[StartupRow]> startup;
+    in property <[StartupRow]> privacy;
     in-out property <string> status;
     in property <[DiskRow]> targets;
     in property <[DiskRow]> space-map;
@@ -121,12 +122,13 @@ export component Main inherits Window {
     in-out property <int> kill-pid: -1;
     in-out property <string> kill-name;
     in-out property <string> sort-label: "uso de CPU";
-    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Seguridad"];
+    property <[string]> pages: ["Inicio", "Procesos", "Arranque", "Disco", "Privacidad", "Seguridad"];
 
     callback sort(int);
     callback kill(int);
     callback opened();
     callback toggle-startup(int, bool);
+    callback toggle-privacy(int, bool);
     callback clean(int);
     callback undo-clean();
     callback purge();
@@ -260,7 +262,27 @@ export component Main inherits Window {
             }
         }
 
-        if page > 3: VerticalLayout {
+        if page == 4: VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Head { title: "Privacidad"; sub: "Activado = Windows comparte o muestra menos. Cada ajuste se puede volver atrás."; }
+            if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
+            ListView {
+                for e[i] in privacy: Rectangle {
+                    height: 36px;
+                    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        padding-left: 4px;
+                        Toggle { y: 10px; checked: e.enabled; toggled(on) => { toggle-privacy(i, on); } }
+                        Text { text: e.name; horizontal-stretch: 1; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
+                        Text { text: e.scope; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
+                    }
+                }
+            }
+        }
+
+        if page > 4: VerticalLayout {
             padding: 24px;
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }
