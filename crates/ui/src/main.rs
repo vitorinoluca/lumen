@@ -558,7 +558,7 @@ fn main() {
                 let refreshed = hashdb::ensure_fresh();
                 let mut result = security::scan();
                 match refreshed {
-                    Ok(true) => result.notes.insert(0, "Actualicé la lista de drivers peligrosos conocidos.".into()),
+                    Ok(true) => result.notes.insert(0, "Actualicé la lista de drivers peligrosos.".into()),
                     Err(_) if hashdb::Db::load().is_some() => result.notes.insert(0, "No pude conectarme para actualizar la lista de drivers peligrosos; usé la que ya tenía.".into()),
                     _ => {}
                 }

@@ -272,7 +272,7 @@ pub fn check() -> (Vec<Finding>, String) {
     let mut cache = Cache::load();
     let findings = check_files(&db, &files, &mut cache);
     cache.save();
-    (findings, format!("Revisé {} drivers contra la lista de drivers peligrosos conocidos.", files.len()))
+    (findings, format!("Revisé {} drivers.", files.len()))
 }
 
 #[cfg(test)]
