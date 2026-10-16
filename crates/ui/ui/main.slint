@@ -10,6 +10,8 @@ export struct OptRow { header: bool, title: string, desc: string, tag: string, e
 export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
+export struct DupRow { name: string, folder: string, copies: int, wasted: string }
+export struct SpaceRow { name: string, size: string, fraction: float }
 export struct CleanRow { name: string, desc: string, size: string }
 // Una opción de sección: `idx` apunta a la lista que guarda Rust. risk: 0 = seguro (verde), 1 = revisar (amarillo).
 export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool, icon: image, has-icon: bool }
@@ -774,11 +776,17 @@ export component Main inherits Window {
     in-out property <int> confirm-app: -1;
     in-out property <string> confirm-app-name;
     in-out property <string> status;
-    in property <[DiskRow]> space-map;
+    in property <[SpaceRow]> space-map;
     // Limpieza de disco: una sola acción. 0 = listo para limpiar, 1 = limpiando, 2 = limpiado (se puede deshacer), 3 = terminado.
     in property <bool> disk-loading;
     in property <bool> disk-nothing;
     in property <[CleanRow]> disk-items;
+    in-out property <int> disk-tab: 0;
+    in property <[DupRow]> dup-rows;
+    in property <string> dup-total;
+    in-out property <int> dup-phase: 0;
+    in-out property <string> dup-result;
+    in-out property <bool> dup-can-undo: false;
     // Secciones con opciones (Privacidad, ...): Rust llena la lista y aplica lo elegido.
     in property <[OptionRow]> sc-rows;
     in property <length> sc-h;
@@ -825,6 +833,11 @@ export component Main inherits Window {
     callback behavior-ready();
     callback finding-do(int, int);
     callback apps-reload();
+    callback dup-scan();
+    callback dup-found();
+    callback dup-clean();
+    callback dup-undo();
+    callback dup-reset();
     callback sc-toggle(int);
     callback sc-apply();
     callback sc-run();
@@ -869,7 +882,7 @@ export component Main inherits Window {
                     Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                 }
                 NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
-                NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
+                NavItem { text: @tr("" => "Limpieza"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
                 NavItem { text: @tr("" => "Rendimiento"); icon: "bolt"; active: page == 10; clicked => { sc-result = ""; page = 10; } }
                 NavItem { text: @tr("" => "Privacidad"); icon: "eye"; active: page == 11; clicked => { sc-result = ""; page = 11; } }
                 NavItem { text: @tr("" => "Historial"); icon: "clock"; active: page == 15; clicked => { page = 15; } }
@@ -1013,116 +1026,206 @@ if page == 2: Page {
 if page == 3: Page {
                     width: parent.width;
                     height: parent.height;
-                    Head { title: @tr("" => "Limpieza de disco"); sub: @tr("" => "Borra archivos temporales y cachés que Windows y los navegadores vuelven a crear solos."); }
+                    Head { title: @tr("" => "Limpieza"); sub: @tr("" => "Lo que sobra en tu disco: temporales, cachés, restos de Windows Update y archivos repetidos."); }
+                    HorizontalLayout {
+                        alignment: start;
+                        Segmented { options: [@tr("" => "Limpiar"), @tr("" => "Duplicados"), @tr("" => "Espacio")]; current: disk-tab; picked(i) => { disk-tab = i; if (i == 2 && space-map.length == 0) { scan-map(); } } }
+                    }
 
-                    // Antes de limpiar: cuánto se libera, qué se va a mover y un solo botón.
-                    if disk-phase < 2: VerticalLayout {
+                    // Limpiar: la cifra grande, qué se va a mover y un solo botón.
+                    if disk-tab == 0: VerticalLayout {
                         vertical-stretch: 1;
                         spacing: 14px;
-                        VerticalLayout {
-                            Text {
-                                text: disk-loading ? @tr("" => "Calculando…") : (disk-nothing ? @tr("" => "No hay nada para limpiar") : disk-total);
-                                font-size: (disk-nothing || disk-loading) ? 28px : 48px;
-                                font-weight: 300;
-                                color: Theme.text;
-                            }
-                            if !disk-loading && !disk-nothing: Text { text: @tr("" => "Se puede liberar. Esto es lo que se va a mover:"); font-size: 14px; color: Theme.muted; }
+                        // Antes de limpiar: cuánto se libera, qué se va a mover y un solo botón.
+                if disk-phase < 2: VerticalLayout {
+                    vertical-stretch: 1;
+                    spacing: 14px;
+                    VerticalLayout {
+                        Text {
+                            text: disk-loading ? @tr("" => "Calculando…") : (disk-nothing ? @tr("" => "No hay nada para limpiar") : disk-total);
+                            font-size: (disk-nothing || disk-loading) ? 28px : 48px;
+                            font-weight: 300;
+                            color: Theme.text;
                         }
-                        if !disk-loading && !disk-nothing: Scroll {
-                            vertical-stretch: 1;
-                            content-h: disk-items.length * 66px;
-                            VerticalLayout {
-                                alignment: start;
-                                for it in disk-items: Rectangle {
-                                    height: 66px;
-                                    Rectangle {
-                                        height: 60px;
-                                        border-radius: 8px;
-                                        background: Theme.raised;
-                                        HorizontalLayout {
-                                            padding-left: 16px;
-                                            padding-right: 16px;
-                                            spacing: 16px;
-                                            VerticalLayout {
-                                                horizontal-stretch: 1;
-                                                alignment: center;
-                                                spacing: 2px;
-                                                Text { text: I18n.t(it.name); font-size: 14px; color: Theme.text; overflow: elide; }
-                                                Text { text: I18n.t(it.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
-                                            }
-                                            Text { text: it.size; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
+                        if !disk-loading && !disk-nothing: Text { text: @tr("" => "Se puede liberar. Esto es lo que se va a mover:"); font-size: 14px; color: Theme.muted; }
+                    }
+                    if !disk-loading && !disk-nothing: Scroll {
+                        vertical-stretch: 1;
+                        content-h: disk-items.length * 66px;
+                        VerticalLayout {
+                            alignment: start;
+                            for it in disk-items: Rectangle {
+                                height: 66px;
+                                Rectangle {
+                                    height: 60px;
+                                    border-radius: 8px;
+                                    background: Theme.raised;
+                                    HorizontalLayout {
+                                        padding-left: 16px;
+                                        padding-right: 16px;
+                                        spacing: 16px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 2px;
+                                            Text { text: I18n.t(it.name); font-size: 14px; color: Theme.text; overflow: elide; }
+                                            Text { text: I18n.t(it.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
                                         }
+                                        Text { text: it.size; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                                     }
                                 }
                             }
                         }
-                        if disk-loading || disk-nothing: Rectangle { vertical-stretch: 1; }
-                        if disk-old != "": Text { text: I18n.t(disk-old); font-size: 12px; color: Theme.faint; wrap: word-wrap; }
-                        HorizontalLayout {
-                            spacing: 16px;
-                            if disk-phase == 0 && !disk-loading && !disk-nothing: Text {
-                                horizontal-stretch: 1;
-                                text: @tr("" => "No se borra al instante: queda guardado 7 días y podés deshacerlo.");
-                                font-size: 12px;
-                                color: Theme.muted;
-                                wrap: word-wrap;
-                                vertical-alignment: center;
-                            }
-                            if disk-phase == 0 && !disk-loading && !disk-nothing: Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Limpiar"); clicked => { clean-all(); } }
-                            if disk-phase == 1: VerticalLayout {
-                                horizontal-stretch: 1;
-                                spacing: 10px;
-                                Text { text: @tr("" => "Limpiando"); font-size: 14px; color: Theme.muted; }
-                                Busy { }
-                            }
-                        }
                     }
-
-                    // Después: qué pasó y, si se puede, deshacerlo.
-                    if disk-phase >= 2: VerticalLayout {
-                        vertical-stretch: 1;
-                        alignment: center;
+                    if disk-loading || disk-nothing: Rectangle { vertical-stretch: 1; }
+                    if disk-old != "": Text { text: I18n.t(disk-old); font-size: 12px; color: Theme.faint; wrap: word-wrap; }
+                    HorizontalLayout {
                         spacing: 16px;
-                        Text { text: I18n.t(disk-result); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
-                        if disk-phase == 2: Text {
-                            text: @tr("" => "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.");
+                        if disk-phase == 0 && !disk-loading && !disk-nothing: Text {
+                            horizontal-stretch: 1;
+                            text: @tr("" => "No se borra al instante: queda guardado 7 días y podés deshacerlo.");
                             font-size: 12px;
                             color: Theme.muted;
-                            horizontal-alignment: center;
                             wrap: word-wrap;
+                            vertical-alignment: center;
                         }
-                        HorizontalLayout {
+                        if disk-phase == 0 && !disk-loading && !disk-nothing: Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Limpiar"); clicked => { clean-all(); } }
+                        if disk-phase == 1: VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 10px;
+                            Text { text: @tr("" => "Limpiando"); font-size: 14px; color: Theme.muted; }
+                            Busy { }
+                        }
+                    }
+                }
+
+                // Después: qué pasó y, si se puede, deshacerlo.
+                if disk-phase >= 2: VerticalLayout {
+                    vertical-stretch: 1;
+                    alignment: center;
+                    spacing: 16px;
+                    Text { text: I18n.t(disk-result); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
+                    if disk-phase == 2: Text {
+                        text: @tr("" => "Los archivos quedan guardados 7 días por si algo falla. El espacio se libera cuando se borran.");
+                        font-size: 12px;
+                        color: Theme.muted;
+                        horizontal-alignment: center;
+                        wrap: word-wrap;
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Deshacer"); clicked => { undo-clean(); } }
+                        if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Borrar ahora"); strong: true; clicked => { purge(); } }
+                        if disk-phase == 3: Btn { height: 36px; pad: 20px; text: @tr("" => "Volver"); clicked => { disk-reset(); } }
+                    }
+                }
+
+                    }
+
+                    // Duplicados: archivos idénticos en tus carpetas personales. Las copias van a la reserva.
+                    if disk-tab == 1: VerticalLayout {
+                        vertical-stretch: 1;
+                        spacing: 14px;
+                        if dup-phase == 0: VerticalLayout {
+                            vertical-stretch: 1;
                             alignment: center;
-                            spacing: 8px;
-                            if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Deshacer"); clicked => { undo-clean(); } }
-                            if disk-phase == 2: Btn { height: 36px; pad: 20px; text: @tr("" => "Borrar ahora"); strong: true; clicked => { purge(); } }
-                            if disk-phase == 3: Btn { height: 36px; pad: 20px; text: @tr("" => "Volver"); clicked => { disk-reset(); } }
+                            spacing: 14px;
+                            Text { text: @tr("" => "Archivos repetidos"); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; }
+                            Text { text: @tr("" => "Busca archivos idénticos en Descargas, Documentos, Escritorio, Imágenes, Videos y Música. No borra nada: te muestra los grupos y las copias van a la reserva, donde se pueden devolver."); font-size: 14px; color: Theme.muted; horizontal-alignment: center; wrap: word-wrap; }
+                            HorizontalLayout { alignment: center; Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Buscar duplicados"); clicked => { dup-scan(); } } }
+                        }
+                        if dup-phase == 1: VerticalLayout {
+                            vertical-stretch: 1;
+                            alignment: center;
+                            spacing: 10px;
+                            Text { text: @tr("" => "Buscando archivos repetidos…"); font-size: 14px; color: Theme.muted; horizontal-alignment: center; }
+                            HorizontalLayout { alignment: center; Busy { width: 260px; } }
+                        }
+                        if dup-phase == 2 && dup-rows.length == 0: VerticalLayout {
+                            vertical-stretch: 1;
+                            alignment: center;
+                            spacing: 14px;
+                            Text { text: @tr("" => "No encontré archivos repetidos"); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; }
+                            HorizontalLayout { alignment: center; Btn { height: 36px; pad: 20px; text: @tr("" => "Buscar de nuevo"); clicked => { dup-reset(); } } }
+                        }
+                        if dup-phase == 2 && dup-rows.length > 0: VerticalLayout {
+                            vertical-stretch: 1;
+                            spacing: 14px;
+                            VerticalLayout {
+                                Text { text: dup-total; font-size: 48px; font-weight: 300; color: Theme.text; }
+                                Text { text: @tr("" => "Se puede liberar. De cada grupo se conserva el archivo más antiguo; las copias van a la reserva."); font-size: 14px; color: Theme.muted; wrap: word-wrap; }
+                            }
+                            Scroll {
+                                vertical-stretch: 1;
+                                content-h: dup-rows.length * 66px;
+                                VerticalLayout {
+                                    alignment: start;
+                                    for d in dup-rows: Rectangle {
+                                        height: 66px;
+                                        Rectangle {
+                                            height: 60px;
+                                            border-radius: 8px;
+                                            background: Theme.raised;
+                                            HorizontalLayout {
+                                                padding-left: 16px;
+                                                padding-right: 16px;
+                                                spacing: 16px;
+                                                VerticalLayout {
+                                                    horizontal-stretch: 1;
+                                                    alignment: center;
+                                                    spacing: 2px;
+                                                    Text { text: d.name; font-size: 14px; color: Theme.text; overflow: elide; }
+                                                    Text { text: d.copies == 1 ? @tr("" => "Se conserva el de {} · 1 copia", d.folder) : @tr("" => "Se conserva el de {} · {} copias", d.folder, d.copies); font-size: 12px; color: Theme.muted; overflow: elide; }
+                                                }
+                                                Text { text: d.wasted; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 16px;
+                                Text { horizontal-stretch: 1; text: @tr("" => "No se borra al instante: queda guardado 7 días y podés deshacerlo."); font-size: 12px; color: Theme.muted; wrap: word-wrap; vertical-alignment: center; }
+                                Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Mover las copias"); clicked => { dup-clean(); } }
+                            }
+                        }
+                        if dup-phase == 3: VerticalLayout {
+                            vertical-stretch: 1;
+                            alignment: center;
+                            spacing: 16px;
+                            Text { text: I18n.t(dup-result); font-size: 28px; font-weight: 300; color: Theme.text; horizontal-alignment: center; wrap: word-wrap; }
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+                                if dup-can-undo: Btn { height: 36px; pad: 20px; text: @tr("" => "Deshacer"); clicked => { dup-undo(); } }
+                                Btn { height: 36px; pad: 20px; strong: true; text: @tr("" => "Listo"); clicked => { dup-reset(); } }
+                            }
                         }
                     }
 
-                    // Lo secundario, discreto y al final.
-                    // Dentro de una fila: un elemento de ancho fijo limitaría el ancho máximo de toda la página.
-                    HorizontalLayout {
-                        alignment: start;
-                        TextLink { text: show-map ? @tr("" => "Ocultar qué ocupa más espacio") : @tr("" => "Ver qué ocupa más espacio en tu usuario"); clicked => { show-map = !show-map; if (show-map && space-map.length == 0) { scan-map(); } } }
-                    }
-                    if show-map: Rectangle {
-                        height: 190px;
-                        background: Theme.raised;
-                        border-radius: 10px;
+                    // Espacio: qué carpetas ocupan más, en barras.
+                    if disk-tab == 2: VerticalLayout {
+                        vertical-stretch: 1;
+                        spacing: 12px;
+                        Text { text: @tr("" => "Lo que más ocupa en tu carpeta de usuario"); font-size: 14px; color: Theme.muted; }
                         Scroll {
-                            x: 8px;
-                            y: 8px;
-                            width: parent.width - 16px;
-                            height: parent.height - 16px;
-                            content-h: space-map.length * 24px;
+                            vertical-stretch: 1;
+                            content-h: space-map.length * 58px;
                             VerticalLayout {
                                 alignment: start;
-                                for m in space-map: HorizontalLayout {
-                                    spacing: 16px;
-                                    height: 24px;
-                                    Text { text: m.size; width: 80px; font-size: 12px; font-weight: 600; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                                    Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
+                                for m in space-map: Rectangle {
+                                    height: 58px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 8px;
+                                        HorizontalLayout {
+                                            spacing: 12px;
+                                            Text { text: m.name; font-size: 14px; color: Theme.text; overflow: elide; horizontal-stretch: 1; }
+                                            Text { text: m.size; font-size: 14px; font-weight: 600; color: Theme.text; }
+                                        }
+                                        Bar { height: 8px; value: m.fraction; }
+                                    }
                                 }
                             }
                         }

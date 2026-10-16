@@ -6,6 +6,7 @@ pub mod gpu;
 pub mod processes;
 pub mod startup;
 pub mod disk;
+pub mod duplicates;
 pub mod privacy;
 pub mod services;
 pub mod restore;

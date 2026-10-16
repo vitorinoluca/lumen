@@ -19,6 +19,8 @@ pub fn targets() -> Vec<Target> {
     }
     if let Some(w) = var("WINDIR") {
         v.push(Target { name: "Temporales de Windows", path: w.join("Temp") });
+        // Lo que Windows Update ya descargó e instaló; lo que esté en uso se deja.
+        v.push(Target { name: "Restos de Windows Update", path: w.join(r"SoftwareDistribution\Download") });
     }
     if let Some(l) = local {
         v.push(Target { name: "Caché de Chrome", path: l.join(r"Google\Chrome\User Data\Default\Cache") });
@@ -101,6 +103,32 @@ pub fn clean(journal: &mut Journal, label: &str, dir: &Path, stash: &Path) -> io
     }
     let bytes = dir_size(&batch);
     let id = journal.record(&format!("Limpiar {label}"), Action::Stash { items: moved })?;
+    Ok(Cleaned { moved: n, skipped, bytes, id: Some(id) })
+}
+
+/// Mueve archivos sueltos (por ejemplo copias duplicadas) a la reserva y lo registra en el journal.
+/// Lo que no se pueda mover (en uso, sin permiso) se omite.
+pub fn stash_files(journal: &mut Journal, label: &str, files: &[PathBuf], stash: &Path) -> io::Result<Cleaned> {
+    let batch = stash.join(SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis()).to_string());
+    fs::create_dir_all(&batch)?;
+    let (mut moved, mut skipped, mut bytes) = (vec![], 0, 0);
+    for (i, f) in files.iter().enumerate() {
+        let to = batch.join(format!("{i}_{}", f.file_name().unwrap_or_default().to_string_lossy()));
+        let len = fs::metadata(f).map_or(0, |m| m.len());
+        match fs::rename(f, &to) {
+            Ok(()) => {
+                moved.push((f.clone(), to));
+                bytes += len;
+            }
+            Err(_) => skipped += 1,
+        }
+    }
+    let n = moved.len();
+    if n == 0 {
+        let _ = fs::remove_dir(&batch);
+        return Ok(Cleaned { skipped, ..Default::default() });
+    }
+    let id = journal.record(label, Action::Stash { items: moved })?;
     Ok(Cleaned { moved: n, skipped, bytes, id: Some(id) })
 }
 

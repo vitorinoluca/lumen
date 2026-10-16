@@ -1014,3 +1014,66 @@ msgstr "Preinstalled apps"
 
 msgid "1 marcada. Antes de aplicar te mostramos qué se va a hacer."
 msgstr "1 selected. Before applying we show you what will be done."
+
+msgid "Limpieza"
+msgstr "Cleanup"
+
+msgid "Lo que sobra en tu disco: temporales, cachés, restos de Windows Update y archivos repetidos."
+msgstr "What's taking up your disk: temporary files, caches, Windows Update leftovers and repeated files."
+
+msgid "Duplicados"
+msgstr "Duplicates"
+
+msgid "Espacio"
+msgstr "Space"
+
+msgid "Archivos repetidos"
+msgstr "Repeated files"
+
+msgid "Busca archivos idénticos en Descargas, Documentos, Escritorio, Imágenes, Videos y Música. No borra nada: te muestra los grupos y las copias van a la reserva, donde se pueden devolver."
+msgstr "Looks for identical files in Downloads, Documents, Desktop, Pictures, Videos and Music. It deletes nothing: it shows you the groups and the copies go to the reserve, where they can be restored."
+
+msgid "Buscar duplicados"
+msgstr "Find duplicates"
+
+msgid "Buscando archivos repetidos…"
+msgstr "Looking for repeated files…"
+
+msgid "No encontré archivos repetidos"
+msgstr "I found no repeated files"
+
+msgid "Buscar de nuevo"
+msgstr "Search again"
+
+msgid "Se puede liberar. De cada grupo se conserva el archivo más antiguo; las copias van a la reserva."
+msgstr "Can be freed. From each group the oldest file is kept; the copies go to the reserve."
+
+msgid "Se conserva el de {} · {} copias"
+msgstr "Keeping the one in {} · {} copies"
+
+msgid "Mover las copias"
+msgstr "Move the copies"
+
+msgid "Listo"
+msgstr "Done"
+
+msgid "Lo que más ocupa en tu carpeta de usuario"
+msgstr "What takes up the most space in your user folder"
+
+msgid "Restos de Windows Update"
+msgstr "Windows Update leftovers"
+
+msgid "Archivos que Windows Update ya descargó e instaló. Si hace falta, los vuelve a bajar."
+msgstr "Files Windows Update already downloaded and installed. If needed, it downloads them again."
+
+msgid "Copias devueltas a su lugar."
+msgstr "Copies put back."
+
+msgid "No se pudo mover ninguna copia: están en uso."
+msgstr "No copy could be moved: they are in use."
+
+msgid "Listo: liberaste {} ({} copias en la reserva)."
+msgstr "Done: you freed {} ({} copies in the reserve)."
+
+msgid "Se conserva el de {} · 1 copia"
+msgstr "Keeping the one in {} · 1 copy"

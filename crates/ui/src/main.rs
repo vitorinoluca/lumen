@@ -12,6 +12,7 @@ use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, collections::HashMap, sync::atomic::{AtomicU64, Ordering}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
 mod i18n;
+mod duplicates;
 mod sections;
 
 slint::include_modules!();
@@ -70,6 +71,7 @@ fn clean_desc(name: &str) -> &'static str {
         "Caché de Chrome" => "Páginas e imágenes que Chrome guardó para cargar más rápido. Las vuelve a bajar solo.",
         "Caché de Edge" => "Páginas e imágenes que Edge guardó para cargar más rápido. Las vuelve a bajar solo.",
         "Caché de Firefox" => "Páginas e imágenes que Firefox guardó para cargar más rápido. Las vuelve a bajar solo.",
+        "Restos de Windows Update" => "Archivos que Windows Update ya descargó e instaló. Si hace falta, los vuelve a bajar.",
         "Papelera de reciclaje" => "Lo que ya borraste y sigue en la Papelera. Después de limpiar no se recupera desde ahí.",
         _ => "",
     }
@@ -391,7 +393,7 @@ fn recommended_summary(applied: usize, need_admin: usize, warn: &str) -> String 
 }
 
 /// Tamaño legible: GB desde 1 GB, MB por debajo.
-fn size(b: u64) -> String {
+pub(crate) fn size(b: u64) -> String {
     match b {
         b if b >= 1 << 30 => gb(b),
         b if b > 0 && b < 1 << 20 => "<1 MB".to_string(),
@@ -1200,24 +1202,24 @@ fn main() {
         let weak = ui.as_weak();
         move || {
             if let Some(ui) = weak.upgrade() {
-                ui.set_space_map(ModelRc::new(VecModel::from(vec![DiskRow { name: "Calculando… puede tardar unos segundos".into(), size: "".into() }])));
+                ui.set_space_map(ModelRc::new(VecModel::from(vec![SpaceRow { name: "Calculando… puede tardar unos segundos".into(), size: "".into(), fraction: 0.0 }])));
             }
             let weak = weak.clone();
             thread::spawn(move || {
                 let home = PathBuf::from(env::var_os("USERPROFILE").unwrap_or_default());
-                let rows: Vec<(String, String)> = disk::space_map(&home)
-                    .into_iter()
-                    .take(15)
-                    .map(|(p, s)| (p.file_name().unwrap_or_default().to_string_lossy().into_owned(), size(s)))
-                    .collect();
+                let found: Vec<_> = disk::space_map(&home).into_iter().take(15).collect();
+                let biggest = found.first().map_or(1, |(_, s)| (*s).max(1)) as f32;
+                let rows: Vec<(String, String, f32)> =
+                    found.into_iter().map(|(p, s)| (p.file_name().unwrap_or_default().to_string_lossy().into_owned(), size(s), s as f32 / biggest)).collect();
                 let _ = weak.upgrade_in_event_loop(move |ui| {
-                    let rows: Vec<DiskRow> = rows.into_iter().map(|(n, s)| DiskRow { name: n.into(), size: s.into() }).collect();
+                    let rows: Vec<SpaceRow> = rows.into_iter().map(|(n, s, f)| SpaceRow { name: n.into(), size: s.into(), fraction: f }).collect();
                     ui.set_space_map(ModelRc::new(VecModel::from(rows)));
                 });
             });
         }
     });
 
+    duplicates::wire(&ui, journal.clone());
     let (open_section, redraw_section) = sections::wire(&ui, journal.clone(), exe_icons.clone());
     ui.on_icons_ready({
         let (refresh, load_startup) = (refresh.clone(), load_startup.clone());
