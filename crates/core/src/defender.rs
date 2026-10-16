@@ -26,6 +26,8 @@ pub struct Threat {
     pub severity: u8,
     pub resource: String,
     pub time: String,
+    /// Defender la sigue considerando activa (no se pudo quitar).
+    pub active: bool,
 }
 
 impl Threat {
@@ -96,6 +98,7 @@ pub fn parse_threats(json: &str) -> Vec<Threat> {
             severity: v.get("severity").and_then(Value::as_u64).unwrap_or(0) as u8,
             resource: text(v, "resource"),
             time: text(v, "time"),
+            active: flag(v, "active"),
         })
         .collect()
 }
@@ -111,7 +114,7 @@ const AV_SCRIPT: &str = "Get-CimInstance -Namespace root/SecurityCenter2 -ClassN
 
 const THREATS_SCRIPT: &str = "$t = @{}; Get-MpThreat -ErrorAction SilentlyContinue | ForEach-Object { $t[[string]$_.ThreatID] = $_ }; \
     Get-MpThreatDetection -ErrorAction SilentlyContinue | ForEach-Object { $k = [string]$_.ThreatID; \
-    [pscustomobject]@{ name=[string]$t[$k].ThreatName; severity=[int]$t[$k].SeverityID; resource=(@($_.Resources) -join '; '); \
+    [pscustomobject]@{ name=[string]$t[$k].ThreatName; severity=[int]$t[$k].SeverityID; active=[bool]$t[$k].IsActive; resource=(@($_.Resources) -join '; '); \
     time=$(if ($_.InitialDetectionTime) { $_.InitialDetectionTime.ToString('o') } else { '' }) } } | ConvertTo-Json -Compress";
 
 pub fn status() -> io::Result<Status> {
@@ -122,6 +125,11 @@ pub fn status() -> io::Result<Status> {
 
 pub fn threats() -> io::Result<Vec<Threat>> {
     Ok(parse_threats(&ps(THREATS_SCRIPT)?))
+}
+
+/// Abre la app Seguridad de Windows, donde se ve el historial y se resuelven las detecciones.
+pub fn open_app() -> io::Result<()> {
+    Command::new("cmd").args(["/C", "start", "", "windowsdefender:"]).creation_flags(0x0800_0000).spawn().map(|_| ())
 }
 
 /// Análisis rápido de Defender. Puede tardar varios minutos: llamarlo desde un hilo.
