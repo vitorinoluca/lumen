@@ -885,3 +885,63 @@ msgstr "Pages and images Firefox saved to load faster. It downloads them again o
 
 msgid "Lo que ya borraste y sigue en la Papelera. Después de limpiar no se recupera desde ahí."
 msgstr "What you already deleted and is still in the Recycle Bin. After cleaning it can't be restored from there."
+
+msgid "Seguro"
+msgstr "Safe"
+
+msgid "Revisar"
+msgstr "Review"
+
+msgid "Esto es lo que se va a hacer"
+msgstr "This is what will be done"
+
+msgid "Aplicado"
+msgstr "Applied"
+
+msgid "No hay nada marcado."
+msgstr "Nothing is selected."
+
+msgid "{} marcadas. Antes de aplicar te mostramos qué se va a hacer."
+msgstr "{} selected. Before applying we show you what will be done."
+
+msgid "Ocultar más opciones"
+msgstr "Hide more options"
+
+msgid "Más opciones ({})"
+msgstr "More options ({})"
+
+msgid "Historial"
+msgstr "History"
+
+msgid "Todo lo que lumen cambió en tu PC. Cada cambio se puede deshacer."
+msgstr "Everything lumen changed on your PC. Each change can be undone."
+
+msgid "Todavía no hiciste ningún cambio con lumen."
+msgstr "You haven't made any changes with lumen yet."
+
+msgid "Deshecho"
+msgstr "Undone"
+
+msgid "No se puede deshacer"
+msgstr "Can't be undone"
+
+msgid "Menos datos enviados a Microsoft y menos publicidad en Windows."
+msgstr "Less data sent to Microsoft and fewer ads in Windows."
+
+msgid "Antes de aplicar se crea un punto de restauración de Windows y se guarda el valor original de cada ajuste. Todo se puede deshacer desde Historial."
+msgstr "Before applying, a Windows restore point is created and each setting's original value is saved. Everything can be undone from History."
+
+msgid "Creando el punto de restauración, puede tardar unos segundos…"
+msgstr "Creating the restore point, it may take a few seconds…"
+
+msgid "Se creó un punto de restauración."
+msgstr "A restore point was created."
+
+msgid "Listo: 1 cambio aplicado."
+msgstr "Done: 1 change applied."
+
+msgid "Listo: {} cambios aplicados."
+msgstr "Done: {} changes applied."
+
+msgid "Deshecho: {}"
+msgstr "Undone: {}"

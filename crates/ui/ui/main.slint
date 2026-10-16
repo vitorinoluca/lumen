@@ -11,6 +11,12 @@ export struct DiskCard { name: string, sub: string, fraction: float }
 export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
 export struct CleanRow { name: string, desc: string, size: string }
+// Una opción de sección: `idx` apunta a la lista que guarda Rust. risk: 0 = seguro (verde), 1 = revisar (amarillo).
+export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool }
+// Lo que se va a hacer, antes de aplicar.
+export struct PreviewRow { title: string, detail: string, undoable: bool }
+// Un cambio del historial.
+export struct HistRow { id: int, title: string, detail: string, applied: bool, undoable: bool }
 
 // Lo que se ve es el material de Windows (Mica) a través de la ventana: nada de fondos sólidos.
 // Las superficies son capas translúcidas (blanco o negro con poca opacidad) y el texto, el mismo color con alfa.
@@ -33,6 +39,8 @@ export global Theme {
     out property <color> line: dark ? #ffffff17 : #0000001a;
     out property <color> accent: dark ? #62c9b2 : #1d7a65;
     out property <color> on-accent: dark ? #04211b : #ffffff;
+    out property <color> good: dark ? #6fd69f : #1a7f4b;
+    out property <color> warn: dark ? #f2c35c : #9a6700;
     out property <color> danger: dark ? #ff8f85 : #c42b1c;
     // Lo único opaco: los diálogos, para que el texto se lea siempre.
     out property <color> pop: dark ? #2a2a2e : #fbfbfb;
@@ -77,6 +85,7 @@ component Icon inherits Path {
         kind == "bluetooth" ? "M7 7 L17 17 L12 22 V2 L17 7 L7 17" :
         kind == "map" ? "M3 6 L9 4 L15 6 L21 4 V18 L15 20 L9 18 L3 20 Z M9 4 V18 M15 6 V20" :
         kind == "refresh" ? "M20 12 A8 8 0 1 1 17.7 6.3 M20 4 V9 H15" :
+        kind == "clock" ? "M12 4 A8 8 0 1 0 12 20 A8 8 0 1 0 12 4 M12 8 V12 L15 14" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -95,9 +104,11 @@ component Btn inherits Rectangle {
     in property <bool> danger: false;
     in property <length> pad: 14px;
     in property <length> font: 12px;
+    in property <bool> enabled: true;
     out property <bool> hovered: ta.has-hover;
     callback clicked;
     height: 30px;
+    opacity: enabled ? 1.0 : 0.4;
     border-radius: Theme.radius;
     background: strong ? (ta.has-hover ? Theme.accent.with-alpha(0.85) : Theme.accent)
         : (danger ? Theme.danger.with-alpha(ta.has-hover ? 0.24 : 0.13) : (ta.has-hover ? Theme.pressed : Theme.hover));
@@ -107,7 +118,7 @@ component Btn inherits Rectangle {
         padding-right: root.pad;
         Text { text: root.text; font-size: root.font; font-weight: 600; color: root.danger ? Theme.danger : (root.strong ? Theme.on-accent : Theme.text); vertical-alignment: center; }
     }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    ta := TouchArea { enabled: root.enabled; mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default; clicked => { root.clicked(); } }
 }
 
 component Toggle inherits Rectangle {
@@ -140,6 +151,50 @@ component Bar inherits Rectangle {
     border-radius: 1.5px;
     background: Theme.line;
     Rectangle { x: 0; width: parent.width * Math.min(1, Math.max(0, root.value)); border-radius: 1.5px; background: Theme.accent; animate width { duration: 900ms; easing: ease-in-out; } }
+}
+
+// Casilla (o círculo si es de elegir una sola opción).
+component Check inherits Rectangle {
+    in property <bool> checked;
+    in property <bool> radio: false;
+    width: 20px;
+    height: 20px;
+    border-radius: radio ? 10px : 5px;
+    border-width: checked ? 0px : 1.5px;
+    border-color: Theme.faint;
+    background: checked ? Theme.accent : transparent;
+    animate background { duration: 90ms; }
+    if root.checked && !root.radio: Path {
+        x: 4px;
+        y: 4px;
+        width: 12px;
+        height: 12px;
+        viewbox-width: 12;
+        viewbox-height: 12;
+        commands: "M2 6.5 L5 9.5 L10 3";
+        stroke: Theme.on-accent;
+        stroke-width: 1.8px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+    }
+    if root.checked && root.radio: Rectangle { x: 6px; y: 6px; width: 8px; height: 8px; border-radius: 4px; background: Theme.on-accent; }
+}
+
+// Etiqueta de riesgo: verde = seguro, amarillo = revisar antes.
+component RiskTag inherits Rectangle {
+    in property <int> risk;
+    height: 20px;
+    width: t.preferred-width + 16px;
+    border-radius: 10px;
+    background: (risk == 0 ? Theme.good : Theme.warn).with-alpha(0.16);
+    t := Text {
+        text: risk == 0 ? @tr("" => "Seguro") : @tr("" => "Revisar");
+        font-size: 12px;
+        font-weight: 600;
+        color: risk == 0 ? Theme.good : Theme.warn;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
 }
 
 // Entrada del menú lateral: sin caja, solo una marca de acento a la izquierda cuando está activa.
@@ -307,6 +362,57 @@ component Confirm inherits Rectangle {
                 alignment: end;
                 Btn { text: @tr("" => "Cancelar"); clicked => { root.cancel(); } }
                 Btn { text: root.ok-text; strong: !root.danger; danger: root.danger; clicked => { root.ok(); } }
+            }
+        }
+    }
+}
+
+// Vista previa: qué se va a hacer, con los valores exactos, antes de tocar nada.
+component PreviewDialog inherits Rectangle {
+    in property <[PreviewRow]> rows;
+    in property <length> rows-h;
+    in property <string> note;
+    in property <string> ok-text;
+    callback ok();
+    callback cancel();
+    background: Theme.dark ? #00000090 : #00000050;
+    TouchArea { }
+    Rectangle {
+        width: min(600px, parent.width - 48px);
+        height: min(parent.height - 64px, 540px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.pop;
+        border-width: 1px;
+        border-color: Theme.line;
+        border-radius: 12px;
+        VerticalLayout {
+            padding: 24px;
+            spacing: 12px;
+            Text { text: @tr("" => "Esto es lo que se va a hacer"); font-size: 14px; font-weight: 600; color: Theme.text; }
+            Text { text: I18n.t(root.note); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            Scroll {
+                vertical-stretch: 1;
+                content-h: root.rows-h;
+                VerticalLayout {
+                    alignment: start;
+                    for r in root.rows: VerticalLayout {
+                        padding-bottom: 12px;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text { text: I18n.t(r.title); font-size: 14px; color: Theme.text; wrap: word-wrap; horizontal-stretch: 1; }
+                            if !r.undoable: Text { text: @tr("" => "No se puede deshacer"); font-size: 12px; font-weight: 600; color: Theme.warn; vertical-alignment: center; }
+                        }
+                        Text { text: I18n.t(r.detail); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                Btn { text: @tr("" => "Cancelar"); clicked => { root.cancel(); } }
+                Btn { text: root.ok-text; strong: true; clicked => { root.ok(); } }
             }
         }
     }
@@ -618,9 +724,9 @@ export component Main inherits Window {
     title: "lumen";
     icon: @image-url("../assets/icon.png");
     preferred-width: 980px;
-    preferred-height: 660px;
+    preferred-height: 700px;
     min-width: 720px;
-    min-height: 460px;
+    min-height: 560px;
     // Transparente: Rust le pone el material de Windows (Mica) por detrás.
     background: Theme.solid ? Theme.backdrop : transparent;
     default-font-family: "Segoe UI Variable Text";
@@ -673,6 +779,23 @@ export component Main inherits Window {
     in property <bool> disk-loading;
     in property <bool> disk-nothing;
     in property <[CleanRow]> disk-items;
+    // Secciones con opciones (Privacidad, ...): Rust llena la lista y aplica lo elegido.
+    in property <[OptionRow]> sc-rows;
+    in property <length> sc-h;
+    in property <string> sc-title;
+    in property <string> sc-sub;
+    in property <string> sc-button;
+    in property <int> sc-selected;
+    in property <int> sc-more-count;
+    in-out property <bool> sc-more;
+    in-out property <string> sc-result;
+    in-out property <bool> sc-busy;
+    in-out property <bool> sc-preview;
+    in property <[PreviewRow]> sc-preview-rows;
+    in property <length> sc-preview-h;
+    in property <string> sc-preview-note;
+    in property <[HistRow]> hist;
+    in property <string> hist-status;
     in property <string> disk-total;
     in property <string> disk-parts;
     in property <string> disk-old;
@@ -702,6 +825,12 @@ export component Main inherits Window {
     callback behavior-ready();
     callback finding-do(int, int);
     callback apps-reload();
+    callback sc-toggle(int);
+    callback sc-apply();
+    callback sc-run();
+    callback sc-finish(string);
+    callback sc-reload();
+    callback hist-undo(int);
     callback icons-ready();
     callback apps-rebuild();
     callback apps-filter(string);
@@ -740,13 +869,14 @@ export component Main inherits Window {
                     Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                 }
                 NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
-                NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
-                NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
-                Gap { }
-                NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
-                NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
                 NavItem { text: @tr("" => "Limpieza de disco"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
+                NavItem { text: @tr("" => "Optimizar"); icon: "bolt"; active: page == 4; clicked => { status = ""; page = 4; } }
+                NavItem { text: @tr("" => "Gestor de inicio"); icon: "power"; active: page == 2; clicked => { page = 2; } }
+                NavItem { text: @tr("" => "Privacidad"); icon: "eye"; active: page == 11; clicked => { sc-result = ""; page = 11; } }
+                NavItem { text: @tr("" => "Historial"); icon: "clock"; active: page == 15; clicked => { page = 15; } }
                 Gap { }
+                NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
+                NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
                 NavItem { text: @tr("" => "Seguridad"); icon: "shield"; active: page == 8; clicked => { page = 8; } }
             }
             NavItem { text: @tr("" => "Configuración"); icon: "gear"; active: page == 9; clicked => { page = 9; } }
@@ -1230,6 +1360,103 @@ if page == 4: Page {
                     }
                 }
 
+// Sección con opciones: casillas con explicación y riesgo, y un solo botón principal.
+                if page >= 10 && page <= 14: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: I18n.t(sc-title); sub: I18n.t(sc-sub); }
+                    Scroll {
+                        vertical-stretch: 1;
+                        content-h: sc-h;
+                        VerticalLayout {
+                            alignment: start;
+                            for r in sc-rows: Rectangle {
+                                height: r.header ? 44px : 66px;
+                                if r.header: Label { x: 4px; y: parent.height - 28px; height: 20px; text: I18n.t(r.title); }
+                                if !r.header: Rectangle {
+                                    height: 60px;
+                                    border-radius: 8px;
+                                    opacity: r.done ? 0.6 : 1.0;
+                                    background: (sc-ta.has-hover && !r.done) ? Theme.chosen : Theme.raised;
+                                    animate background { duration: 90ms; }
+                                    sc-ta := TouchArea { enabled: !r.done; mouse-cursor: r.done ? MouseCursor.default : MouseCursor.pointer; clicked => { sc-toggle(r.idx); } }
+                                    HorizontalLayout {
+                                        spacing: 14px;
+                                        padding-left: 16px;
+                                        padding-right: 16px;
+                                        VerticalLayout { alignment: center; Check { checked: r.checked || r.done; radio: r.group > 0; } }
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 2px;
+                                            Text { text: I18n.t(r.title); font-size: 14px; color: Theme.text; overflow: elide; }
+                                            Text { text: I18n.t(r.desc); font-size: 12px; color: Theme.muted; overflow: elide; }
+                                        }
+                                        if r.done: Text { text: @tr("" => "Aplicado"); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
+                                        if !r.done: VerticalLayout { alignment: center; RiskTag { risk: r.risk; } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 16px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            if sc-result != "": Text { text: I18n.t(sc-result); font-size: 14px; color: Theme.accent; wrap: word-wrap; }
+                            if sc-result == "": Text { text: sc-selected == 0 ? @tr("" => "No hay nada marcado.") : @tr("" => "{} marcadas. Antes de aplicar te mostramos qué se va a hacer.", sc-selected); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                            if sc-more-count > 0: TextLink { text: sc-more ? @tr("" => "Ocultar más opciones") : @tr("" => "Más opciones ({})", sc-more-count); clicked => { sc-more = !sc-more; sc-reload(); } }
+                        }
+                        VerticalLayout { alignment: center; Btn { height: 38px; pad: 28px; font: 14px; strong: true; enabled: sc-selected > 0 && !sc-busy; text: I18n.t(sc-button); clicked => { sc-apply(); } } }
+                    }
+                }
+
+                // Historial: todo lo que lumen cambió, con deshacer en cada cambio.
+                if page == 15: Page {
+                    width: parent.width;
+                    height: parent.height;
+                    Head { title: @tr("" => "Historial"); sub: @tr("" => "Todo lo que lumen cambió en tu PC. Cada cambio se puede deshacer."); }
+                    if hist-status != "": Text { text: I18n.t(hist-status); font-size: 12px; color: Theme.accent; wrap: word-wrap; }
+                    if hist.length == 0: VerticalLayout {
+                        vertical-stretch: 1;
+                        alignment: center;
+                        Text { text: @tr("" => "Todavía no hiciste ningún cambio con lumen."); font-size: 14px; color: Theme.muted; horizontal-alignment: center; }
+                    }
+                    if hist.length > 0: Scroll {
+                        vertical-stretch: 1;
+                        content-h: hist.length * 66px;
+                        VerticalLayout {
+                            alignment: start;
+                            for h in hist: Rectangle {
+                                height: 66px;
+                                Rectangle {
+                                    height: 60px;
+                                    border-radius: 8px;
+                                    background: Theme.raised;
+                                    HorizontalLayout {
+                                        spacing: 16px;
+                                        padding-left: 16px;
+                                        padding-right: 16px;
+                                        VerticalLayout {
+                                            horizontal-stretch: 1;
+                                            alignment: center;
+                                            spacing: 2px;
+                                            opacity: h.applied ? 1.0 : 0.5;
+                                            Text { text: I18n.t(h.title); font-size: 14px; color: Theme.text; overflow: elide; }
+                                            Text { text: I18n.t(h.detail); font-size: 12px; color: Theme.muted; overflow: elide; }
+                                        }
+                                        if !h.applied: Text { text: @tr("" => "Deshecho"); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
+                                        if h.applied && !h.undoable: Text { text: @tr("" => "No se puede deshacer"); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
+                                        if h.applied && h.undoable: VerticalLayout { alignment: center; Btn { height: 28px; text: @tr("" => "Deshacer"); clicked => { hist-undo(h.id); } } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if page == 9: Page {
                     width: parent.width;
                     height: parent.height;
@@ -1301,6 +1528,18 @@ if page == 4: Page {
         danger: sec-confirm-action == 2;
         ok => { finding-do(sec-confirm, sec-confirm-action); sec-confirm = -1; }
         cancel => { sec-confirm = -1; }
+    }
+    if sc-preview: PreviewDialog {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        rows: sc-preview-rows;
+        rows-h: sc-preview-h;
+        note: sc-preview-note;
+        ok-text: sc-button;
+        ok => { sc-preview = false; sc-run(); }
+        cancel => { sc-preview = false; }
     }
     if opt-confirm: Confirm {
         x: 0;

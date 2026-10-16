@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod plan;
 pub mod monitor;
 pub mod gpu;
 pub mod processes;

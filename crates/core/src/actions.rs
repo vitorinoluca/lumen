@@ -60,6 +60,23 @@ impl Action {
         Action::SetDword { hive, path: path.into(), name: name.into(), new, prev }
     }
 
+    /// Qué hace, en una frase con los valores exactos. Es lo que se muestra antes de aplicar.
+    pub fn describe(&self) -> String {
+        let num = |v: &Option<u32>| v.map_or("sin valor".to_string(), |v| v.to_string());
+        let text = |v: &Option<String>| v.as_deref().map_or("sin valor".to_string(), |v| format!("\"{v}\""));
+        let on = |e: &bool| if *e { "Activar" } else { "Desactivar" };
+        match self {
+            Action::MoveFile { from, to } => format!("Mover {} a {}", from.display(), to.display()),
+            Action::Stash { items } => format!("Mover {} elementos a la reserva (se pueden devolver)", items.len()),
+            Action::SetDword { hive, path, name, new, prev } => format!("{}: {} → {new}", hive.reg_path(&format!(r"{path}\{name}")), num(prev)),
+            Action::DeleteRegKey { hive, path, .. } => format!("Borrar la clave {} (con respaldo)", hive.reg_path(path)),
+            Action::SetTaskEnabled { path, name, enable, .. } => format!("{} la tarea programada {path}{name}", on(enable)),
+            Action::SetRegText { hive, path, name, new, prev } => format!("{}: {} → {}", hive.reg_path(&format!(r"{path}\{name}")), text(prev), text(new)),
+            Action::SetPowerPlan { new, prev } => format!("Plan de energía: {prev} → {new}"),
+            Action::SetStartup { name, enable, .. } => format!("{} {name} al iniciar Windows", on(enable)),
+        }
+    }
+
     pub fn apply(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(from, to),

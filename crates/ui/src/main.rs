@@ -12,6 +12,7 @@ use slint::{ModelRc, Timer, TimerMode, VecModel};
 use std::{cell::{Cell, RefCell}, collections::HashMap, sync::atomic::{AtomicU64, Ordering}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
 mod i18n;
+mod sections;
 
 slint::include_modules!();
 
@@ -1224,6 +1225,7 @@ fn main() {
         }
     });
 
+    let open_section = sections::wire(&ui, journal.clone());
     ui.on_opened({
         let (refresh, load_startup, load_disk, load_privacy, load_services, load_profiles, load_apps, weak) = (
             refresh.clone(),
@@ -1245,6 +1247,7 @@ fn main() {
                 load_profiles();
             }
             Some(7) => load_apps(),
+            Some(p @ sections::FIRST..=sections::LAST) => open_section(p),
             _ => {}
         }
     });

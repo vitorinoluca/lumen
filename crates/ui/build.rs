@@ -1,10 +1,10 @@
-// Manifiesto: sin pedir administrador al abrir, rutas largas y compatibilidad declarada con Windows 10 y 11.
+// Manifiesto: administrador en la versión final, rutas largas y compatibilidad declarada con Windows 10 y 11.
 const MANIFEST: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>
-        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+        <requestedExecutionLevel level="LEVEL" uiAccess="false"/>
       </requestedPrivileges>
     </security>
   </trustInfo>
@@ -26,6 +26,9 @@ fn main() {
 
     // Ícono, nombre y versión del ejecutable: sin esto Windows lo muestra como un programa anónimo.
     // La versión (FileVersion/ProductVersion) sale de Cargo.toml.
+    // La versión final pide administrador al abrir (cambia el registro, servicios y puntos de restauración).
+    // En desarrollo (debug) se abre sin pedirlo para poder probar sin la ventana de permisos.
+    let level = if std::env::var("PROFILE").is_ok_and(|p| p == "release") { "requireAdministrator" } else { "asInvoker" };
     let mut res = winresource::WindowsResource::new();
     res.set_icon("assets/icon.ico")
         .set("ProductName", "lumen")
@@ -34,6 +37,6 @@ fn main() {
         .set("OriginalFilename", "lumen.exe")
         .set("CompanyName", "luca vitorino")
         .set("LegalCopyright", "Copyright (c) 2026 luca vitorino. Licencia MIT")
-        .set_manifest(MANIFEST);
+        .set_manifest(&MANIFEST.replace("LEVEL", level));
     res.compile().unwrap();
 }

@@ -1,6 +1,9 @@
 //! Ajustes de privacidad de Windows. Cada uno es un DWORD en el registro;
 //! se aplican con `Action::SetDword`, así que se pueden revertir.
-use crate::actions::{Action, Hive};
+use crate::{
+    actions::{Action, Hive},
+    plan::{Item, Risk, Step},
+};
 use winreg::{enums::*, RegKey};
 
 pub struct Setting {
@@ -41,6 +44,18 @@ impl Setting {
     pub fn turn_off(&self) -> Action {
         Action::set_dword(self.hive, self.path, self.value, self.off)
     }
+}
+
+/// Los ajustes como opciones de la sección Privacidad. Son todos seguros: se revierten con el valor de antes.
+pub fn items() -> Vec<Item> {
+    SETTINGS
+        .iter()
+        .map(|s| {
+            let mut item = Item::new(s.name, s.name, s.desc, Risk::Safe, vec![Step { action: s.turn_off() }]);
+            item.done = s.is_off();
+            item
+        })
+        .collect()
 }
 
 #[cfg(test)]
