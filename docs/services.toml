@@ -1,0 +1,149 @@
+# Base curada de servicios de Windows.
+# level:
+#   safe     = se puede desactivar sin consecuencias para casi todos
+#   caution  = depende de cómo uses la PC; la descripción lo explica
+#   critical = lumen no permite tocarlo (Windows deja de andar bien o queda sin protección)
+
+[[service]]
+name = "DiagTrack"
+title = "Telemetría de Windows"
+desc = "Envía datos de uso y diagnóstico a Microsoft."
+level = "safe"
+
+[[service]]
+name = "dmwappushservice"
+title = "Mensajes push de telemetría"
+desc = "Acompaña a la telemetría. No hace falta para nada más."
+level = "safe"
+
+[[service]]
+name = "MapsBroker"
+title = "Mapas descargados"
+desc = "Actualiza mapas sin conexión. Solo lo usa la app Mapas."
+level = "safe"
+
+[[service]]
+name = "Fax"
+title = "Fax"
+desc = "Permite enviar y recibir fax. Casi nadie lo usa."
+level = "safe"
+
+[[service]]
+name = "RetailDemo"
+title = "Modo demostración de tienda"
+desc = "Solo sirve en equipos de exhibición."
+level = "safe"
+
+[[service]]
+name = "WMPNetworkSvc"
+title = "Compartir biblioteca multimedia"
+desc = "Comparte música y videos con otros equipos de la red."
+level = "safe"
+
+[[service]]
+name = "XblAuthManager"
+title = "Xbox: autenticación"
+desc = "Inicio de sesión de Xbox. Desactivalo solo si no jugás juegos de Microsoft Store o Game Pass."
+level = "caution"
+
+[[service]]
+name = "XblGameSave"
+title = "Xbox: partidas guardadas"
+desc = "Sincroniza partidas guardadas de la nube. Solo para juegos de Xbox."
+level = "caution"
+
+[[service]]
+name = "XboxNetApiSvc"
+title = "Xbox: red"
+desc = "Conexión de red de Xbox. Solo para juegos de Xbox."
+level = "caution"
+
+[[service]]
+name = "SysMain"
+title = "Precarga de programas (SysMain)"
+desc = "Acelera la apertura de programas en discos mecánicos. En un SSD casi no aporta."
+level = "caution"
+
+[[service]]
+name = "WSearch"
+title = "Búsqueda de Windows"
+desc = "Indexa archivos para buscar rápido. Si lo desactivás, buscar archivos se vuelve más lento."
+level = "caution"
+
+[[service]]
+name = "Spooler"
+title = "Cola de impresión"
+desc = "Necesario para imprimir. Si no tenés impresora, se puede desactivar."
+level = "caution"
+
+[[service]]
+name = "bthserv"
+title = "Servicio de Bluetooth"
+desc = "Necesario para auriculares, mouse y teclados Bluetooth."
+level = "caution"
+
+[[service]]
+name = "wuauserv"
+title = "Windows Update"
+desc = "Descarga e instala actualizaciones. Desactivarlo te deja sin parches de seguridad."
+level = "caution"
+
+[[service]]
+name = "WinDefend"
+title = "Antivirus de Microsoft Defender"
+desc = "Protección contra virus en tiempo real."
+level = "critical"
+
+[[service]]
+name = "mpssvc"
+title = "Firewall de Windows"
+desc = "Bloquea conexiones no deseadas."
+level = "critical"
+
+[[service]]
+name = "BFE"
+title = "Motor de filtrado base"
+desc = "Lo necesita el firewall y otras funciones de red."
+level = "critical"
+
+[[service]]
+name = "RpcSs"
+title = "Llamada a procedimiento remoto (RPC)"
+desc = "Windows entero depende de este servicio."
+level = "critical"
+
+[[service]]
+name = "DcomLaunch"
+title = "Lanzador de procesos DCOM"
+desc = "Windows entero depende de este servicio."
+level = "critical"
+
+[[service]]
+name = "EventLog"
+title = "Registro de eventos de Windows"
+desc = "Guarda los errores del sistema; varios servicios lo necesitan."
+level = "critical"
+
+[[service]]
+name = "Dhcp"
+title = "Cliente DHCP"
+desc = "Sin él no obtenés dirección de red ni internet."
+level = "critical"
+
+[[service]]
+name = "Dnscache"
+title = "Cliente DNS"
+desc = "Traduce nombres de sitios web a direcciones."
+level = "critical"
+
+[[service]]
+name = "PlugPlay"
+title = "Plug and Play"
+desc = "Detecta los dispositivos que conectás."
+level = "critical"
+
+[[service]]
+name = "CryptSvc"
+title = "Servicios criptográficos"
+desc = "Verifica firmas de archivos y certificados."
+level = "critical"
