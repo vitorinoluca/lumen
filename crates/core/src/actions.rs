@@ -1,5 +1,6 @@
 //! Journal de acciones: toda modificación del sistema pasa por acá y se puede deshacer.
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
+use crate::startup::{self, Source};
 use serde::{Deserialize, Serialize};
 use std::{fs, io, path::{Path, PathBuf}};
 
@@ -8,17 +9,21 @@ use std::{fs, io, path::{Path, PathBuf}};
 pub enum Action {
     /// Mueve un archivo (cuarentena, limpieza). Revert lo devuelve.
     MoveFile { from: PathBuf, to: PathBuf },
+    /// Activa o desactiva una app de inicio. Revert aplica el estado contrario.
+    SetStartup { source: Source, name: String, enable: bool },
 }
 
 impl Action {
     pub fn apply(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(from, to),
+            Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
     }
     pub fn revert(&self) -> io::Result<()> {
         match self {
             Action::MoveFile { from, to } => mv(to, from),
+            Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
     }
 }
