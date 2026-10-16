@@ -12,6 +12,10 @@ pub enum Hive {
 }
 
 impl Hive {
+    /// Ruta en el formato que entiende `reg.exe`.
+    fn reg_path(self, path: &str) -> String {
+        format!(r"{}\{path}", if self == Hive::User { "HKCU" } else { "HKLM" })
+    }
     fn root(self) -> RegKey {
         RegKey::predef(if self == Hive::User { HKEY_CURRENT_USER } else { HKEY_LOCAL_MACHINE })
     }
@@ -27,6 +31,8 @@ pub enum Action {
     Stash { items: Vec<(PathBuf, PathBuf)> },
     /// Escribe un DWORD en el registro. `prev` es el valor de antes (None = no existía).
     SetDword { hive: Hive, path: String, name: String, new: u32, prev: Option<u32> },
+    /// Borra una clave del registro, guardando antes un respaldo `.reg` para poder restaurarla.
+    DeleteRegKey { hive: Hive, path: String, backup: PathBuf },
     /// Cambia el plan de energía. Revert vuelve al plan anterior.
     SetPowerPlan { new: String, prev: String },
     SetStartup { source: Source, name: String, enable: bool },
@@ -49,6 +55,13 @@ impl Action {
             Action::MoveFile { from, to } => mv(from, to),
             Action::Stash { .. } => Ok(()), // se registra ya aplicada, ver `Journal::record`
             Action::SetDword { hive, path, name, new, .. } => write_dword(*hive, path, name, Some(*new)),
+            Action::DeleteRegKey { hive, path, backup } => {
+                if let Some(d) = backup.parent() {
+                    fs::create_dir_all(d)?;
+                }
+                reg_exe(&["export", &hive.reg_path(path), &backup.to_string_lossy(), "/y"])?;
+                hive.root().delete_subkey_all(path)
+            }
             Action::SetPowerPlan { new, .. } => power::set(new),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
@@ -62,9 +75,20 @@ impl Action {
                 if failed == 0 { Ok(()) } else { Err(io::Error::other(format!("{failed} elementos no se pudieron restaurar"))) }
             }
             Action::SetDword { hive, path, name, prev, .. } => write_dword(*hive, path, name, *prev),
+            Action::DeleteRegKey { backup, .. } => reg_exe(&["import", &backup.to_string_lossy()]),
             Action::SetPowerPlan { prev, .. } => power::set(prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
+    }
+}
+
+fn reg_exe(args: &[&str]) -> io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("reg").args(args).creation_flags(0x0800_0000).output()?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(io::Error::other(format!("reg: {}", String::from_utf8_lossy(&out.stderr).trim())))
     }
 }
 
@@ -196,6 +220,24 @@ mod tests {
         assert_eq!(read(), Some(1));
         j.revert(a).unwrap();
         assert_eq!(read(), None);
+        let _ = root.delete_subkey_all(&path);
+        let _ = fs::remove_dir_all(tmp);
+    }
+
+    #[test]
+    fn deleted_reg_key_is_restored_from_backup() {
+        let path = format!(r"Software\lumen-test-key-{}", std::process::id());
+        let root = Hive::User.root();
+        let (k, _) = root.create_subkey(format!(r"{path}\sub")).unwrap();
+        k.set_value("v", &7u32).unwrap();
+        let tmp = tmp("regkey");
+        let mut j = Journal::open(tmp.join("j.json")).unwrap();
+
+        let id = j.apply("borrar", Action::DeleteRegKey { hive: Hive::User, path: path.clone(), backup: tmp.join("b.reg") }).unwrap();
+        assert!(root.open_subkey(&path).is_err());
+        j.revert(id).unwrap();
+        let v: u32 = root.open_subkey(format!(r"{path}\sub")).unwrap().get_value("v").unwrap();
+        assert_eq!(v, 7);
         let _ = root.delete_subkey_all(&path);
         let _ = fs::remove_dir_all(tmp);
     }
