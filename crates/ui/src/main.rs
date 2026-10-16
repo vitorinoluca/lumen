@@ -1,10 +1,12 @@
 #![windows_subsystem = "windows"]
 use lumen_core::{
+    actions::{Action, Journal},
     monitor::{Monitor, Snapshot},
     processes::{Processes, SortBy},
+    startup::{self, Source},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
-use std::{cell::Cell, rc::Rc, thread, time::Duration};
+use std::{cell::{Cell, RefCell}, env, path::PathBuf, rc::Rc, thread, time::Duration};
 
 slint::include_modules!();
 
@@ -72,7 +74,56 @@ fn main() {
             refresh();
         }
     });
-    ui.on_opened(refresh.clone());
+    // Inicio: cada cambio pasa por el journal para poder deshacerlo.
+    let entries = Rc::new(RefCell::new(startup::list()));
+    let journal = {
+        let dir = PathBuf::from(env::var_os("APPDATA").unwrap_or_default()).join("lumen");
+        Rc::new(RefCell::new(Journal::open(dir.join("journal.json")).expect("journal ilegible")))
+    };
+    let load_startup = {
+        let (weak, entries) = (ui.as_weak(), entries.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            *entries.borrow_mut() = startup::list();
+            let rows: Vec<StartupRow> = entries
+                .borrow()
+                .iter()
+                .map(|e| StartupRow {
+                    name: e.name.clone().into(),
+                    command: e.command.clone().into(),
+                    scope: match e.source {
+                        Source::RunUser => "usuario",
+                        Source::RunMachine => "equipo",
+                        Source::FolderUser => "carpeta",
+                    }
+                    .into(),
+                    enabled: e.enabled,
+                })
+                .collect();
+            ui.set_startup(ModelRc::new(VecModel::from(rows)));
+        }
+    };
+    ui.on_toggle_startup({
+        let (weak, entries, journal, reload) = (ui.as_weak(), entries.clone(), journal.clone(), load_startup.clone());
+        move |i, enable| {
+            let Some(ui) = weak.upgrade() else { return };
+            let e = entries.borrow()[i as usize].clone();
+            let verb = if enable { "Activar" } else { "Desactivar" };
+            let action = Action::SetStartup { source: e.source, name: e.name.clone(), enable };
+            let res = journal.borrow_mut().apply(&format!("{verb} inicio: {}", e.name), action);
+            // Las entradas de "equipo" necesitan administrador.
+            ui.set_status(res.err().map(|err| format!("No se pudo: {err}")).unwrap_or_default().into());
+            reload();
+        }
+    });
+    ui.on_opened({
+        let (refresh, load_startup, weak) = (refresh.clone(), load_startup.clone(), ui.as_weak());
+        move || match weak.upgrade().map(|u| u.get_page()) {
+            Some(1) => refresh(),
+            Some(2) => load_startup(),
+            _ => {}
+        }
+    });
     ui.on_kill({
         let (procs, refresh) = (procs.clone(), refresh.clone());
         move |pid| {

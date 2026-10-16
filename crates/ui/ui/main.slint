@@ -1,6 +1,8 @@
-import { Button, ProgressIndicator, ListView } from "std-widgets.slint";
+import { Button, ProgressIndicator, ListView, Switch } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
+
+export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
 
 export component Main inherits Window {
     title: "lumen";
@@ -14,6 +16,8 @@ export component Main inherits Window {
     in property <string> disk-text;
     in property <string> net-text;
     in property <[Row]> procs;
+    in property <[StartupRow]> startup;
+    in-out property <string> status;
     in-out property <int> page: 0;
     // pid pendiente de confirmar para finalizar (-1 = ninguno)
     in-out property <int> kill-pid: -1;
@@ -23,6 +27,7 @@ export component Main inherits Window {
     callback sort(int);
     callback kill(int);
     callback opened();
+    callback toggle-startup(int, bool);
     changed page => { opened(); }
 
     HorizontalLayout {
@@ -87,7 +92,24 @@ export component Main inherits Window {
                 }
             }
         }
-        if page > 1: Text {
+        if page == 2: VerticalLayout {
+            padding: 12px;
+            spacing: 6px;
+            Text { text: status; color: #c9a227; }
+            ListView {
+                for e[i] in startup: Rectangle {
+                    height: 34px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Switch { checked: e.enabled; toggled => { toggle-startup(i, self.checked); } }
+                        Text { text: e.name; width: 160px; overflow: elide; vertical-alignment: center; }
+                        Text { text: e.scope; width: 70px; vertical-alignment: center; color: #888; }
+                        Text { text: e.command; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; color: #888; }
+                    }
+                }
+            }
+        }
+        if page > 2: Text {
             text: pages[page];
             horizontal-alignment: center;
             vertical-alignment: center;
