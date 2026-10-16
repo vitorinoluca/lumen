@@ -14,3 +14,4 @@ pub mod icons;
 pub mod defender;
 pub mod ps;
 pub mod security;
+pub mod hashdb;
