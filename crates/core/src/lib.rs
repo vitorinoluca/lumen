@@ -11,3 +11,4 @@ pub mod profiles;
 pub mod uninstall;
 pub mod hardware;
 pub mod icons;
+pub mod defender;
