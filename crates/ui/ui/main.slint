@@ -764,9 +764,6 @@ export component Main inherits Window {
                 VerticalLayout {
                     alignment: start;
                     spacing: 12px;
-                    for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
-                    if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
-                    for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
                     if behavior-run: Text { text: findings.length > 0 ? "Comportamiento sospechoso (\{findings.length})" : "No se encontró nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia."; font-size: 14px; color: Theme.text; wrap: word-wrap; }
                     for f[i] in findings: FindingCard {
                         title: f.title;
@@ -779,6 +776,9 @@ export component Main inherits Window {
                         disable => { sec-confirm-action = 2; sec-confirm = i; }
                         restore => { sec-confirm-action = 3; sec-confirm = i; }
                     }
+                    for c in sec-cards: Info { icon: c.icon; title: c.title; sub: c.sub; }
+                    if threats.length > 0: Text { text: "Detecciones registradas por Defender (\{threats.length})"; font-size: 14px; color: Theme.text; }
+                    for t in threats: Info { icon: t.icon; title: t.title; sub: t.sub; alert: t.alert; }
                 }
             }
         }
