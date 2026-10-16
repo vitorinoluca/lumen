@@ -14,6 +14,7 @@ use std::{collections::{BTreeMap, HashMap}, path::PathBuf, time::{SystemTime, UN
 pub mod analyze;
 pub mod baseline;
 pub mod collect;
+pub mod fix;
 pub mod signature;
 
 /// Orden de aparición: alta primero.

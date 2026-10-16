@@ -1,6 +1,6 @@
 //! Journal de acciones: toda modificación del sistema pasa por acá y se puede deshacer.
 //! Las acciones son datos serializables, así que el deshacer sobrevive a reinicios.
-use crate::{power, startup::{self, Source}};
+use crate::{power, ps, startup::{self, Source}};
 use serde::{Deserialize, Serialize};
 use winreg::{enums::*, RegKey};
 use std::{fs, io, path::{Path, PathBuf}};
@@ -33,6 +33,10 @@ pub enum Action {
     SetDword { hive: Hive, path: String, name: String, new: u32, prev: Option<u32> },
     /// Borra una clave del registro, guardando antes un respaldo `.reg` para poder restaurarla.
     DeleteRegKey { hive: Hive, path: String, backup: PathBuf },
+    /// Habilita o deshabilita una tarea programada. Antes de deshabilitar guarda su definición en `backup` (XML).
+    SetTaskEnabled { path: String, name: String, enable: bool, backup: PathBuf },
+    /// Escribe (o borra, con `None`) un valor de texto del registro. `prev` es lo que había.
+    SetRegText { hive: Hive, path: String, name: String, new: Option<String>, prev: Option<String> },
     /// Cambia el plan de energía. Revert vuelve al plan anterior.
     SetPowerPlan { new: String, prev: String },
     SetStartup { source: Source, name: String, enable: bool },
@@ -42,6 +46,12 @@ impl Action {
     /// Arma un cambio de plan de energía a partir de un plan base (lo crea si no existe en esta PC).
     pub fn power_plan(template: &str) -> io::Result<Action> {
         Ok(Action::SetPowerPlan { new: power::resolve(template)?, prev: power::active()? })
+    }
+
+    /// Arma un SetRegText leyendo el valor actual para poder revertirlo.
+    pub fn set_text(hive: Hive, path: &str, name: &str, new: Option<String>) -> Action {
+        let prev = hive.root().open_subkey(path).and_then(|k| k.get_value::<String, _>(name)).ok();
+        Action::SetRegText { hive, path: path.into(), name: name.into(), new, prev }
     }
 
     /// Arma un SetDword leyendo el valor actual para poder revertirlo.
@@ -62,6 +72,13 @@ impl Action {
                 reg_exe(&["export", &hive.reg_path(path), &backup.to_string_lossy(), "/y"])?;
                 hive.root().delete_subkey_all(path)
             }
+            Action::SetTaskEnabled { path, name, enable, backup } => {
+                if !*enable {
+                    export_task(path, name, backup)?;
+                }
+                set_task(path, name, *enable)
+            }
+            Action::SetRegText { hive, path, name, new, .. } => write_text(*hive, path, name, new.as_deref()),
             Action::SetPowerPlan { new, .. } => power::set(new),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, *enable),
         }
@@ -76,6 +93,8 @@ impl Action {
             }
             Action::SetDword { hive, path, name, prev, .. } => write_dword(*hive, path, name, *prev),
             Action::DeleteRegKey { backup, .. } => reg_exe(&["import", &backup.to_string_lossy()]),
+            Action::SetTaskEnabled { path, name, enable, .. } => set_task(path, name, !*enable),
+            Action::SetRegText { hive, path, name, prev, .. } => write_text(*hive, path, name, prev.as_deref()),
             Action::SetPowerPlan { prev, .. } => power::set(prev),
             Action::SetStartup { source, name, enable } => startup::set_enabled(*source, name, !*enable),
         }
@@ -90,6 +109,34 @@ fn reg_exe(args: &[&str]) -> io::Result<()> {
     } else {
         Err(io::Error::other(format!("reg: {}", String::from_utf8_lossy(&out.stderr).trim())))
     }
+}
+
+/// `None` borra el valor de texto; con `Some` lo escribe.
+fn write_text(hive: Hive, path: &str, name: &str, v: Option<&str>) -> io::Result<()> {
+    match v {
+        Some(v) => hive.root().create_subkey(path)?.0.set_value(name, &v),
+        None => match hive.root().open_subkey_with_flags(path, KEY_SET_VALUE) {
+            Ok(k) => match k.delete_value(name) {
+                Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
+                _ => Ok(()),
+            },
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        },
+    }
+}
+
+fn export_task(path: &str, name: &str, backup: &Path) -> io::Result<()> {
+    if let Some(d) = backup.parent() {
+        fs::create_dir_all(d)?;
+    }
+    let script = format!("Export-ScheduledTask -TaskPath {} -TaskName {} | Out-File -LiteralPath {} -Encoding utf8", ps::quote(path), ps::quote(name), ps::quote(&backup.to_string_lossy()));
+    ps::run(&script).map(|_| ())
+}
+
+fn set_task(path: &str, name: &str, enable: bool) -> io::Result<()> {
+    let verb = if enable { "Enable" } else { "Disable" };
+    ps::run(&format!("{verb}-ScheduledTask -TaskPath {} -TaskName {} -ErrorAction Stop | Out-Null", ps::quote(path), ps::quote(name))).map(|_| ())
 }
 
 /// `None` borra el valor (el estado original si no existía).
