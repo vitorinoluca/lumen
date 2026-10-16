@@ -1,6 +1,6 @@
 [package]
 name = "lumen"
-version = "0.0.1"
+version = "0.3.1"
 edition = "2021"
 build = "build.rs"
 
@@ -10,3 +10,4 @@ slint = { version = "1", default-features = false, features = ["compat-1-18", "s
 
 [build-dependencies]
 slint-build = "1"
+winresource = "0.1.34"
