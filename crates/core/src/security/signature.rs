@@ -66,14 +66,22 @@ fn classify(status: &str, subject: &str) -> Sig {
     }
 }
 
-/// Firma de varios archivos en una sola consulta (cada llamada a PowerShell cuesta ~1 s).
-/// Las rutas viajan por un archivo temporal para no tener que escaparlas en el script.
+/// Firma de varios archivos. Cada consulta a PowerShell tiene un costo fijo y verificar es lento, así que
+/// se reparte en hasta 4 consultas simultáneas. Las rutas viajan por un archivo temporal para no escaparlas.
 pub fn signatures(paths: &[PathBuf]) -> HashMap<PathBuf, Sig> {
-    let mut out = HashMap::new();
     if paths.is_empty() {
-        return out;
+        return HashMap::new();
     }
-    let tmp = std::env::temp_dir().join(format!("lumen-paths-{}.txt", std::process::id()));
+    let chunk = paths.len().div_ceil(4).max(20);
+    std::thread::scope(|s| {
+        let jobs: Vec<_> = paths.chunks(chunk).enumerate().map(|(i, c)| s.spawn(move || signatures_chunk(c, i))).collect();
+        jobs.into_iter().flat_map(|j| j.join().unwrap_or_default()).collect()
+    })
+}
+
+fn signatures_chunk(paths: &[PathBuf], id: usize) -> HashMap<PathBuf, Sig> {
+    let mut out = HashMap::new();
+    let tmp = std::env::temp_dir().join(format!("lumen-paths-{}-{id}.txt", std::process::id()));
     let list: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
     if fs::write(&tmp, list.join("\n")).is_err() {
         return out;

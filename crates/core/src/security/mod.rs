@@ -134,7 +134,15 @@ pub fn scan() -> ScanResult {
 
     // 1. Persistencia, con hash y firma. La firma solo se pide de lo que no está ya en la línea base.
     result.entries = entries.len();
-    let hashed: Vec<(Entry, String)> = entries.into_iter().map(|e| { let sha = e.target.as_deref().and_then(signature::sha256).unwrap_or_default(); (e, sha) }).collect();
+    // Muchos servicios comparten el mismo ejecutable (svchost.exe): se calcula una vez por archivo.
+    let mut hashes: HashMap<PathBuf, String> = HashMap::new();
+    let hashed: Vec<(Entry, String)> = entries
+        .into_iter()
+        .map(|e| {
+            let sha = e.target.as_ref().map(|t| hashes.entry(t.clone()).or_insert_with(|| signature::sha256(t).unwrap_or_default()).clone()).unwrap_or_default();
+            (e, sha)
+        })
+        .collect();
     let needs_sig = |e: &Entry, sha: &str| base.entries.get(&e.key).is_none_or(|old| old.sha256 != sha || old.command != e.command);
     let mut to_verify: Vec<PathBuf> = hashed.iter().filter(|(e, sha)| needs_sig(e, sha)).filter_map(|(e, _)| e.target.clone()).collect();
 
