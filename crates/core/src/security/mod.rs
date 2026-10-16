@@ -7,6 +7,7 @@
 use crate::actions::Hive;
 use crate::startup::Source;
 
+pub mod analyze;
 pub mod collect;
 pub mod signature;
 
