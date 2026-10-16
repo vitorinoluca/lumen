@@ -6,8 +6,7 @@ build = "build.rs"
 
 [dependencies]
 lumen-core = { path = "../core" }
-slint = { version = "1", default-features = false, features = ["compat-1-18", "unstable-winit-030", "std", "backend-winit", "renderer-software"] }
-windows-sys = { version = "0.61.2", features = ["Win32_Graphics_Dwm", "Win32_Foundation", "Win32_UI_Controls"] }
+slint = { version = "1", default-features = false, features = ["compat-1-18", "std", "backend-winit", "renderer-software"] }
 
 [build-dependencies]
 slint-build = "1"

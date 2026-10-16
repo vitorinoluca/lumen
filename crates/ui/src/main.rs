@@ -16,28 +16,6 @@ fn gb(b: u64) -> String {
     format!("{:.1} GB", b as f64 / 1e9)
 }
 
-/// Pide a Windows 11 el material Acrylic detrás de la ventana. false si no está disponible.
-fn enable_mica(ui: &Main) -> bool {
-    use slint::winit_030::{winit::raw_window_handle::{HasWindowHandle, RawWindowHandle}, WinitWindowAccessor};
-    use windows_sys::Win32::{
-        Graphics::Dwm::{DwmExtendFrameIntoClientArea, DwmSetWindowAttribute},
-        UI::Controls::MARGINS,
-    };
-    let hwnd = ui.window().with_winit_window(|w| match w.window_handle().map(|h| h.as_raw()) {
-        Ok(RawWindowHandle::Win32(h)) => Some(h.hwnd.get() as *mut core::ffi::c_void),
-        _ => None,
-    });
-    let Some(Some(hwnd)) = hwnd else { return false };
-    let (dark, backdrop): (i32, i32) = (ui.global::<Theme>().get_dark().into(), 3); // 3 = Acrylic (2 = Mica, más sutil)
-    let m = MARGINS { cxLeftWidth: -1, cxRightWidth: -1, cyTopHeight: -1, cyBottomHeight: -1 };
-    // SAFETY: hwnd es la ventana viva de esta app; los punteros apuntan a locales válidos.
-    unsafe {
-        DwmSetWindowAttribute(hwnd, 20, &dark as *const i32 as _, 4); // DWMWA_USE_IMMERSIVE_DARK_MODE
-        DwmExtendFrameIntoClientArea(hwnd, &m);
-        DwmSetWindowAttribute(hwnd, 38, &backdrop as *const i32 as _, 4) == 0 // DWMWA_SYSTEMBACKDROP_TYPE
-    }
-}
-
 fn mb(b: u64) -> String {
     format!("{} MB", b / 1_048_576)
 }
@@ -279,25 +257,6 @@ fn main() {
         move |pid| {
             procs.borrow_mut().kill(pid as u32);
             refresh();
-        }
-    });
-    // La transparencia se decide al crear la ventana: se pide antes de mostrarla y se revierte si falla.
-    // La ventana nativa recién existe con el bucle de eventos andando, por eso el aplicar va en un timer.
-    ui.global::<Theme>().set_mica(true);
-    let weak = ui.as_weak();
-    let tries = Cell::new(0);
-    let backdrop_timer = Timer::default();
-    backdrop_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
-        let Some(ui) = weak.upgrade() else { return };
-        if tries.get() >= 100 {
-            return; // ya resuelto
-        }
-        tries.set(tries.get() + 1);
-        if enable_mica(&ui) {
-            tries.set(100); // listo
-        } else if tries.get() >= 20 {
-            ui.global::<Theme>().set_mica(false); // Windows 10 u otro: fondo sólido
-            tries.set(100);
         }
     });
     ui.run().unwrap();
