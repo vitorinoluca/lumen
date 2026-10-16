@@ -7,12 +7,12 @@ export struct DiskRow { name: string, size: string }
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
 export global Theme {
     out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
-    out property <color> bg: dark ? #1c1c1e : #f7f7f8;
-    out property <color> side: dark ? #232326 : #eeeef0;
-    out property <color> line: dark ? #38383c : #dcdce0;
+    out property <color> bg: dark ? #101012 : #f7f7f8;
+    out property <color> side: dark ? #161618 : #eeeef0;
+    out property <color> line: dark ? #26262a : #dcdce0;
     out property <color> text: dark ? #ececee : #1d1d1f;
     out property <color> muted: dark ? #9a9aa0 : #6b6b72;
-    out property <color> hover: dark ? #2c2c30 : #e4e4e8;
+    out property <color> hover: dark ? #1f1f23 : #e4e4e8;
     out property <color> accent: dark ? #4fb39d : #2a7a68;
     out property <color> danger: dark ? #e5736a : #b3261e;
     out property <length> radius: 4px;
