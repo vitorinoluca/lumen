@@ -16,7 +16,7 @@ pub struct Icon {
 }
 
 /// Reemplaza `%VAR%` por el valor de la variable de entorno.
-fn expand(s: &str) -> String {
+pub(crate) fn expand(s: &str) -> String {
     let mut out = String::new();
     let mut parts = s.split('%');
     out.push_str(parts.next().unwrap_or(""));
