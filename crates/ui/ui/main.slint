@@ -1,0 +1,32 @@
+import { Button } from "std-widgets.slint";
+
+export component Main inherits Window {
+    title: "lumen";
+    preferred-width: 900px;
+    preferred-height: 600px;
+    property <int> page: 0;
+    property <[string]> pages: ["Monitor", "Procesos", "Inicio", "Disco", "Seguridad"];
+
+    HorizontalLayout {
+        Rectangle {
+            width: 160px;
+            background: #1e1e24;
+            VerticalLayout {
+                padding: 8px;
+                spacing: 4px;
+                alignment: start;
+                for name[i] in pages: Button {
+                    text: name;
+                    primary: i == page;
+                    clicked => { page = i; }
+                }
+            }
+        }
+        Text {
+            text: pages[page];
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 24px;
+        }
+    }
+}

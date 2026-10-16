@@ -1,0 +1,12 @@
+[package]
+name = "lumen"
+version = "0.0.1"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+lumen-core = { path = "../core" }
+slint = { version = "1", default-features = false, features = ["compat-1-18", "std", "backend-winit", "renderer-software"] }
+
+[build-dependencies]
+slint-build = "1"
