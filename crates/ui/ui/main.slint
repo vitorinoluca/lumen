@@ -652,6 +652,9 @@ component Metric inherits Rectangle {
     in property <string> caption;
     in property <float> fraction: -1;
     height: 120px;
+    // Todas las tarjetas de una fila miden lo mismo, sea cual sea el texto que lleven.
+    preferred-width: 0px;
+    horizontal-stretch: 1;
     background: Theme.raised;
     border-radius: 10px;
     VerticalLayout {
@@ -783,6 +786,13 @@ export component Main inherits Window {
     in property <bool> disk-loading;
     in property <bool> disk-nothing;
     in property <[CleanRow]> disk-items;
+    // Inicio: estado de la PC, análisis y presets. 0 = sin analizar, 1 = analizando, 2 = listo, 3 = aplicado.
+    in-out property <int> home-state: 0;
+    in property <string> home-free;
+    in property <int> home-startup;
+    in-out property <int> home-preset: 1;
+    in property <int> home-count;
+    in property <string> home-desc;
     in-out property <int> disk-tab: 0;
     in property <[DupRow]> dup-rows;
     in property <string> dup-total;
@@ -836,6 +846,10 @@ export component Main inherits Window {
     callback behavior-ready();
     callback finding-do(int, int);
     callback apps-reload();
+    callback home-analyze();
+    callback home-ready();
+    callback home-select(int);
+    callback home-apply();
     callback dup-scan();
     callback dup-found();
     callback dup-clean();
@@ -885,7 +899,7 @@ export component Main inherits Window {
                     Rectangle { width: 8px; VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.accent; } } }
                     Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
                 }
-                NavItem { text: @tr("" => "Panel"); icon: "home"; active: page == 0; clicked => { page = 0; } }
+                NavItem { text: @tr("" => "Inicio"); icon: "home"; active: page == 0; clicked => { page = 0; } }
                 NavItem { text: @tr("" => "Limpieza"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
                 NavItem { text: @tr("" => "Rendimiento"); icon: "bolt"; active: page == 10; clicked => { sc-result = ""; page = 10; } }
                 NavItem { text: @tr("" => "Privacidad"); icon: "eye"; active: page == 11; clicked => { sc-result = ""; page = 11; } }
@@ -915,17 +929,69 @@ export component Main inherits Window {
                 if page == 0: Page {
                     width: parent.width;
                     height: parent.height;
-                    Head { title: @tr("" => "Panel"); sub: @tr("" => "Resumen de tu equipo. Se actualiza cada segundo."); }
+                    Head { title: @tr("" => "Inicio"); sub: @tr("" => "El estado de tu PC de un vistazo. La memoria se actualiza sola."); }
                     Scroll {
                         vertical-stretch: 1;
-                        content-h: 484px + disks.length * 64px;
+                        content-h: 778px + disks.length * 64px;
                         VerticalLayout {
                             alignment: start;
+                            // Estado de la PC y el análisis: tres cifras, el botón Analizar y los presets.
+                            HorizontalLayout {
+                                spacing: 12px;
+                                height: 120px;
+                                Metric { label: @tr("" => "Se puede liberar"); value: home-state >= 2 ? home-free : "—"; caption: home-state >= 2 ? @tr("" => "Temporales, cachés y restos") : @tr("" => "Analizá para saberlo"); }
+                                Metric { label: @tr("" => "Apps al iniciar"); value: home-state >= 2 ? "\{home-startup}" : "—"; caption: home-state >= 2 ? @tr("" => "arrancan con Windows") : @tr("" => "Analizá para saberlo"); }
+                                Metric { label: @tr("" => "Memoria en uso"); value: "\{Math.round(ram * 100)} %"; caption: ram-text; fraction: ram; }
+                            }
+                            Rectangle { height: 16px; }
+                            Rectangle {
+                                height: 134px;
+                                if home-state == 0: HorizontalLayout {
+                                    spacing: 16px;
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        alignment: center;
+                                        spacing: 2px;
+                                        Text { text: @tr("" => "Analizá tu PC"); font-size: 14px; color: Theme.text; }
+                                        Text { text: @tr("" => "Revisa qué se puede liberar y mejorar. No cambia nada hasta que lo confirmes."); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                                    }
+                                    VerticalLayout { alignment: center; horizontal-stretch: 0; Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Analizar"); clicked => { home-analyze(); } } }
+                                }
+                                if home-state == 1: VerticalLayout {
+                                    alignment: center;
+                                    spacing: 10px;
+                                    Text { text: @tr("" => "Analizando tu PC…"); font-size: 14px; color: Theme.muted; horizontal-alignment: center; }
+                                    HorizontalLayout { alignment: center; Busy { width: 260px; } }
+                                }
+                                if home-state == 2: VerticalLayout {
+                                    spacing: 10px;
+                                    HorizontalLayout { alignment: start; Segmented { options: [@tr("" => "Mínimo"), @tr("" => "Recomendado"), @tr("" => "Avanzado")]; current: home-preset; picked(i) => { home-preset = i; home-select(i); } } }
+                                    Text { height: 32px; text: I18n.t(home-desc); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+                                    HorizontalLayout {
+                                        spacing: 16px;
+                                        Text {
+                                            horizontal-stretch: 1;
+                                            text: home-count == 0 ? @tr("" => "No hay nada pendiente en este nivel.") : (home-count == 1 ? @tr("" => "1 ajuste. Antes de aplicar te mostramos qué se va a hacer.") : @tr("" => "{} ajustes. Antes de aplicar te mostramos qué se va a hacer.", home-count));
+                                            font-size: 12px;
+                                            color: Theme.muted;
+                                            wrap: word-wrap;
+                                            vertical-alignment: center;
+                                        }
+                                        Btn { height: 38px; pad: 28px; font: 14px; strong: true; enabled: home-count > 0 && !sc-busy; text: @tr("" => "Optimizar"); clicked => { home-apply(); } }
+                                    }
+                                }
+                                if home-state == 3: VerticalLayout {
+                                    alignment: center;
+                                    spacing: 12px;
+                                    Text { text: I18n.t(sc-result); font-size: 14px; color: Theme.accent; wrap: word-wrap; }
+                                    HorizontalLayout { alignment: start; Btn { text: @tr("" => "Analizar de nuevo"); clicked => { home-analyze(); } } }
+                                }
+                            }
+                            Rectangle { height: 28px; }
                             HorizontalLayout {
                                 spacing: 12px;
                                 height: 120px;
                                 Metric { label: @tr("" => "Procesador"); value: "\{Math.round(cpu * 100)} %"; caption: hw.cpu; fraction: cpu; }
-                                Metric { label: @tr("" => "Memoria"); value: "\{Math.round(ram * 100)} %"; caption: @tr("" => "{} en uso", ram-text); fraction: ram; }
                                 Metric { label: @tr("" => "Gráficos"); value: gpu >= 0 ? "\{Math.round(gpu * 100)} %" : "—"; caption: hw.gpu; fraction: gpu; }
                             }
                             Rectangle { height: 28px; }

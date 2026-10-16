@@ -5,7 +5,7 @@ use crate::{exe_icon, fetch_icons, ExeIcons, HistRow, Main, OptionRow, PreviewRo
 use lumen_core::{
     actions::Journal,
     plan::{self, Item},
-    network, performance, privacy, repair, restore, updates,
+    disk, network, performance, presets::{self, Preset}, privacy, repair, restore, startup, updates,
 };
 use slint::{ComponentHandle, ModelRc, VecModel};
 use std::{cell::{Cell, RefCell}, rc::Rc, sync::{Arc, Mutex}, thread};
@@ -22,6 +22,15 @@ const HISTORY: i32 = 15;
 /// Alto de una opción y de un título de grupo (tiene que coincidir con main.slint).
 const ROW_H: f32 = 66.0;
 const HEADER_H: f32 = 44.0;
+
+/// Lo que reunió el análisis de Inicio: espacio liberable, apps de inicio y las opciones de cada sección.
+struct Home {
+    free: u64,
+    startup: usize,
+    privacy: Vec<Item>,
+    performance: Vec<Item>,
+    network: Vec<Item>,
+}
 
 /// Opciones leídas por un hilo: (sección, opciones). Vacío mientras no llegó nada.
 type Loaded = Option<(i32, Vec<Item>)>;
@@ -42,11 +51,46 @@ struct State {
     /// Lo que se está aplicando, y lo que pasó (lo deja el hilo que ejecuta).
     running: RefCell<Vec<Item>>,
     runs: Arc<Mutex<(Vec<plan::Run>, String)>>,
+    /// Resultado del análisis de Inicio (lo deja el hilo) y lo que la pantalla guarda para armar presets.
+    analysed: Arc<Mutex<Option<Home>>>,
+    home: RefCell<Option<Home>>,
 }
 
 /// Título, explicación y texto del botón principal de cada sección.
+/// Marca en la pantalla lo que elige el preset y lo deja listo para la vista previa.
+fn select_preset(ui: &Main, st: &State, index: i32) {
+    let home = st.home.borrow();
+    let Some(h) = home.as_ref() else { return };
+    let preset = Preset::from_index(index);
+    let items = presets::select(preset, &h.privacy, &h.performance, &h.network);
+    ui.set_home_count(items.len() as i32);
+    ui.set_home_desc(
+        match preset {
+            Preset::Minimal => "Solo privacidad: menos publicidad y menos datos enviados a Microsoft. Es lo más suave.",
+            Preset::Recommended => "Privacidad, servicios que casi nadie usa y la caché de DNS. Todo lo que está en verde.",
+            Preset::Advanced => "Lo recomendado más efectos visuales, segundo plano y servicios que dependen de tu uso. Se puede deshacer, pero cambia cómo se ve y se comporta la PC.",
+        }
+        .into(),
+    );
+    *st.checked.borrow_mut() = vec![true; items.len()];
+    *st.items.borrow_mut() = items;
+    st.section.set(0);
+    ui.set_sc_button("Optimizar".into());
+}
+
+/// Termina el análisis de Inicio: muestra las cifras y deja marcado el preset elegido.
+fn analysed(ui: &Main, st: &State) {
+    let Some(h) = st.analysed.lock().unwrap().take() else { return };
+    ui.set_home_free(crate::size(h.free).into());
+    ui.set_home_startup(h.startup as i32);
+    *st.home.borrow_mut() = Some(h);
+    select_preset(ui, st, ui.get_home_preset());
+    ui.set_home_state(2);
+}
+
 fn meta(section: i32) -> (&'static str, &'static str, &'static str) {
     match section {
+        0 => ("Inicio", "", "Optimizar"),
         10 => ("Rendimiento", "Que la PC arranque y responda más rápido: inicio, servicios, energía, efectos y segundo plano.", "Optimizar"),
         12 => ("Red", "Arreglá problemas de conexión y elegí qué servidor DNS usar.", "Optimizar"),
         13 => ("Reparación", "Revisá y reparás Windows cuando algo anda mal. Son tareas largas: no cierres lumen mientras corren.", "Reparar"),
@@ -215,7 +259,12 @@ fn finish(ui: &Main, st: &State) {
         msg += &format!(" No se pudo \"{title}\": {why}");
     }
     msg += &restore_note;
-    load(ui, st, st.section.get());
+    if st.section.get() == 0 {
+        st.items.borrow_mut().clear();
+        ui.set_home_state(3);
+    } else {
+        load(ui, st, st.section.get());
+    }
     ui.set_sc_result(msg.into());
     ui.set_sc_busy(false);
 }
@@ -239,7 +288,7 @@ fn load_history(ui: &Main, journal: &Journal) {
 
 /// Conecta las pantallas con opciones y el Historial. Devuelve lo que hay que llamar al abrir una página.
 pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenPage, Redraw) {
-    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone(), apps: Arc::default(), icons, loaded: Arc::default(), running: RefCell::default(), runs: Arc::default() });
+    let st = Rc::new(State { section: Cell::new(0), items: RefCell::default(), checked: RefCell::default(), restore_tried: Cell::new(false), journal: journal.clone(), apps: Arc::default(), icons, loaded: Arc::default(), running: RefCell::default(), runs: Arc::default(), analysed: Arc::default(), home: RefCell::default() });
     {
         let apps = st.apps.clone();
         thread::spawn(move || *apps.lock().unwrap() = privacy::installed_apps());
@@ -315,6 +364,45 @@ pub fn wire(ui: &Main, journal: Rc<RefCell<Journal>>, icons: ExeIcons) -> (OpenP
         move || {
             if let Some(ui) = weak.upgrade() {
                 loaded(&ui, &st);
+            }
+        }
+    });
+    ui.on_home_analyze({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            ui.set_home_state(1);
+            ui.set_sc_result("".into());
+            let (weak, out) = (weak.clone(), st.analysed.clone());
+            thread::spawn(move || {
+                let free = disk::targets().iter().map(|t| disk::dir_size(&t.path)).sum();
+                let startup = startup::list().iter().filter(|e| e.enabled).count();
+                *out.lock().unwrap() = Some(Home { free, startup, privacy: privacy::items(), performance: performance::items(), network: network::items() });
+                let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_home_ready());
+            });
+        }
+    });
+    ui.on_home_ready({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                analysed(&ui, &st);
+            }
+        }
+    });
+    ui.on_home_select({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move |i| {
+            if let Some(ui) = weak.upgrade() {
+                select_preset(&ui, &st, i);
+            }
+        }
+    });
+    ui.on_home_apply({
+        let (weak, st) = (ui.as_weak(), st.clone());
+        move || {
+            if let Some(ui) = weak.upgrade() {
+                preview(&ui, &st);
             }
         }
     });

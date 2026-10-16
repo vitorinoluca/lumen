@@ -1290,3 +1290,63 @@ msgstr "The check couldn't be completed."
 
 msgid "Revisando…"
 msgstr "Checking…"
+
+msgid "Inicio"
+msgstr "Home"
+
+msgid "El estado de tu PC de un vistazo. La memoria se actualiza sola."
+msgstr "Your PC's status at a glance. Memory updates on its own."
+
+msgid "Analizá para saberlo"
+msgstr "Analyze to find out"
+
+msgid "Temporales, cachés y restos"
+msgstr "Temporary files, caches and leftovers"
+
+msgid "Apps al iniciar"
+msgstr "Startup apps"
+
+msgid "arrancan con Windows"
+msgstr "start with Windows"
+
+msgid "Memoria en uso"
+msgstr "Memory in use"
+
+msgid "Analizá tu PC"
+msgstr "Analyze your PC"
+
+msgid "Revisa qué se puede liberar y mejorar. No cambia nada hasta que lo confirmes."
+msgstr "Checks what can be freed and improved. Nothing changes until you confirm."
+
+msgid "Analizando tu PC…"
+msgstr "Analyzing your PC…"
+
+msgid "Mínimo"
+msgstr "Minimal"
+
+msgid "Recomendado"
+msgstr "Recommended"
+
+msgid "Avanzado"
+msgstr "Advanced"
+
+msgid "No hay nada pendiente en este nivel."
+msgstr "Nothing is pending at this level."
+
+msgid "1 ajuste. Antes de aplicar te mostramos qué se va a hacer."
+msgstr "1 setting. Before applying we show you what will be done."
+
+msgid "{} ajustes. Antes de aplicar te mostramos qué se va a hacer."
+msgstr "{} settings. Before applying we show you what will be done."
+
+msgid "Analizar de nuevo"
+msgstr "Analyze again"
+
+msgid "Solo privacidad: menos publicidad y menos datos enviados a Microsoft. Es lo más suave."
+msgstr "Privacy only: fewer ads and less data sent to Microsoft. The gentlest level."
+
+msgid "Privacidad, servicios que casi nadie usa y la caché de DNS. Todo lo que está en verde."
+msgstr "Privacy, services almost nobody uses and the DNS cache. Everything marked green."
+
+msgid "Lo recomendado más efectos visuales, segundo plano y servicios que dependen de tu uso. Se puede deshacer, pero cambia cómo se ve y se comporta la PC."
+msgstr "The recommended plus visual effects, background apps and services that depend on how you use the PC. It can be undone, but it changes how the PC looks and behaves."
