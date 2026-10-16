@@ -315,18 +315,26 @@ component FindingCard inherits Rectangle {
 }
 
 // Botón circular de la revisión: grande y centrado al principio, chico cuando ya hay resultados.
+// Mientras analiza gira un arco y dice qué está haciendo.
 component ScanButton inherits Rectangle {
     in property <length> size: 220px;
     in property <bool> busy: false;
     in property <bool> compact: false;
+    in property <string> progress;
     callback clicked;
+    property <angle> spin;
     width: size;
     height: size;
     border-radius: size / 2;
     border-width: compact ? 2px : 3px;
     border-color: Theme.accent;
     background: busy ? Theme.card : (ta.has-hover ? Theme.accent.with-alpha(0.14) : Theme.card);
-    // Arco que gira mientras se analiza, para saber que sigue trabajando.
+    // La rotación la mueve un temporizador: sigue girando todo el tiempo que dure el análisis.
+    Timer {
+        interval: 40ms;
+        running: root.busy;
+        triggered => { root.spin += 14deg; }
+    }
     Path {
         visible: root.busy;
         width: root.size - 12px;
@@ -335,20 +343,31 @@ component ScanButton inherits Rectangle {
         y: 6px;
         viewbox-width: 100;
         viewbox-height: 100;
-        commands: "M 50 2 A 48 48 0 0 1 98 50";
+        commands: "M 50 2 A 48 48 0 0 1 91.6 74";
         stroke: Theme.accent;
         stroke-width: 4px;
         stroke-line-cap: round;
-        transform-rotation: root.busy ? 360deg : 0deg;
-        animate transform-rotation { duration: 1.2s; iteration-count: -1; easing: linear; }
+        transform-rotation: root.spin;
     }
-    Text {
-        text: root.busy ? "Analizando…" : "Analizar";
-        font-size: root.compact ? 12px : 28px;
-        font-weight: 600;
-        color: Theme.accent;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    VerticalLayout {
+        alignment: center;
+        padding-left: root.compact ? 8px : 32px;
+        padding-right: root.compact ? 8px : 32px;
+        spacing: 8px;
+        Text {
+            text: root.busy ? "Analizando" : "Analizar";
+            font-size: root.compact ? 12px : (root.busy ? 20px : 28px);
+            font-weight: 600;
+            color: Theme.accent;
+            horizontal-alignment: center;
+        }
+        if root.busy && !root.compact: Text {
+            text: root.progress;
+            font-size: 12px;
+            color: Theme.muted;
+            horizontal-alignment: center;
+            wrap: word-wrap;
+        }
     }
     ta := TouchArea { mouse-cursor: root.busy ? MouseCursor.default : MouseCursor.pointer; clicked => { root.clicked(); } }
 }
@@ -501,6 +520,7 @@ export component Main inherits Window {
     in property <length> findings-h;
     in-out property <bool> behavior-run;
     in-out property <bool> behavior-busy;
+    in-out property <string> progress;
     in-out property <int> sec-confirm: -1;
     in-out property <int> sec-confirm-action;
     in-out property <string> sec-status;
@@ -795,14 +815,13 @@ export component Main inherits Window {
                 spacing: 20px;
                 HorizontalLayout {
                     alignment: center;
-                    ScanButton { size: 220px; busy: behavior-busy; clicked => { if (!behavior-busy) { scan-behavior(); } } }
+                    ScanButton { size: 220px; busy: behavior-busy; progress: progress; clicked => { if (!behavior-busy) { scan-behavior(); } } }
                 }
-                Text {
-                    text: behavior-busy ? sec-status : "Toca para revisar tu PC. Tarda unos segundos.";
+                if !behavior-busy: Text {
+                    text: "Toca para revisar tu PC. Tarda unos segundos.";
                     font-size: 12px;
                     color: Theme.muted;
                     horizontal-alignment: center;
-                    wrap: word-wrap;
                 }
             }
 
@@ -817,7 +836,7 @@ export component Main inherits Window {
                         alignment: center;
                         spacing: 4px;
                         Text {
-                            text: behavior-busy ? "Analizando…" : (findings.length == 0 ? "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia." : (findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar"));
+                            text: behavior-busy ? progress : (findings.length == 0 ? "No encontré nada nuevo ni sospechoso en esta revisión. Eso no garantiza que la PC esté limpia." : (findings.length == 1 ? "Encontré 1 cosa para revisar" : "Encontré \{findings.length} cosas para revisar"));
                             font-size: 14px;
                             color: Theme.text;
                             wrap: word-wrap;

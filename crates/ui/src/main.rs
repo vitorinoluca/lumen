@@ -554,12 +554,24 @@ fn main() {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             ui.set_behavior_busy(true);
-            ui.set_sec_status("Revisando tu PC: lo que arranca solo, las conexiones, los procesos y los drivers. La primera vez puede tardar casi medio minuto…".into());
+            ui.set_sec_status("".into());
+            ui.set_progress("Preparando la revisión".into());
             let (weak, shared) = (weak.clone(), shared.clone());
             thread::spawn(move || {
+                // Cada etapa del análisis avisa qué está haciendo, con una frase corta.
+                let report = {
+                    let weak = weak.clone();
+                    move |msg: &str| {
+                        let msg = msg.to_string();
+                        let _ = weak.upgrade_in_event_loop(move |ui| ui.set_progress(msg.into()));
+                    }
+                };
                 // La lista de drivers peligrosos se renueva sola (como mucho una vez por semana).
+                if hashdb::is_stale() {
+                    report("Actualizando la lista de drivers peligrosos");
+                }
                 let refreshed = hashdb::ensure_fresh();
-                let mut result = security::scan();
+                let mut result = security::scan_with(&report);
                 match refreshed {
                     Ok(true) => result.notes.insert(0, "Actualicé la lista de drivers peligrosos.".into()),
                     Err(_) if hashdb::Db::load().is_some() => result.notes.insert(0, "No pude conectarme para actualizar la lista de drivers peligrosos; usé la que ya tenía.".into()),
