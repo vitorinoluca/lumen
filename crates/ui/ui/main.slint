@@ -1,4 +1,4 @@
-import { Palette, ListView } from "std-widgets.slint";
+import { Palette } from "std-widgets.slint";
 
 export struct Row { pid: int, name: string, cpu: string, mem: string, path: string }
 export struct StartupRow { name: string, command: string, scope: string, enabled: bool }
@@ -155,6 +155,24 @@ component Search inherits Rectangle {
     }
 }
 
+// Lista con scroll de rueda y una barra mínima: solo el indicador, sin pista ni fondo.
+component Scroll inherits Rectangle {
+    clip: true;
+    fl := Flickable {
+        interactive: false;
+        @children
+    }
+    Rectangle {
+        visible: fl.content-height > fl.height;
+        x: parent.width - 5px;
+        width: 3px;
+        border-radius: 2px;
+        background: Theme.muted.with-alpha(0.5);
+        height: max(24px, fl.height * fl.height / max(1px, fl.content-height));
+        y: -fl.content-y / max(1px, fl.content-height - fl.height) * (fl.height - self.height);
+    }
+}
+
 component Sep inherits Rectangle {
     height: 13px;
     Rectangle { y: 6px; height: 1px; background: Theme.line; }
@@ -209,22 +227,26 @@ component Card inherits Rectangle {
 }
 
 // Tarjetas en dos columnas, con scroll.
-component CardGrid inherits Flickable {
+component CardGrid inherits Rectangle {
     in property <[ServiceRow]> items;
     callback toggled(int, bool);
-    content-height: Math.ceil(items.length / 2) * 150px;
-    for e[i] in items: Card {
-        x: Math.mod(i, 2) * (root.width / 2);
-        y: Math.floor(i / 2) * 150px;
-        width: root.width / 2 - 8px;
-        height: 140px;
-        title: e.title;
-        desc: e.desc;
-        level: e.level;
-        tag: e.tag;
-        checked: e.enabled;
-        locked: e.locked;
-        toggled(on) => { root.toggled(i, on); }
+    Scroll {
+        Rectangle {
+            height: Math.ceil(items.length / 2) * 150px;
+            for e[i] in items: Card {
+                x: Math.mod(i, 2) * (parent.width / 2);
+                y: Math.floor(i / 2) * 150px;
+                width: parent.width / 2 - 8px;
+                height: 140px;
+                title: e.title;
+                desc: e.desc;
+                level: e.level;
+                tag: e.tag;
+                checked: e.enabled;
+                locked: e.locked;
+                toggled(on) => { root.toggled(i, on); }
+            }
+        }
     }
 }
 
@@ -403,7 +425,10 @@ export component Main inherits Window {
                     Btn { text: "Cancelar"; clicked => { kill-pid = -1; } }
                 }
             }
-            ListView {
+            Scroll {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
                 for p in procs: Rectangle {
                     height: 28px;
                     background: ta.has-hover ? Theme.hover : transparent;
@@ -419,6 +444,7 @@ export component Main inherits Window {
                     }
                 }
             }
+            }
         }
 
         if page == 2: VerticalLayout {
@@ -426,7 +452,10 @@ export component Main inherits Window {
             spacing: 12px;
             Head { title: "\{startup.length} apps arrancan con Windows"; sub: "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."; }
             if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
-            ListView {
+            Scroll {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
                 for e[i] in startup: Rectangle {
                     height: 36px;
                     Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
@@ -439,6 +468,7 @@ export component Main inherits Window {
                         Text { text: e.command; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
                     }
                 }
+            }
             }
         }
 
@@ -470,13 +500,17 @@ export component Main inherits Window {
                 Text { text: "Qué ocupa más en tu usuario"; font-size: 14px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; }
                 Btn { text: "Analizar"; clicked => { scan-map(); } }
             }
-            ListView {
+            Scroll {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
                 for m in space-map: HorizontalLayout {
                     spacing: 12px;
                     height: 24px;
                     Text { text: m.size; width: 80px; font-size: 12px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                     Text { text: m.name; font-size: 12px; color: Theme.muted; overflow: elide; vertical-alignment: center; }
                 }
+            }
             }
         }
 
@@ -537,7 +571,10 @@ export component Main inherits Window {
                 }
             }
             if can-undo-leftovers: Btn { text: "Deshacer limpieza de restos"; clicked => { undo-leftovers(); } }
-            ListView {
+            Scroll {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
                 for a[i] in apps: Rectangle {
                     height: 40px;
                     background: app-ta.has-hover ? Theme.hover : transparent;
@@ -567,6 +604,7 @@ export component Main inherits Window {
                         un-btn := Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } }
                     }
                 }
+            }
             }
         }
 
