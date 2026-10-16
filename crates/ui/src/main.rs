@@ -5,11 +5,11 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    defender, hardware, hashdb, icons, security, power, privacy, profiles, restore, services,
+    config::Config, defender, hardware, hashdb, icons, security, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
-use std::{cell::{Cell, RefCell}, collections::HashMap, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
+use std::{cell::{Cell, RefCell}, collections::HashMap, sync::atomic::{AtomicU64, Ordering}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
 slint::include_modules!();
 
@@ -63,6 +63,26 @@ fn service_msg(res: std::io::Result<()>, warn: &str) -> String {
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => "Necesitás abrir lumen como administrador para cambiar servicios.".into(),
         Err(e) => format!("No se pudo: {e}"),
     }
+}
+
+/// Pone el tema (0 = como Windows, 1 = claro, 2 = oscuro) en la app y en la barra de título.
+fn apply_theme(ui: &Main, mode: i32) {
+    use slint::winit_030::{winit::window::Theme as WinTheme, WinitWindowAccessor};
+    ui.global::<Theme>().set_mode(mode);
+    let t = match mode {
+        1 => Some(WinTheme::Light),
+        2 => Some(WinTheme::Dark),
+        _ => None, // None = que la barra siga a Windows
+    };
+    ui.window().with_winit_window(|w| w.set_theme(t));
+}
+
+fn theme_index(name: &str) -> i32 {
+    ["auto", "light", "dark"].iter().position(|t| *t == name).unwrap_or(0) as i32
+}
+
+fn refresh_index(secs: u64) -> i32 {
+    lumen_core::config::REFRESH_CHOICES.iter().position(|s| *s == secs).unwrap_or(0) as i32
 }
 
 /// Actualiza el modelo fila por fila sin recrearlo: las filas que ya existen conservan su estado
@@ -252,14 +272,30 @@ fn show(ui: &Main, s: &Snapshot) {
 
 fn main() {
     let ui = Main::new().unwrap();
+    let cfg = Config::load();
+    ui.set_app_version(env!("CARGO_PKG_VERSION").into());
+    ui.set_cfg_theme(theme_index(&cfg.theme));
+    ui.set_cfg_refresh(refresh_index(cfg.refresh_secs));
+    ui.global::<Theme>().set_mode(theme_index(&cfg.theme));
+    // La ventana recién existe con el bucle de eventos andando: el tema de la barra se aplica un instante después.
+    {
+        let (weak, mode) = (ui.as_weak(), theme_index(&cfg.theme));
+        Timer::single_shot(Duration::from_millis(300), move || {
+            if let Some(ui) = weak.upgrade() {
+                apply_theme(&ui, mode);
+            }
+        });
+    }
     load_hardware(ui.as_weak());
 
     // Monitor: lectura en hilo aparte, la UI nunca se bloquea.
     let weak = ui.as_weak();
+    let interval = Arc::new(AtomicU64::new(cfg.refresh_secs));
+    let monitor_interval = interval.clone();
     thread::spawn(move || {
         let mut mon = Monitor::new();
         loop {
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_secs(monitor_interval.load(Ordering::Relaxed)));
             let snap = mon.sample();
             if weak.upgrade_in_event_loop(move |ui| show(&ui, &snap)).is_err() {
                 break; // ventana cerrada
@@ -871,6 +907,22 @@ fn main() {
             }
             ui.set_status(recommended_summary(applied, need_admin, &warn).into());
             reload_svc();
+        }
+    });
+
+    // Configuración: se guarda en cada cambio y se aplica al instante.
+    ui.on_config_changed({
+        let (weak, interval) = (ui.as_weak(), interval.clone());
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let cfg = Config {
+                theme: ["auto", "light", "dark"][ui.get_cfg_theme().clamp(0, 2) as usize].into(),
+                refresh_secs: lumen_core::config::REFRESH_CHOICES[ui.get_cfg_refresh().clamp(0, 2) as usize],
+                language: Config::load().language,
+            };
+            let _ = cfg.save();
+            interval.store(cfg.refresh_secs, Ordering::Relaxed);
+            apply_theme(&ui, theme_index(&cfg.theme));
         }
     });
 

@@ -13,7 +13,9 @@ export struct DiskRow { name: string, size: string }
 
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
 export global Theme {
-    out property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    // 0 = como Windows, 1 = claro, 2 = oscuro
+    in-out property <int> mode: 0;
+    out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
     out property <color> bg: dark ? #101012 : #f7f7f8;
     out property <color> side: dark ? #161618 : #eeeef0;
     out property <color> line: dark ? #26262a : #dcdce0;
@@ -388,6 +390,51 @@ component TextLink inherits Rectangle {
     ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
+// Elegir una opción entre pocas: una fila de botones pegados.
+component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current;
+    callback picked(int);
+    height: 30px;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Theme.line;
+    background: Theme.card;
+    clip: true;
+    HorizontalLayout {
+        for o[i] in options: Rectangle {
+            background: i == root.current ? Theme.accent.with-alpha(0.18) : (ta.has-hover ? Theme.hover : transparent);
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                Text { text: o; font-size: 12px; color: i == root.current ? Theme.accent : Theme.text; vertical-alignment: center; }
+            }
+            ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(i); } }
+        }
+    }
+}
+
+// Una fila de configuración: qué es a la izquierda y el control a la derecha.
+component ConfigRow inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    height: 68px;
+    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
+    HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 4px;
+        spacing: 16px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Text { text: root.title; font-size: 14px; color: Theme.text; }
+            Text { text: root.desc; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+        }
+        VerticalLayout { alignment: center; @children }
+    }
+}
+
 component Sep inherits Rectangle {
     height: 13px;
     Rectangle { y: 6px; height: 1px; background: Theme.line; }
@@ -437,6 +484,10 @@ export component Main inherits Window {
     in property <string> net-text;
     in property <[Row]> procs;
     in property <[StartupRow]> startup;
+    in-out property <int> cfg-theme: 0;
+    in-out property <int> cfg-refresh: 0;
+    in property <string> app-version;
+    callback config-changed();
     in property <[OptRow]> opt-rows;
     in property <length> opt-h;
     in property <int> opt-done;
@@ -887,10 +938,22 @@ export component Main inherits Window {
             }
         }
 
-        if page > 8: VerticalLayout {
+        if page == 9: VerticalLayout {
             padding: 24px;
-            alignment: start;
-            Head { title: pages[page]; sub: "Todavía no está disponible."; }
+            spacing: 12px;
+            Head { title: "Configuración"; sub: "Se guarda sola y se recuerda la próxima vez que abras lumen."; }
+            ConfigRow {
+                title: "Tema";
+                desc: "Claro, oscuro o el mismo que usa Windows.";
+                Segmented { options: ["Automático", "Claro", "Oscuro"]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
+            }
+            ConfigRow {
+                title: "Actualización del panel";
+                desc: "Cada cuánto se renuevan el uso del procesador, la memoria y la red.";
+                Segmented { options: ["1 segundo", "2 segundos", "5 segundos"]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
+            }
+            Rectangle { vertical-stretch: 1; }
+            Text { text: "lumen \{app-version} · Licencia MIT · github.com/vitorinoluca/lumen"; font-size: 12px; color: Theme.muted; }
         }
     }
 
