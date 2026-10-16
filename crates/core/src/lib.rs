@@ -10,3 +10,4 @@ pub mod power;
 pub mod profiles;
 pub mod uninstall;
 pub mod hardware;
+pub mod icons;
