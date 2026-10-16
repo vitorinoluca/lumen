@@ -54,7 +54,7 @@ component Btn inherits Rectangle {
         padding-right: 12px;
         Text { text: root.text; font-size: 12px; color: root.strong ? Theme.accent : Theme.text; vertical-alignment: center; }
     }
-    ta := TouchArea { clicked => { root.clicked(); } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 component Toggle inherits Rectangle {
@@ -72,7 +72,7 @@ component Toggle inherits Rectangle {
         border-radius: 6px;
         background: white;
     }
-    TouchArea { clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
+    TouchArea { mouse-cursor: pointer; clicked => { root.checked = !root.checked; root.toggled(root.checked); } }
 }
 
 component Bar inherits Rectangle {
@@ -105,7 +105,7 @@ component NavItem inherits Rectangle {
     Rectangle { x: 0; y: 8px; width: 2px; height: 16px; background: active ? Theme.accent : transparent; }
     Icon { x: 12px; y: 8px; kind: root.icon; tint: root.active ? Theme.accent : Theme.muted; }
     Text { x: 36px; text: root.text; font-size: 14px; color: Theme.text; vertical-alignment: center; }
-    ta := TouchArea { clicked => { root.clicked(); } }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 component Head inherits VerticalLayout {
