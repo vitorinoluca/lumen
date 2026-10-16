@@ -151,8 +151,8 @@ fn resolve_shortcuts(paths: &[String]) -> Vec<(String, String)> {
 
 /// Tareas programadas activas con su acción, argumentos y disparador.
 pub fn tasks() -> Vec<Entry> {
-    let script = "Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' } | ForEach-Object { $t = $_; \
-        foreach ($a in $t.Actions) { if ($a.Execute) { [pscustomobject]@{ path=[string]$t.TaskPath; name=[string]$t.TaskName; \
+    let script = "Get-ScheduledTask | Where-Object { $_.State -ne 'Disabled' } | ForEach-Object { $t = $_; $i = 0; \
+        foreach ($a in $t.Actions) { $i++; if ($a.Execute) { [pscustomobject]@{ path=[string]$t.TaskPath; name=[string]$t.TaskName; idx=$i; \
         exe=[string]$a.Execute; args=[string]$a.Arguments; trig=(@($t.Triggers | ForEach-Object { $_.CimClass.CimClassName -replace 'MSFT_Task','' -replace 'Trigger','' }) -join ', ') } } } } \
         | ConvertTo-Json -Compress";
     ps::rows(&ps::run(script).unwrap_or_default())
@@ -160,7 +160,8 @@ pub fn tasks() -> Vec<Entry> {
         .map(|r| {
             let (path, name, exe) = (ps::text(r, "path"), ps::text(r, "name"), ps::text(r, "exe"));
             let command = format!("{exe} {}", ps::text(r, "args")).trim().to_string();
-            let key = format!("task:{}{}|{}", path.to_lowercase(), name.to_lowercase(), exe.to_lowercase());
+            let idx = r.get("idx").and_then(|v| v.as_u64()).unwrap_or(1);
+            let key = format!("task:{}{}|{idx}", path.to_lowercase(), name.to_lowercase());
             entry(Kind::Task, key, format!("{path}{name}"), "Programador de tareas".into(), command, ps::text(r, "trig"), Some(Fix::Task { path, name }))
         })
         .collect()
@@ -194,11 +195,24 @@ pub fn services() -> Vec<Entry> {
     out
 }
 
+/// Si dos entradas comparten identificador, la segunda lleva un sufijo: cada una se compara por separado.
+pub fn dedupe_keys(v: &mut [Entry]) {
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for e in v {
+        let n = seen.entry(e.key.clone()).or_insert(0);
+        *n += 1;
+        if *n > 1 {
+            e.key = format!("{}#{n}", e.key);
+        }
+    }
+}
+
 pub fn all() -> Vec<Entry> {
     let mut v = run_keys();
     v.extend(startup_folders());
     v.extend(services());
     v.extend(tasks());
+    dedupe_keys(&mut v);
     v
 }
 
@@ -313,6 +327,14 @@ mod tests {
         assert!(target_of("cmd.exe /c algo").is_some_and(|p| p.ends_with("cmd.exe")));
         assert!(target_of("programa-que-no-existe.exe").is_none());
         assert!(target_of("").is_none());
+    }
+
+    #[test]
+    fn duplicate_keys_get_a_suffix() {
+        let mk = |k: &str| entry(Kind::RunKey, k.into(), "n".into(), "l".into(), "c.exe".into(), String::new(), None);
+        let mut v = vec![mk("a"), mk("a"), mk("b"), mk("a")];
+        dedupe_keys(&mut v);
+        assert_eq!(v.iter().map(|e| e.key.as_str()).collect::<Vec<_>>(), ["a", "a#2", "b", "a#3"]);
     }
 
     #[test]

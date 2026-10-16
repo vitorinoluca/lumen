@@ -199,6 +199,12 @@ fn legit_dir(name: &str, path: &Path, windir: &str) -> bool {
     p == format!(r"{w}\system32") || p == format!(r"{w}\syswow64") || (name == "explorer" && p == w) // explorer.exe vive en C:\Windows
 }
 
+fn in_install_dir(path: &Path, windir: &str) -> bool {
+    let l = path.to_string_lossy().to_lowercase();
+    let pf = |v: &str| env::var(v).map(|d| d.to_lowercase()).ok();
+    [Some(windir.to_lowercase()), pf("ProgramFiles"), pf("ProgramFiles(x86)")].into_iter().flatten().any(|d| l.starts_with(&format!("{d}\\")))
+}
+
 /// Procesos que se hacen pasar por los de Windows: el mismo nombre fuera de System32, o uno casi igual
 /// (con errores de tipeo) que no tenga una firma válida.
 pub fn fake_system_processes(procs: &[Proc], sigs: &HashMap<PathBuf, Sig>, windir: &str) -> Vec<Finding> {
@@ -211,9 +217,11 @@ pub fn fake_system_processes(procs: &[Proc], sigs: &HashMap<PathBuf, Sig>, windi
                 _ => continue,
             }
         } else if s.len() >= 5 && SYSTEM_NAMES.iter().any(|n| n.len() >= 5 && distance(&s, n) == 1) {
-            let signed = p.path.as_ref().and_then(|x| sigs.get(x)).is_some_and(Sig::is_valid);
-            if signed {
-                continue; // un programa legítimo con nombre parecido (ej. service.exe de un fabricante)
+            // Sin ruta (proceso protegido) no se puede verificar: no se acusa. Tampoco a lo firmado ni a lo
+            // instalado en Program Files o Windows: un fabricante puede llamar service.exe a lo suyo.
+            let Some(path) = &p.path else { continue };
+            if sigs.get(path).is_some_and(Sig::is_valid) || in_install_dir(path, windir) {
+                continue;
             }
             (format!("{} imita el nombre de un proceso de Windows", p.name), "El nombre es casi igual al de un proceso del sistema y no tiene una firma válida.".to_string())
         } else {
@@ -371,15 +379,16 @@ mod tests {
             p(2, "explorer.exe", r"C:\Windows\explorer.exe"), // explorer vive en C:\Windows
             p(3, "svchost.exe", r"C:\Users\a\AppData\Roaming\svchost.exe"),
             p(4, "svch0st.exe", r"C:\Users\a\AppData\Local\Temp\svch0st.exe"),
-            p(5, "service.exe", r"C:\Program Files\Fabricante\service.exe"),
+            p(5, "service.exe", r"D:\Fabricante\service.exe"),
             p(6, "lsass.exe", r"C:\Windows\System32\lsass.exe"),
+            Proc { pid: 7, ppid: 1, name: "service.exe".into(), path: None, cmd: String::new() }, // protegido: sin ruta
         ];
         let mut sigs = HashMap::new();
-        sigs.insert(PathBuf::from(r"C:\Program Files\Fabricante\service.exe"), Sig::Valid("Fabricante".into()));
+        sigs.insert(PathBuf::from(r"D:\Fabricante\service.exe"), Sig::Valid("Fabricante".into()));
         let f = fake_system_processes(&procs, &sigs, w);
         assert_eq!(f.len(), 2, "{:?}", f.iter().map(|x| &x.title).collect::<Vec<_>>());
         assert!(f.iter().all(|x| x.severity == Severity::High));
-        // sin firma, service.exe sí es sospechoso
+        // sin firma, el service.exe de D:\ sí es sospechoso; el que no tiene ruta sigue sin acusarse
         assert_eq!(fake_system_processes(&procs, &HashMap::new(), w).len(), 3);
     }
 

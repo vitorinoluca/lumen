@@ -125,16 +125,20 @@ pub fn scan() -> ScanResult {
     result.first_run = loaded.is_none();
     let mut base = loaded.unwrap_or_default();
 
+    // Cada consulta a PowerShell tarda ~1 s: se lanzan todas a la vez.
+    let (entries, special, procs, conns, status, exclusions, updates) = std::thread::scope(|s| {
+        let (a, b, c, d) = (s.spawn(collect::all), s.spawn(collect::special_findings), s.spawn(analyze::processes), s.spawn(analyze::connections));
+        let (e, f, g) = (s.spawn(crate::defender::status), s.spawn(analyze::defender_exclusions), s.spawn(analyze::update_findings));
+        (a.join().unwrap_or_default(), b.join().unwrap_or_default(), c.join().unwrap_or_default(), d.join().unwrap_or_default(), e.join().ok().and_then(Result::ok), f.join().ok().flatten(), g.join().unwrap_or_default())
+    });
+
     // 1. Persistencia, con hash y firma. La firma solo se pide de lo que no está ya en la línea base.
-    let entries = collect::all();
     result.entries = entries.len();
     let hashed: Vec<(Entry, String)> = entries.into_iter().map(|e| { let sha = e.target.as_deref().and_then(signature::sha256).unwrap_or_default(); (e, sha) }).collect();
     let needs_sig = |e: &Entry, sha: &str| base.entries.get(&e.key).is_none_or(|old| old.sha256 != sha || old.command != e.command);
     let mut to_verify: Vec<PathBuf> = hashed.iter().filter(|(e, sha)| needs_sig(e, sha)).filter_map(|(e, _)| e.target.clone()).collect();
 
     // 2. Procesos y conexiones.
-    let procs = analyze::processes();
-    let conns = analyze::connections();
     to_verify.extend(analyze::paths_to_verify(&procs, &conns));
     to_verify.extend(analyze::lookalike_paths(&procs));
     to_verify.sort();
@@ -161,7 +165,7 @@ pub fn scan() -> ScanResult {
         result.findings.extend(persistence_findings(&scanned, &base));
     }
     // 4. Lo que es sospechoso por sí mismo.
-    result.findings.extend(collect::special_findings());
+    result.findings.extend(special);
     for s in &scanned {
         if let Some(o) = analyze::obfuscation(&s.entry.command) {
             result.findings.push(analyze::obfuscation_finding(format!("obf:{}", s.entry.key), &s.entry.kind.label().to_lowercase(), &s.entry.command, &o));
@@ -177,12 +181,12 @@ pub fn scan() -> ScanResult {
     result.findings.extend(analyze::fake_system_processes(&procs, &sigs, &analyze::windir()));
 
     // 5. Defender y Windows Update.
-    if let Ok(st) = crate::defender::status() {
+    if let Some(st) = status {
         result.findings.extend(analyze::defender_state_findings(st.realtime, st.enabled, st.mode == "Passive"));
     }
-    result.findings.extend(analyze::update_findings());
+    result.findings.extend(updates);
     let mut changed = false;
-    match analyze::defender_exclusions() {
+    match exclusions {
         Some(list) => {
             if !base.exclusions_known {
                 // Primera vez que se pueden leer: lo que ya había queda como línea base.
