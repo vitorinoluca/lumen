@@ -218,6 +218,40 @@ component Scroll inherits Rectangle {
     }
 }
 
+// Diálogo de confirmación centrado, con el resto de la ventana atenuado.
+component Confirm inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <string> ok-text;
+    callback ok();
+    callback cancel();
+    background: Theme.dark ? #000000a0 : #00000060;
+    TouchArea { }  // evita que los clics lleguen a lo que está debajo
+    Rectangle {
+        width: min(420px, parent.width - 48px);
+        height: box.preferred-height;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.card;
+        border-width: 1px;
+        border-color: Theme.line;
+        border-radius: 8px;
+        box := VerticalLayout {
+            padding: 20px;
+            spacing: 8px;
+            Text { text: root.title; font-size: 14px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
+            Text { text: root.body; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
+            Rectangle { height: 8px; }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                Btn { text: "Cancelar"; clicked => { root.cancel(); } }
+                Btn { text: root.ok-text; strong: true; clicked => { root.ok(); } }
+            }
+        }
+    }
+}
+
 component Sep inherits Rectangle {
     height: 13px;
     Rectangle { y: 6px; height: 1px; background: Theme.line; }
@@ -458,19 +492,6 @@ export component Main inherits Window {
                 Btn { text: "Por memoria"; clicked => { sort-label = "memoria"; sort(1); } }
                 Btn { text: "Por nombre"; clicked => { sort-label = "nombre"; sort(2); } }
             }
-            if kill-pid >= 0: Rectangle {
-                border-width: 1px;
-                border-color: Theme.line;
-                border-radius: Theme.radius;
-                height: 44px;
-                HorizontalLayout {
-                    padding: 8px;
-                    spacing: 12px;
-                    Text { text: "Cerrar \{kill-name}. Perdés lo que no hayas guardado y no se puede deshacer."; font-size: 12px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-                    Btn { text: "Cerrar proceso"; clicked => { kill(kill-pid); kill-pid = -1; } }
-                    Btn { text: "Cancelar"; clicked => { kill-pid = -1; } }
-                }
-            }
             Scroll {
                 content-h: procs.length * 28px;
                 vertical-stretch: 1;
@@ -483,6 +504,7 @@ export component Main inherits Window {
                     HorizontalLayout {
                         spacing: 12px;
                         padding-left: 4px;
+                        padding-right: 10px;
                         Text { text: p.name; width: 190px; font-size: 14px; color: Theme.text; overflow: elide; vertical-alignment: center; }
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
@@ -591,19 +613,6 @@ export component Main inherits Window {
                 Btn { text: "Editor"; clicked => { apps-sort(2); } }
             }
             if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            if confirm-app >= 0: Rectangle {
-                border-width: 1px;
-                border-color: Theme.line;
-                border-radius: Theme.radius;
-                height: 44px;
-                HorizontalLayout {
-                    padding: 8px;
-                    spacing: 12px;
-                    Text { text: "Desinstalar \{confirm-app-name}. Antes se crea un punto de restauración si lumen corre como administrador."; font-size: 12px; color: Theme.text; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-                    Btn { text: "Desinstalar"; clicked => { uninstall(confirm-app); confirm-app = -1; } }
-                    Btn { text: "Cancelar"; clicked => { confirm-app = -1; } }
-                }
-            }
             if leftovers.length > 0: VerticalLayout {
                 spacing: 6px;
                 Text { text: "Quedaron \{leftovers.length} restos. Revisalos antes de limpiar:"; font-size: 14px; color: Theme.text; }
@@ -632,6 +641,7 @@ export component Main inherits Window {
                     HorizontalLayout {
                         spacing: 12px;
                         padding-left: 4px;
+                        padding-right: 10px;
                         Rectangle {
                             width: 28px;
                             if a.has-icon: Image { source: a.icon; width: 24px; height: 24px; y: (parent.height - 24px) / 2; image-fit: contain; }
@@ -663,5 +673,28 @@ export component Main inherits Window {
             alignment: start;
             Head { title: pages[page]; sub: "Todavía no está disponible."; }
         }
+    }
+
+    if confirm-app >= 0: Confirm {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        title: "¿Desinstalar \{confirm-app-name}?";
+        body: "Se abre el desinstalador del programa. Cuando termine, te mostramos lo que haya quedado para que decidas si lo limpiás. Si lumen corre como administrador, antes se crea un punto de restauración.";
+        ok-text: "Desinstalar";
+        ok => { uninstall(confirm-app); confirm-app = -1; }
+        cancel => { confirm-app = -1; }
+    }
+    if kill-pid >= 0: Confirm {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        title: "¿Cerrar \{kill-name}?";
+        body: "Perdés lo que no hayas guardado en ese programa. No se puede deshacer.";
+        ok-text: "Cerrar proceso";
+        ok => { kill(kill-pid); kill-pid = -1; }
+        cancel => { kill-pid = -1; }
     }
 }
