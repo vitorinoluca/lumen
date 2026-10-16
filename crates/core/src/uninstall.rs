@@ -21,6 +21,20 @@ pub struct App {
     pub size_kb: u64,
     pub location: Option<PathBuf>,
     pub uninstall: String,
+    /// `DisplayIcon` del registro (ruta, a veces con índice).
+    pub icon: String,
+}
+
+impl App {
+    /// De dónde sacar el ícono, en orden: el declarado y, si no, el ejecutable del desinstalador.
+    pub fn icon_sources(&self) -> Vec<String> {
+        let mut v = vec![];
+        if !self.icon.is_empty() {
+            v.push(self.icon.clone());
+        }
+        v.extend(crate::icons::exe_of_command(&self.uninstall));
+        v
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,6 +76,7 @@ pub fn list() -> Vec<App> {
                 publisher: text("Publisher"),
                 size_kb: k.get_value::<u32, _>("EstimatedSize").unwrap_or(0) as u64,
                 location: (!loc.is_empty()).then(|| PathBuf::from(loc)),
+                icon: text("DisplayIcon"),
                 name,
                 uninstall,
             };

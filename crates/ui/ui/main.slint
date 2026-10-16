@@ -5,7 +5,7 @@ export struct StartupRow { name: string, command: string, scope: string, enabled
 export struct ServiceRow { title: string, desc: string, level: string, tag: string, enabled: bool, locked: bool }
 export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
 export struct DiskCard { name: string, sub: string, fraction: float }
-export struct AppRow { name: string, detail: string, size: string }
+export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
 export struct DiskRow { name: string, size: string }
 
 // Un solo acento, neutros que siguen al sistema (claro/oscuro). Tamaños: 12 / 14 / 22.
@@ -50,6 +50,7 @@ component Icon inherits Path {
         kind == "board" ? "M4 4 H20 V20 H4 Z M8 8 H12 V12 H8 Z M15 8 V16 M8 16 H12" :
         kind == "windows" ? "M3 5 L11 4 V11 H3 Z M13 3.8 L21 3 V11 H13 Z M3 13 H11 V20 L3 19 Z M13 13 H21 V21 L13 20 Z" :
         kind == "gear" ? "M12 9 A3 3 0 1 0 12 15 A3 3 0 1 0 12 9 M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M5.6 18.4 L7 17 M17 7 L18.4 5.6" :
+        kind == "search" ? "M11 4 A7 7 0 1 0 11 18 A7 7 0 1 0 11 4 M16 16 L21 21" :
         kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
         "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
 }
@@ -122,6 +123,37 @@ component Head inherits VerticalLayout {
     Text { text: sub; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
 }
 
+
+component Search inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    callback changed(string);
+    height: 32px;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: input.has-focus ? Theme.accent : Theme.line;
+    background: Theme.card;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
+        Icon { kind: "search"; tint: Theme.muted; y: 8px; }
+        Rectangle {
+            horizontal-stretch: 1;
+            if input.text == "": Text { text: root.placeholder; color: Theme.muted; font-size: 14px; vertical-alignment: center; }
+            input := TextInput {
+                width: parent.width;
+                height: parent.height;
+                font-size: 14px;
+                color: Theme.text;
+                vertical-alignment: center;
+                single-line: true;
+                selection-background-color: Theme.accent.with-alpha(0.35);
+                edited => { root.text = self.text; root.changed(self.text); }
+            }
+        }
+    }
+}
 
 component Sep inherits Rectangle {
     height: 13px;
@@ -261,6 +293,7 @@ export component Main inherits Window {
     in property <[AppRow]> apps;
     in property <[DiskRow]> leftovers;
     in-out property <bool> can-undo-leftovers;
+    in-out property <string> apps-sort-label: "nombre";
     in-out property <int> confirm-app: -1;
     in-out property <string> confirm-app-name;
     in-out property <string> status;
@@ -285,6 +318,9 @@ export component Main inherits Window {
     callback toggle-profile(int, bool);
     callback uninstall(int);
     callback apps-reload();
+    callback apps-rebuild();
+    callback apps-filter(string);
+    callback apps-sort(int);
     callback clean-leftovers();
     callback undo-leftovers();
     callback dismiss-leftovers();
@@ -463,7 +499,14 @@ export component Main inherits Window {
         if page == 7: VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            Head { title: "\{apps.length} programas instalados"; sub: "Se abre el desinstalador de cada programa. Después te mostramos lo que haya quedado, sin borrar nada solo."; }
+            Head { title: "\{apps.length} programas"; sub: "Se abre el desinstalador de cada programa. Después te mostramos lo que haya quedado, sin borrar nada solo. Ordenados por " + apps-sort-label + "."; }
+            HorizontalLayout {
+                spacing: 8px;
+                Search { placeholder: "Buscar programa o editor"; changed(t) => { apps-filter(t); } horizontal-stretch: 1; }
+                Btn { text: "Nombre"; clicked => { apps-sort(0); } }
+                Btn { text: "Peso"; clicked => { apps-sort(1); } }
+                Btn { text: "Editor"; clicked => { apps-sort(2); } }
+            }
             if status != "": Text { text: status; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
             if confirm-app >= 0: Rectangle {
                 border-width: 1px;
@@ -502,6 +545,18 @@ export component Main inherits Window {
                     HorizontalLayout {
                         spacing: 12px;
                         padding-left: 4px;
+                        Rectangle {
+                            width: 28px;
+                            if a.has-icon: Image { source: a.icon; width: 24px; height: 24px; y: (parent.height - 24px) / 2; image-fit: contain; }
+                            if !a.has-icon: Rectangle {
+                                width: 24px;
+                                height: 24px;
+                                y: (parent.height - 24px) / 2;
+                                border-radius: Theme.radius;
+                                background: Theme.hover;
+                                Text { text: a.initial; font-size: 12px; color: Theme.muted; horizontal-alignment: center; vertical-alignment: center; }
+                            }
+                        }
                         VerticalLayout {
                             horizontal-stretch: 1;
                             alignment: center;

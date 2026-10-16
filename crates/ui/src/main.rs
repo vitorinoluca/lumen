@@ -5,13 +5,16 @@ use lumen_core::{
     processes::{Processes, SortBy},
     startup::{self, Source},
     disk,
-    hardware, power, privacy, profiles, restore, services,
+    hardware, icons, power, privacy, profiles, restore, services,
     uninstall::{self, Leftover},
 };
 use slint::{ModelRc, Timer, TimerMode, VecModel};
-use std::{cell::{Cell, RefCell}, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
+use std::{cell::{Cell, RefCell}, collections::HashMap, env, path::PathBuf, sync::{Arc, Mutex}, rc::Rc, thread, time::Duration};
 
 slint::include_modules!();
+
+/// Íconos ya extraídos por programa: ancho, alto y píxeles RGBA.
+type IconCache = Arc<Mutex<HashMap<String, (u32, u32, Vec<u8>)>>>;
 
 fn gb(b: u64) -> String {
     // Base 1024, como muestra Windows (34,2 GB en base 10 son 31,9 GB para el sistema).
@@ -215,27 +218,101 @@ fn main() {
 
     // Programas: desinstalar corre en un hilo (el instalador del programa puede tardar). Los restos
     // quedan pendientes hasta que el usuario los confirme.
-    let apps = Rc::new(RefCell::new(Vec::<uninstall::App>::new()));
+    let all_apps = Rc::new(RefCell::new(Vec::<uninstall::App>::new()));
+    let apps = Rc::new(RefCell::new(Vec::<uninstall::App>::new())); // lo que se ve: filtrado y ordenado
+    let query = Rc::new(RefCell::new(String::new()));
+    let sort = Rc::new(Cell::new((0u8, false))); // (0 nombre, 1 peso, 2 editor; descendente)
+    let icons: IconCache = Arc::default();
     let pending: Arc<Mutex<(String, Vec<Leftover>)>> = Arc::default();
     let last_ids = Rc::new(RefCell::new(Vec::<usize>::new()));
-    let load_apps = {
-        let (weak, apps) = (ui.as_weak(), apps.clone());
+    let app_key = |a: &uninstall::App| format!("{}|{}", a.name, a.version);
+
+    // Arma la lista visible a partir de todos los programas, la búsqueda, el orden y los íconos ya cargados.
+    let rebuild_apps = {
+        let (weak, all, apps, query, sort, icons) = (ui.as_weak(), all_apps.clone(), apps.clone(), query.clone(), sort.clone(), icons.clone());
         move || {
             let Some(ui) = weak.upgrade() else { return };
-            *apps.borrow_mut() = uninstall::list();
-            let rows: Vec<AppRow> = apps
-                .borrow()
+            let q = query.borrow().to_lowercase();
+            let mut view: Vec<uninstall::App> =
+                all.borrow().iter().filter(|a| q.is_empty() || a.name.to_lowercase().contains(&q) || a.publisher.to_lowercase().contains(&q)).cloned().collect();
+            let (key, desc) = sort.get();
+            match key {
+                1 => view.sort_by_key(|a| a.size_kb),
+                2 => view.sort_by_key(|a| (a.publisher.is_empty(), a.publisher.to_lowercase())),
+                _ => view.sort_by_key(|a| a.name.to_lowercase()),
+            }
+            if desc {
+                view.reverse();
+            }
+            let cache = icons.lock().unwrap();
+            let rows: Vec<AppRow> = view
                 .iter()
-                .map(|a| AppRow {
-                    name: a.name.clone().into(),
-                    detail: [a.publisher.as_str(), a.version.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ").into(),
-                    size: if a.size_kb > 0 { size(a.size_kb * 1024) } else { String::new() }.into(),
+                .map(|a| {
+                    let icon = cache.get(&format!("{}|{}", a.name, a.version)).map(|(w, h, px)| {
+                        slint::Image::from_rgba8(slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(px, *w, *h))
+                    });
+                    AppRow {
+                        name: a.name.clone().into(),
+                        detail: [a.publisher.as_str(), a.version.as_str()].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" · ").into(),
+                        size: if a.size_kb > 0 { size(a.size_kb * 1024) } else { String::new() }.into(),
+                        has_icon: icon.is_some(),
+                        icon: icon.unwrap_or_default(),
+                        initial: a.name.chars().find(|c| c.is_alphanumeric()).map(|c| c.to_uppercase().to_string()).unwrap_or_default().into(),
+                    }
                 })
                 .collect();
+            drop(cache);
+            *apps.borrow_mut() = view;
             ui.set_apps(ModelRc::new(VecModel::from(rows)));
         }
     };
+    // Lee los programas del registro y saca los íconos que falten en un hilo aparte.
+    let load_apps = {
+        let (weak, all, icons, rebuild) = (ui.as_weak(), all_apps.clone(), icons.clone(), rebuild_apps.clone());
+        move || {
+            *all.borrow_mut() = uninstall::list();
+            rebuild();
+            let todo: Vec<(String, Vec<String>)> = {
+                let cache = icons.lock().unwrap();
+                all.borrow().iter().map(|a| (app_key(a), a.icon_sources())).filter(|(k, _)| !cache.contains_key(k)).collect()
+            };
+            if todo.is_empty() {
+                return;
+            }
+            let (weak, icons) = (weak.clone(), icons.clone());
+            thread::spawn(move || {
+                for (key, sources) in todo {
+                    if let Some(i) = sources.iter().find_map(|s| icons::load(s)) {
+                        icons.lock().unwrap().insert(key, (i.width, i.height, i.rgba));
+                    }
+                }
+                let _ = weak.upgrade_in_event_loop(|ui| ui.invoke_apps_rebuild());
+            });
+        }
+    };
     ui.on_apps_reload(load_apps.clone());
+    ui.on_apps_rebuild(rebuild_apps.clone());
+    ui.on_apps_filter({
+        let (query, rebuild) = (query.clone(), rebuild_apps.clone());
+        move |t| {
+            *query.borrow_mut() = t.to_string();
+            rebuild();
+        }
+    });
+    ui.on_apps_sort({
+        let (weak, sort, rebuild) = (ui.as_weak(), sort.clone(), rebuild_apps.clone());
+        move |k| {
+            let k = k as u8;
+            // Tocar el mismo criterio invierte el orden; el peso arranca de mayor a menor.
+            let desc = if sort.get().0 == k { !sort.get().1 } else { k == 1 };
+            sort.set((k, desc));
+            if let Some(ui) = weak.upgrade() {
+                let name = ["nombre", "peso", "editor"][k as usize];
+                ui.set_apps_sort_label(format!("{name}, {}", if desc { "de mayor a menor" } else { "de menor a mayor" }).into());
+            }
+            rebuild();
+        }
+    });
     ui.on_uninstall({
         let (weak, apps, pending) = (ui.as_weak(), apps.clone(), pending.clone());
         move |i| {
