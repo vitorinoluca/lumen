@@ -28,6 +28,15 @@ pub struct Threat {
     pub time: String,
 }
 
+impl Threat {
+    /// Solo la ruta del primer archivo, sin los prefijos de Defender ni la dirección de descarga.
+    pub fn file(&self) -> String {
+        let first = self.resource.split(';').next().unwrap_or("").trim();
+        let path = first.strip_prefix("file:_").or_else(|| first.strip_prefix("webfile:_")).unwrap_or(first);
+        path.split('|').next().unwrap_or("").to_string()
+    }
+}
+
 /// Ejecuta un script de PowerShell sin ventana y devuelve su salida.
 fn ps(script: &str) -> io::Result<String> {
     let out = Command::new("powershell")
@@ -142,6 +151,14 @@ mod tests {
         assert_eq!((t.len(), t[0].severity, t[0].name.as_str()), (1, 5, "EICAR_Test_File"));
         assert_eq!(parse_threats(&format!("[{one},{one}]")).len(), 2);
         assert!(parse_threats("").is_empty()); // sin amenazas PowerShell no imprime nada
+    }
+
+    #[test]
+    fn threat_file_drops_prefixes_and_download_url() {
+        let t = Threat { resource: r"file:_C:\Users\a\x.zip; webfile:_C:\Users\a\x.zip|https://sitio/x.zip|pid:1".into(), ..Default::default() };
+        assert_eq!(t.file(), r"C:\Users\a\x.zip");
+        let w = Threat { resource: r"webfile:_C:\y.zip|https://sitio/y.zip".into(), ..Default::default() };
+        assert_eq!(w.file(), r"C:\y.zip");
     }
 
     #[test]
