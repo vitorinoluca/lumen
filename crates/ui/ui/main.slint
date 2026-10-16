@@ -724,7 +724,7 @@ export component Main inherits Window {
                     alignment: start;
                     for r[i] in opt-rows: Rectangle {
                         height: r.header ? 44px : 56px;
-                        if r.header: Text { text: r.title; y: parent.height - 24px; font-size: 12px; font-weight: 600; color: Theme.muted; }
+                        if r.header: Text { text: r.title; x: 4px; y: parent.height - 24px; font-size: 12px; font-weight: 600; color: Theme.muted; horizontal-alignment: left; }
                         if !r.header: Rectangle {
                             Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
                             HorizontalLayout {
