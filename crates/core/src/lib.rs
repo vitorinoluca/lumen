@@ -6,3 +6,5 @@ pub mod disk;
 pub mod privacy;
 pub mod services;
 pub mod restore;
+pub mod power;
+pub mod profiles;

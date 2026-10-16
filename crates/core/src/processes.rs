@@ -48,6 +48,17 @@ impl Processes {
         v
     }
 
+    /// Finaliza todos los procesos con esos nombres (sin distinguir mayúsculas). Devuelve cuántos.
+    pub fn kill_named(&mut self, names: &[String]) -> usize {
+        self.list(SortBy::Name); // refresca
+        self.sys
+            .processes()
+            .values()
+            .filter(|p| names.iter().any(|n| p.name().to_string_lossy().eq_ignore_ascii_case(n)))
+            .filter(|p| p.kill())
+            .count()
+    }
+
     /// Finaliza un proceso. No es reversible: la UI debe pedir confirmación.
     pub fn kill(&mut self, pid: u32) -> bool {
         self.sys.process(Pid::from_u32(pid)).is_some_and(|p| p.kill())
