@@ -333,7 +333,7 @@ component ScanButton inherits Rectangle {
     Timer {
         interval: 40ms;
         running: root.busy;
-        triggered => { root.spin += 14deg; }
+        triggered => { root.spin += 8deg; }
     }
     Path {
         visible: root.busy;
@@ -343,11 +343,12 @@ component ScanButton inherits Rectangle {
         y: 6px;
         viewbox-width: 100;
         viewbox-height: 100;
-        commands: "M 50 2 A 48 48 0 0 1 91.6 74";
+        // Un arco de 120° que avanza con `spin`. Se recalcula en cada paso en vez de rotar el dibujo,
+        // porque el renderizador liviano de la app no rota las formas.
+        commands: "M \{50 + 48 * Math.sin(root.spin)} \{50 - 48 * Math.cos(root.spin)} A 48 48 0 0 1 \{50 + 48 * Math.sin(root.spin + 120deg)} \{50 - 48 * Math.cos(root.spin + 120deg)}";
         stroke: Theme.accent;
         stroke-width: 4px;
         stroke-line-cap: round;
-        transform-rotation: root.spin;
     }
     VerticalLayout {
         alignment: center;
