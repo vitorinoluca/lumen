@@ -1,0 +1,16 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+      - name: Límites (exe < 15 MB, RAM < 20 MB, arranque < 300 ms)
+        shell: pwsh
+        run: ./scripts/check-limits.ps1
