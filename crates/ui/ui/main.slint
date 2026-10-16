@@ -155,21 +155,66 @@ component Search inherits Rectangle {
     }
 }
 
-// Lista con scroll de rueda y una barra mínima: solo el indicador, sin pista ni fondo.
+// Lista con scroll: rueda, y una barra mínima sin pista ni fondo que se agranda al pasar el mouse
+// y se puede arrastrar. Deja 16 px a la derecha para que el contenido no quede debajo de la barra.
 component Scroll inherits Rectangle {
+    /// Alto total del contenido (filas x alto de fila). Explícito: calcularlo solo deja valores viejos.
+    in property <length> content-h;
     clip: true;
+    property <bool> can-scroll: content-h > fl.height;
+    property <length> thumb-h: max(28px, fl.height * fl.height / max(1px, content-h));
+    property <length> thumb-y: can-scroll ? -fl.content-y / max(1px, content-h - fl.height) * (fl.height - thumb-h) : 0px;
+    property <bool> active: strip.has-hover || strip.pressed;
+
+    function scroll-to(ty: length) {
+        if (can-scroll) {
+            fl.content-y = -(Math.clamp(ty, 0px, fl.height - thumb-h) / max(1px, fl.height - thumb-h)) * (content-h - fl.height);
+        }
+    }
+
     fl := Flickable {
+        x: 0px;
+        width: parent.width - 16px;
+        height: parent.height;
+        content-height: root.content-h;
         interactive: false;
         @children
     }
+    strip := TouchArea {
+        x: parent.width - 16px;
+        width: 16px;
+        height: parent.height;
+        enabled: can-scroll;
+        property <length> grab;
+        pointer-event(e) => {
+            if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
+                if (self.mouse-y >= thumb-y && self.mouse-y <= thumb-y + thumb-h) {
+                    grab = self.mouse-y - thumb-y;
+                } else {
+                    grab = thumb-h / 2;
+                    scroll-to(self.mouse-y - grab);
+                }
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                scroll-to(self.mouse-y - grab);
+            }
+        }
+        scroll-event(e) => {
+            fl.content-y = Math.clamp(fl.content-y + e.delta-y, -max(0px, content-h - fl.height), 0px);
+            EventResult.accept
+        }
+    }
     Rectangle {
-        visible: fl.content-height > fl.height;
-        x: parent.width - 5px;
-        width: 3px;
-        border-radius: 2px;
-        background: Theme.muted.with-alpha(0.5);
-        height: max(24px, fl.height * fl.height / max(1px, fl.content-height));
-        y: -fl.content-y / max(1px, fl.content-height - fl.height) * (fl.height - self.height);
+        visible: can-scroll;
+        width: active ? 8px : 3px;
+        x: parent.width - self.width - 4px;
+        y: thumb-y;
+        height: thumb-h;
+        border-radius: self.width / 2;
+        background: Theme.muted.with-alpha(active ? 0.85 : 0.5);
+        animate width { duration: 90ms; }
     }
 }
 
@@ -231,6 +276,7 @@ component CardGrid inherits Rectangle {
     in property <[ServiceRow]> items;
     callback toggled(int, bool);
     Scroll {
+        content-h: Math.ceil(items.length / 2) * 150px;
         Rectangle {
             height: Math.ceil(items.length / 2) * 150px;
             for e[i] in items: Card {
@@ -426,6 +472,7 @@ export component Main inherits Window {
                 }
             }
             Scroll {
+                content-h: procs.length * 28px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
@@ -440,7 +487,7 @@ export component Main inherits Window {
                         Text { text: p.cpu; width: 44px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.mem; width: 76px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
                         Text { text: p.path; font-size: 12px; color: Theme.muted; horizontal-stretch: 1; overflow: elide; vertical-alignment: center; }
-                        close-btn := Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } }
+                        VerticalLayout { alignment: center; close-btn := Btn { text: "Cerrar"; height: 22px; visible: ta.has-hover || close-btn.hovered; clicked => { kill-name = p.name; kill-pid = p.pid; } } }
                     }
                 }
             }
@@ -453,6 +500,7 @@ export component Main inherits Window {
             Head { title: "\{startup.length} apps arrancan con Windows"; sub: "Desactivarlas no las borra. Podés volver a activarlas cuando quieras."; }
             if status != "": Text { text: status; font-size: 12px; color: Theme.danger; }
             Scroll {
+                content-h: startup.length * 36px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
@@ -484,7 +532,7 @@ export component Main inherits Window {
                     spacing: 12px;
                     Text { text: t.name; horizontal-stretch: 1; font-size: 14px; color: Theme.text; vertical-alignment: center; }
                     Text { text: t.size; width: 80px; font-size: 14px; color: Theme.text; horizontal-alignment: right; vertical-alignment: center; }
-                    Btn { y: 4px; text: "Limpiar"; clicked => { clean(i); } }
+                    VerticalLayout { alignment: center; Btn { text: "Limpiar"; clicked => { clean(i); } } }
                 }
             }
             HorizontalLayout {
@@ -501,6 +549,7 @@ export component Main inherits Window {
                 Btn { text: "Analizar"; clicked => { scan-map(); } }
             }
             Scroll {
+                content-h: space-map.length * 24px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
@@ -572,6 +621,7 @@ export component Main inherits Window {
             }
             if can-undo-leftovers: Btn { text: "Deshacer limpieza de restos"; clicked => { undo-leftovers(); } }
             Scroll {
+                content-h: apps.length * 40px;
                 vertical-stretch: 1;
                 VerticalLayout {
                     alignment: start;
@@ -601,7 +651,7 @@ export component Main inherits Window {
                             Text { text: a.detail; font-size: 12px; color: Theme.muted; overflow: elide; }
                         }
                         Text { text: a.size; width: 70px; font-size: 12px; color: Theme.muted; horizontal-alignment: right; vertical-alignment: center; }
-                        un-btn := Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } }
+                        VerticalLayout { alignment: center; un-btn := Btn { text: "Desinstalar"; height: 24px; visible: app-ta.has-hover || un-btn.hovered; clicked => { confirm-app-name = a.name; confirm-app = i; } } }
                     }
                 }
             }
