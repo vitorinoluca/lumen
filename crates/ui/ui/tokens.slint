@@ -1,0 +1,106 @@
+import { Palette } from "std-widgets.slint";
+
+// Todos los valores visuales de lumen salen de acá (ver DESIGN_PLAN.md, sección 2).
+// Los hex son los de la tabla de color del plan; scripts/check-contrast.py los valida.
+export global Tokens {
+    // 0 = como Windows, 1 = claro, 2 = oscuro
+    in-out property <int> mode: 2;
+    out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
+
+    // Fondos: base < superficie < elevado < overlay (modales).
+    out property <color> bg-base: dark ? #141517 : #f4f5f6;
+    out property <color> bg-surface: dark ? #1a1c1f : #ffffff;
+    out property <color> bg-elevated: dark ? #212428 : #ffffff;
+    out property <color> bg-overlay: dark ? #272a2f : #ffffff;
+    out property <color> scrim: dark ? #0b0c0e99 : #1a1d2166;
+
+    // Texto
+    out property <color> text-primary: dark ? #e6e8eb : #1a1d21;
+    out property <color> text-secondary: dark ? #a3a9b1 : #565d66;
+    out property <color> text-disabled: dark ? #5f656d : #9aa1a9;
+
+    // Bordes
+    out property <color> border-subtle: dark ? #2c3036 : #e1e4e8;
+    out property <color> border-control: dark ? #6b727b : #8a929b;
+
+    // Estados sobre cualquier superficie (capa fina de blanco o negro).
+    out property <color> state-hover: dark ? #ffffff0d : #0000000a;
+    out property <color> state-pressed: dark ? #ffffff1a : #00000014;
+
+    // Acento único (cian suave).
+    out property <color> accent: dark ? #5ccfc4 : #0f766e;
+    out property <color> accent-hover: dark ? #7adcd2 : #115e59;
+    out property <color> accent-active: dark ? #44b8ae : #0d5c56;
+    out property <color> accent-subtle: dark ? #1b3a38 : #ddf3f0;
+    out property <color> on-accent: dark ? #06211f : #ffffff;
+    out property <color> focus-ring: dark ? #7adcd2 : #0f766e;
+
+    // Semánticos. `danger` queda para amenazas confirmadas y acciones destructivas.
+    out property <color> success: dark ? #5fcb8a : #17703f;
+    out property <color> success-subtle: dark ? #173325 : #e1f4e9;
+    out property <color> warning: dark ? #e3b341 : #8a5b00;
+    out property <color> warning-subtle: dark ? #3a2f12 : #fbf0d2;
+    out property <color> danger: dark ? #f0766b : #b42318;
+    out property <color> danger-subtle: dark ? #3d1f1d : #fce6e3;
+    out property <color> info: dark ? #6fa8e8 : #1d5fb8;
+    out property <color> info-subtle: dark ? #17283d : #e3eefb;
+
+    // Tipografía: tamaño (la interlínea y el peso van en los componentes de texto).
+    out property <length> fs-display: 40px;
+    out property <length> fs-title: 24px;
+    out property <length> fs-metric: 28px;
+    out property <length> fs-heading: 16px;
+    out property <length> fs-body: 14px;
+    out property <length> fs-caption: 12px;
+    out property <int> fw-regular: 400;
+    out property <int> fw-medium: 500;
+    out property <int> fw-semibold: 600;
+
+    // Espaciado (base 4 px)
+    out property <length> s-1: 4px;
+    out property <length> s-2: 8px;
+    out property <length> s-3: 12px;
+    out property <length> s-4: 16px;
+    out property <length> s-5: 20px;
+    out property <length> s-6: 24px;
+    out property <length> s-8: 32px;
+    out property <length> s-10: 40px;
+    out property <length> s-12: 48px;
+
+    // Radios y bordes
+    out property <length> r-sm: 4px;
+    out property <length> r-md: 8px;
+    out property <length> r-lg: 12px;
+    out property <length> r-xl: 16px;
+    out property <length> border-w: 1px;
+    out property <length> focus-w: 2px;
+    out property <length> focus-gap: 2px;
+
+    // Alturas
+    out property <length> control-sm: 28px;
+    out property <length> control-md: 36px;
+    out property <length> control-lg: 44px;
+    out property <length> row-h: 56px;
+    out property <length> row-h-compact: 40px;
+    // Menú lateral abierto / solo íconos, y ancho máximo del contenido.
+    out property <length> nav-w: 216px;
+    out property <length> nav-w-compact: 64px;
+    out property <length> nav-compact-below: 880px;
+    out property <length> content-max: 880px;
+
+    // Iconos
+    out property <length> icon-sm: 16px;
+    out property <length> icon-md: 20px;
+    out property <length> icon-lg: 24px;
+    out property <length> icon-xl: 40px;
+    out property <length> icon-stroke: 1.5px;
+
+    // Motion
+    // "Reducir animaciones" (D4): con true no hay transiciones y lo que gira o pulsa queda quieto.
+    in-out property <bool> reduce-motion: false;
+    out property <duration> dur-fast: reduce-motion ? 0ms : 90ms;
+    out property <duration> dur-base: reduce-motion ? 0ms : 160ms;
+    out property <duration> dur-slow: reduce-motion ? 0ms : 240ms;
+    out property <easing> ease-standard: ease-in-out;
+    out property <easing> ease-enter: ease-out;
+}

@@ -1,0 +1,47 @@
+import { Tokens } from "../tokens.slint";
+
+// Cabecera de una pantalla: título y una línea que explica qué se hace ahí.
+export component PageHeader inherits VerticalLayout {
+    in property <string> title;
+    in property <string> sub;
+    spacing: Tokens.s-1;
+    Text { text: root.title; font-size: Tokens.fs-title; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; overflow: elide; accessible-role: AccessibleRole.text; }
+    if root.sub != "": Text { text: root.sub; font-size: Tokens.fs-body; color: Tokens.text-secondary; wrap: word-wrap; }
+}
+
+// Título de un grupo dentro de una pantalla.
+export component GroupTitle inherits Text {
+    font-size: Tokens.fs-heading;
+    font-weight: Tokens.fw-semibold;
+    color: Tokens.text-primary;
+}
+
+// Tarjeta: agrupa filas sobre una superficie elevada con borde fino. Las filas llevan su propio divisor.
+export component Card inherits Rectangle {
+    background: Tokens.bg-elevated;
+    border-radius: Tokens.r-lg;
+    border-width: Tokens.border-w;
+    border-color: Tokens.border-subtle;
+}
+
+// Una fila de ajuste dentro de una Card: qué es a la izquierda y el control (hijo) a la derecha.
+export component SettingRow inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> divider: true;
+    height: Tokens.s-12 + Tokens.s-6;
+    if root.divider: Rectangle { x: Tokens.s-4; y: parent.height - Tokens.border-w; width: parent.width - 2 * Tokens.s-4; height: Tokens.border-w; background: Tokens.border-subtle; }
+    HorizontalLayout {
+        padding-left: Tokens.s-4;
+        padding-right: Tokens.s-4;
+        spacing: Tokens.s-4;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Tokens.s-1 / 2;
+            Text { text: root.title; font-size: Tokens.fs-body; color: Tokens.text-primary; }
+            if root.desc != "": Text { text: root.desc; font-size: Tokens.fs-caption; color: Tokens.text-secondary; wrap: word-wrap; }
+        }
+        VerticalLayout { horizontal-stretch: 0; alignment: center; @children }
+    }
+}

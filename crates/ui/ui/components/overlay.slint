@@ -1,0 +1,124 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { Button } from "button.slint";
+import { ButtonKind, ControlSize, ImpactRow, Tone } from "types.slint";
+import { Tones } from "display.slint";
+
+// Diálogo de confirmación. Muestra el impacto (qué, cuánto, dónde queda, si se puede deshacer) antes de actuar.
+// Se pone sobre toda la ventana (x: 0; y: 0; width/height de la ventana). Esc cancela; en acciones destructivas
+// el foco arranca en "Cancelar".
+export component ConfirmDialog inherits Rectangle {
+    in property <string> title;
+    in property <string> body;
+    in property <[ImpactRow]> impact;
+    in property <string> ok-text;
+    in property <string> cancel-text: @tr("" => "Cancelar");
+    in property <bool> danger: false;
+    callback ok();
+    callback cancel();
+    background: Tokens.scrim;
+    accessible-role: groupbox;
+    accessible-label: title;
+    init => { cancel-btn.focus-me(); }
+
+    TouchArea { }  // los clics no llegan a lo que está debajo
+    // Ancestro de los botones: recibe Esc y Tab cuando ellos no los usan. El Tab queda encerrado entre los dos botones.
+    FocusScope {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        key-pressed(e) => {
+            if (e.text == Key.Escape) { root.cancel(); return accept; }
+            if (e.text == Key.Tab || e.text == Key.Backtab) {
+                if (cancel-btn.focused) { ok-btn.focus-me(); } else { cancel-btn.focus-me(); }
+                return accept;
+            }
+            reject
+        }
+        Rectangle {
+        width: min(Tokens.s-12 * 10, parent.width - 2 * Tokens.s-6);
+        height: box.preferred-height;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Tokens.bg-overlay;
+        border-width: Tokens.border-w;
+        border-color: Tokens.border-subtle;
+        border-radius: Tokens.r-xl;
+        box := VerticalLayout {
+            padding: Tokens.s-6;
+            spacing: Tokens.s-3;
+            Text { text: root.title; font-size: Tokens.fs-heading; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; wrap: word-wrap; }
+            if root.body != "": Text { text: root.body; font-size: Tokens.fs-body; color: Tokens.text-secondary; wrap: word-wrap; }
+            if root.impact.length > 0: Rectangle {
+                background: Tokens.bg-base;
+                border-radius: Tokens.r-md;
+                height: rows.preferred-height;
+                rows := VerticalLayout {
+                    padding: Tokens.s-3;
+                    spacing: Tokens.s-2;
+                    for r in root.impact: HorizontalLayout {
+                        spacing: Tokens.s-4;
+                        Text { text: r.label; width: Tokens.s-12 * 2; font-size: Tokens.fs-caption; color: Tokens.text-secondary; vertical-alignment: top; }
+                        Text {
+                            text: r.value;
+                            horizontal-stretch: 1;
+                            font-size: r.mono ? Tokens.fs-caption : Tokens.fs-body;
+                            font-family: r.mono ? "JetBrains Mono" : "Inter Variable";
+                            color: Tokens.text-primary;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+            HorizontalLayout {
+                padding-top: Tokens.s-2;
+                spacing: Tokens.s-2;
+                alignment: end;
+                cancel-btn := Button { text: root.cancel-text; clicked => { root.cancel(); } }
+                ok-btn := Button { text: root.ok-text; kind: root.danger ? ButtonKind.danger : ButtonKind.primary; clicked => { root.ok(); } }
+            }
+        }
+        }
+    }
+}
+
+// Aviso corto que desaparece solo a los 4 segundos. Arriba se decide cuándo `shown`; abajo, qué hacer al cerrarse.
+// Una acción opcional (por ejemplo "Deshacer").
+export component Toast inherits Rectangle {
+    in-out property <bool> shown;
+    in property <string> text;
+    in property <Tone> tone: Tone.success;
+    in property <string> action-text;
+    callback action();
+    callback dismissed();
+    // Ocupa toda la ventana (sin capturar clics); el aviso se apoya abajo a la derecha.
+    width: 100%;
+    height: 100%;
+    Timer {
+        interval: 4s;
+        running: root.shown;
+        triggered => { root.shown = false; root.dismissed(); }
+    }
+    bubble := Rectangle {
+        width: min(Tokens.s-12 * 9, parent.width - 2 * Tokens.s-6);
+        height: row.preferred-height;
+        x: parent.width - self.width - Tokens.s-6;
+        y: root.shown ? parent.height - self.height - Tokens.s-6 : parent.height + Tokens.s-2;
+        visible: self.y < parent.height;
+        animate y { duration: Tokens.dur-base; easing: Tokens.ease-enter; }
+        background: Tokens.bg-overlay;
+        border-radius: Tokens.r-lg;
+        border-width: Tokens.border-w;
+        border-color: Tokens.border-subtle;
+        accessible-role: AccessibleRole.text;
+        accessible-label: root.text;
+        row := HorizontalLayout {
+            padding: Tokens.s-3;
+            spacing: Tokens.s-3;
+            VerticalLayout { alignment: center; Icon { kind: Tones.icon(root.tone) == "" ? "info" : Tones.icon(root.tone); tint: Tones.fg(root.tone); width: Tokens.icon-md; height: self.width; } }
+            Text { text: root.text; font-size: Tokens.fs-body; color: Tokens.text-primary; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+            if root.action-text != "": VerticalLayout { alignment: center; Button { text: root.action-text; kind: ButtonKind.ghost; size: ControlSize.sm; clicked => { root.shown = false; root.action(); } } }
+        }
+    }
+}

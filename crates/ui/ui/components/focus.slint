@@ -1,0 +1,19 @@
+import { Tokens } from "../tokens.slint";
+
+// Anillo de foco de teclado: 2 px, separado del control. Se pone como último hijo del control.
+export component FocusRing inherits Rectangle {
+    in property <bool> active;
+    in property <length> radius: Tokens.r-md;
+    width: 100%;
+    height: 100%;
+    Rectangle {
+        visible: root.active;
+        x: -(Tokens.focus-gap + Tokens.focus-w);
+        y: -(Tokens.focus-gap + Tokens.focus-w);
+        width: parent.width + 2 * (Tokens.focus-gap + Tokens.focus-w);
+        height: parent.height + 2 * (Tokens.focus-gap + Tokens.focus-w);
+        border-width: Tokens.focus-w;
+        border-color: Tokens.focus-ring;
+        border-radius: root.radius + Tokens.focus-gap + Tokens.focus-w;
+    }
+}

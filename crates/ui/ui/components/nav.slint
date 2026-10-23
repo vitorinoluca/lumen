@@ -1,0 +1,49 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { FocusRing } from "focus.slint";
+import { Tooltip } from "display.slint";
+
+// Entrada del menú lateral. Activa: fondo de acento sutil e ícono de acento. Compacta: solo ícono, con tooltip.
+export component NavItem inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <bool> active;
+    in property <bool> compact;
+    callback clicked;
+    height: Tokens.row-h-compact;
+    border-radius: Tokens.r-md;
+    background: active ? Tokens.accent-subtle : (ta.pressed ? Tokens.state-pressed : (ta.has-hover ? Tokens.state-hover : transparent));
+    animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+    accessible-role: tab;
+    accessible-label: text;
+    accessible-checkable: true;
+    accessible-checked: active;
+    accessible-action-default => { root.clicked(); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") { root.clicked(); return accept; }
+            reject
+        }
+    }
+    Icon {
+        kind: root.icon;
+        tint: root.active ? Tokens.accent : Tokens.text-secondary;
+        width: Tokens.icon-md;
+        height: self.width;
+        x: root.compact ? (parent.width - self.width) / 2 : Tokens.s-3;
+        y: (parent.height - self.height) / 2;
+    }
+    if !root.compact: Text {
+        x: Tokens.s-3 + Tokens.icon-md + Tokens.s-3;
+        width: parent.width - self.x - Tokens.s-2;
+        text: root.text;
+        font-size: Tokens.fs-body;
+        font-weight: root.active ? Tokens.fw-semibold : Tokens.fw-regular;
+        color: root.active ? Tokens.text-primary : Tokens.text-secondary;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    if root.compact: Tooltip { text: root.text; host-hover: ta.has-hover; to-right: true; host-w: root.width; }
+    FocusRing { active: fs.has-focus; }
+}

@@ -1,0 +1,344 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { FocusRing } from "focus.slint";
+import { Tone } from "types.slint";
+
+// Color, fondo e ícono de cada tono. Un estado siempre se muestra con ícono + texto.
+export global Tones {
+    public pure function fg(t: Tone) -> color {
+        return t == Tone.success ? Tokens.success : (t == Tone.warning ? Tokens.warning : (t == Tone.danger ? Tokens.danger : (t == Tone.info ? Tokens.info : (t == Tone.accent ? Tokens.accent : Tokens.text-secondary))));
+    }
+    public pure function bg(t: Tone) -> color {
+        return t == Tone.success ? Tokens.success-subtle : (t == Tone.warning ? Tokens.warning-subtle : (t == Tone.danger ? Tokens.danger-subtle : (t == Tone.info ? Tokens.info-subtle : (t == Tone.accent ? Tokens.accent-subtle : Tokens.state-hover))));
+    }
+    public pure function icon(t: Tone) -> string {
+        return t == Tone.success ? "circle-check" : (t == Tone.warning ? "alert" : (t == Tone.danger ? "shield-alert" : (t == Tone.info ? "info" : "")));
+    }
+}
+
+// Etiqueta de estado: Seguro, Revisar, Aplicado, Alta, Media...
+export component Badge inherits Rectangle {
+    in property <string> text;
+    in property <Tone> tone: Tone.neutral;
+    height: Tokens.s-6 - Tokens.s-1 / 2;
+    width: row.preferred-width;
+    border-radius: self.height / 2;
+    background: Tones.bg(tone);
+    accessible-role: AccessibleRole.text;
+    accessible-label: text;
+    row := HorizontalLayout {
+        padding-left: Tokens.s-2;
+        padding-right: Tokens.s-2;
+        spacing: Tokens.s-1;
+        if Tones.icon(root.tone) != "": VerticalLayout { alignment: center; Icon { kind: Tones.icon(root.tone); tint: Tones.fg(root.tone); width: Tokens.icon-sm - Tokens.s-1 / 2; height: self.width; } }
+        Text { text: root.text; font-size: Tokens.fs-caption; font-weight: Tokens.fw-semibold; color: Tones.fg(root.tone); vertical-alignment: center; }
+    }
+}
+
+// Aviso que se queda en pantalla, con ícono y texto.
+export component InlineNotice inherits Rectangle {
+    in property <string> text;
+    in property <Tone> tone: Tone.info;
+    background: Tones.bg(tone);
+    border-radius: Tokens.r-md;
+    accessible-role: AccessibleRole.text;
+    accessible-label: text;
+    HorizontalLayout {
+        padding: Tokens.s-3;
+        spacing: Tokens.s-3;
+        VerticalLayout { alignment: start; Icon { kind: Tones.icon(root.tone) == "" ? "info" : Tones.icon(root.tone); tint: Tones.fg(root.tone); width: Tokens.icon-md; height: self.width; } }
+        Text { text: root.text; font-size: Tokens.fs-body; color: Tokens.text-primary; wrap: word-wrap; horizontal-stretch: 1; vertical-alignment: center; }
+    }
+}
+
+// Barra de progreso. value entre 0 y 1; con -1 es indeterminada (un tramo que va y viene; quieta si se reducen las animaciones).
+export component ProgressBar inherits Rectangle {
+    in property <float> value: -1;
+    height: Tokens.s-1;
+    border-radius: Tokens.s-1 / 2;
+    background: Tokens.border-subtle;
+    clip: true;
+    accessible-role: progress-indicator;
+    accessible-value: value < 0 ? "" : "\{Math.round(value * 100)}%";
+    property <length> seg: root.width / 4;
+    Rectangle {
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: Tokens.accent;
+        width: root.value >= 0 ? parent.width * Math.min(1, root.value) : root.seg;
+        x: root.value >= 0 ? 0px : (Tokens.reduce-motion ? root.seg : (parent.width + root.seg) * Math.mod(animation-tick() / 1.4s, 1) - root.seg);
+        animate width { duration: Tokens.dur-slow; easing: Tokens.ease-standard; }
+    }
+}
+
+// Anillo de progreso con el porcentaje (o un texto) al centro. Un arco de Path que se recalcula:
+// el renderer por software no rota formas. Indeterminado: el arco gira, y quieto si se reducen las animaciones.
+export component ProgressRing inherits Rectangle {
+    in property <length> size: 96px;
+    in property <float> value: -1;
+    in property <string> label;
+    width: size;
+    height: size;
+    accessible-role: progress-indicator;
+    accessible-value: value < 0 ? "" : "\{Math.round(value * 100)}%";
+    property <angle> start: (value >= 0 || Tokens.reduce-motion) ? 0deg : Math.mod(animation-tick() / 1s, 1) * 360deg;
+    property <angle> sweep: value >= 0 ? Math.min(0.9999, value) * 360deg : 100deg;
+    property <string> arc: "M \{50 + 46 * Math.sin(start)} \{50 - 46 * Math.cos(start)} A 46 46 0 \{sweep > 180deg ? 1 : 0} 1 \{50 + 46 * Math.sin(start + sweep)} \{50 - 46 * Math.cos(start + sweep)}";
+    Path {
+        width: parent.width;
+        height: parent.height;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: "M 4 50 A 46 46 0 1 0 96 50 A 46 46 0 1 0 4 50";
+        stroke: Tokens.border-subtle;
+        stroke-width: root.size / 16;
+    }
+    Path {
+        visible: root.value != 0;
+        width: parent.width;
+        height: parent.height;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        commands: root.arc;
+        stroke: Tokens.accent;
+        stroke-width: root.size / 16;
+        stroke-line-cap: round;
+    }
+    Text {
+        text: root.label != "" ? root.label : (root.value >= 0 ? "\{Math.round(root.value * 100)}%" : "");
+        font-size: root.size >= 96px ? Tokens.fs-heading : Tokens.fs-caption;
+        font-weight: Tokens.fw-semibold;
+        color: Tokens.text-primary;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Marcador de lugar mientras carga algo: un bloque que late despacio (quieto si se reducen las animaciones).
+export component Skeleton inherits Rectangle {
+    background: Tokens.border-subtle;
+    border-radius: Tokens.r-sm;
+    opacity: Tokens.reduce-motion ? 0.8 : 0.65 + 0.25 * Math.sin(animation-tick() / 1.6s * 360deg);
+    accessible-role: none;
+}
+
+// Estado vacío: ícono, una frase corta y, si hace falta, una acción (hijo).
+export component EmptyState inherits VerticalLayout {
+    in property <string> icon: "check";
+    in property <string> title;
+    in property <string> sub;
+    alignment: center;
+    spacing: Tokens.s-2;
+    HorizontalLayout { alignment: center; Icon { kind: root.icon; tint: Tokens.text-secondary; width: Tokens.icon-xl; height: self.width; } }
+    Text { text: root.title; font-size: Tokens.fs-heading; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; horizontal-alignment: center; wrap: word-wrap; }
+    if root.sub != "": Text { text: root.sub; font-size: Tokens.fs-body; color: Tokens.text-secondary; horizontal-alignment: center; wrap: word-wrap; }
+    HorizontalLayout { alignment: center; padding-top: Tokens.s-2; @children }
+}
+
+// Tarjeta de métrica: etiqueta, cifra grande, barra opcional y un detalle.
+export component MetricCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> caption;
+    in property <float> fraction: -1;
+    in property <bool> loading: false;
+    height: Tokens.s-12 * 2 + Tokens.s-6;
+    preferred-width: 0px;
+    horizontal-stretch: 1;
+    background: Tokens.bg-elevated;
+    border-radius: Tokens.r-lg;
+    border-width: Tokens.border-w;
+    border-color: Tokens.border-subtle;
+    accessible-role: AccessibleRole.text;
+    accessible-label: "\{label}: \{value}. \{caption}";
+    if root.loading: VerticalLayout {
+        padding: Tokens.s-4;
+        spacing: Tokens.s-3;
+        Skeleton { height: Tokens.s-3; width: 60%; }
+        Skeleton { height: Tokens.s-8; width: 40%; }
+        Skeleton { height: Tokens.s-3; }
+    }
+    if !root.loading: VerticalLayout {
+        padding: Tokens.s-4;
+        spacing: Tokens.s-1;
+        Text { text: root.label; font-size: Tokens.fs-caption; font-weight: Tokens.fw-semibold; color: Tokens.text-secondary; }
+        Text { text: root.value; font-size: Tokens.fs-metric; font-weight: Tokens.fw-medium; color: Tokens.text-primary; }
+        Rectangle { vertical-stretch: 1; }
+        if root.fraction >= 0: ProgressBar { value: root.fraction; }
+        Text { text: root.caption; font-size: Tokens.fs-caption; color: Tokens.text-secondary; overflow: elide; }
+    }
+}
+
+// Fila de lista: la única fila de la app. Ícono, título, descripción, valor y una acción (hijo) a la derecha.
+// Si es interactiva se puede tocar y llegar con Tab.
+export component ListRow inherits Rectangle {
+    in property <string> icon;
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> mono-desc: false;
+    in property <string> value;
+    in property <bool> interactive: false;
+    in property <bool> compact: false;
+    in property <bool> divider: true;
+    in property <bool> dim: false;
+    callback clicked;
+    height: compact ? Tokens.row-h-compact : Tokens.row-h;
+    opacity: dim ? 0.55 : 1.0;
+    background: interactive ? (ta.pressed ? Tokens.state-pressed : (ta.has-hover ? Tokens.state-hover : transparent)) : transparent;
+    animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+    accessible-role: button;
+    accessible-label: desc == "" ? title : "\{title}. \{desc}";
+    accessible-action-default => { if (interactive) { root.clicked(); } }
+    fs := FocusScope {
+        enabled: root.interactive;
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") { root.clicked(); return accept; }
+            reject
+        }
+    }
+    if root.divider: Rectangle { y: parent.height - Tokens.border-w; height: Tokens.border-w; background: Tokens.border-subtle; }
+    HorizontalLayout {
+        padding-left: Tokens.s-4;
+        padding-right: Tokens.s-4;
+        spacing: Tokens.s-3;
+        if root.icon != "": VerticalLayout { alignment: center; Icon { kind: root.icon; width: Tokens.icon-md; height: self.width; } }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Tokens.s-1 / 2;
+            Text { text: root.title; font-size: Tokens.fs-body; color: Tokens.text-primary; overflow: elide; }
+            if root.desc != "": Text {
+                text: root.desc;
+                font-size: Tokens.fs-caption;
+                font-family: root.mono-desc ? "JetBrains Mono" : "Inter Variable";
+                color: Tokens.text-secondary;
+                overflow: elide;
+            }
+        }
+        if root.value != "": Text { horizontal-stretch: 0; horizontal-alignment: right; text: root.value; font-size: Tokens.fs-body; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; vertical-alignment: center; }
+        VerticalLayout { horizontal-stretch: 0; alignment: center; @children }
+    }
+    ta := TouchArea { enabled: root.interactive; mouse-cursor: root.interactive ? MouseCursor.pointer : MouseCursor.default; clicked => { root.clicked(); } }
+    FocusRing { active: fs.has-focus && root.interactive; }
+}
+
+// Cabecera de columna de una tabla: ordena al tocarla.
+export component SortHead inherits Rectangle {
+    in property <string> text;
+    in property <bool> active;
+    in property <bool> ascending: false;
+    in property <TextHorizontalAlignment> align: left;
+    callback clicked;
+    height: Tokens.control-sm;
+    accessible-role: button;
+    accessible-label: text;
+    accessible-action-default => { root.clicked(); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") { root.clicked(); return accept; }
+            reject
+        }
+    }
+    HorizontalLayout {
+        spacing: Tokens.s-1;
+        alignment: root.align == TextHorizontalAlignment.right ? end : start;
+        Text { text: root.text; font-size: Tokens.fs-caption; font-weight: Tokens.fw-semibold; color: root.active ? Tokens.accent : (ta.has-hover ? Tokens.text-primary : Tokens.text-secondary); vertical-alignment: center; }
+        if root.active: VerticalLayout { alignment: center; Icon { kind: root.ascending ? "arrow-up" : "arrow-down"; tint: Tokens.accent; width: Tokens.icon-sm - Tokens.s-1 / 2; height: self.width; } }
+    }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    FocusRing { active: fs.has-focus; radius: Tokens.r-sm; }
+}
+
+// Globito de ayuda: aparece medio segundo después de pasar el mouse (o al instante con el foco).
+// Se pone como hijo del control; `host-hover` es el has-hover del control.
+export component Tooltip inherits Rectangle {
+    in property <string> text;
+    in property <bool> host-hover;
+    // Debajo del control (por defecto) o a su derecha (menú compacto); `host-w` es el ancho del control.
+    in property <bool> to-right: false;
+    in property <length> host-w;
+    property <bool> shown;
+    width: 0px;
+    height: 0px;
+    Timer {
+        interval: 500ms;
+        running: root.host-hover;
+        triggered => { root.shown = true; }
+    }
+    changed host-hover => { if (!root.host-hover) { root.shown = false; } }
+    if root.shown && root.host-hover: Rectangle {
+        x: root.to-right ? root.host-w + Tokens.s-2 : 0px;
+        y: root.to-right ? 0px : Tokens.control-md + Tokens.s-1;
+        width: tip.preferred-width + 2 * Tokens.s-3;
+        height: tip.preferred-height + 2 * Tokens.s-2;
+        background: Tokens.bg-overlay;
+        border-radius: Tokens.r-md;
+        border-width: Tokens.border-w;
+        border-color: Tokens.border-subtle;
+        accessible-role: AccessibleRole.text;
+        accessible-label: root.text;
+        tip := Text { x: Tokens.s-3; y: Tokens.s-2; text: root.text; font-size: Tokens.fs-caption; color: Tokens.text-primary; wrap: no-wrap; }
+    }
+}
+
+// Lista con scroll de rueda y una barra mínima que se agranda al pasar el mouse y se arrastra.
+// `content-h` es el alto total del contenido (filas × alto de fila); es explícito porque calcularlo solo deja valores viejos.
+export component Scroll inherits Rectangle {
+    in property <length> content-h;
+    clip: true;
+    property <bool> can-scroll: content-h > fl.height;
+    property <length> thumb-h: max(Tokens.s-8 - Tokens.s-1, fl.height * fl.height / max(1px, content-h));
+    property <length> thumb-y: can-scroll ? -fl.content-y / max(1px, content-h - fl.height) * (fl.height - thumb-h) : 0px;
+    property <bool> active: strip.has-hover || strip.pressed;
+
+    function scroll-to(ty: length) {
+        if (can-scroll) {
+            fl.content-y = -(Math.clamp(ty, 0px, fl.height - thumb-h) / max(1px, fl.height - thumb-h)) * (content-h - fl.height);
+        }
+    }
+
+    fl := Flickable {
+        x: 0px;
+        width: parent.width - Tokens.s-4;
+        height: parent.height;
+        content-height: root.content-h;
+        interactive: false;
+        @children
+    }
+    strip := TouchArea {
+        x: parent.width - Tokens.s-4;
+        width: Tokens.s-4;
+        height: parent.height;
+        enabled: can-scroll;
+        property <length> grab;
+        pointer-event(e) => {
+            if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
+                if (self.mouse-y >= thumb-y && self.mouse-y <= thumb-y + thumb-h) {
+                    grab = self.mouse-y - thumb-y;
+                } else {
+                    grab = thumb-h / 2;
+                    scroll-to(self.mouse-y - grab);
+                }
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                scroll-to(self.mouse-y - grab);
+            }
+        }
+        scroll-event(e) => {
+            fl.content-y = Math.clamp(fl.content-y + e.delta-y, -max(0px, content-h - fl.height), 0px);
+            EventResult.accept
+        }
+    }
+    Rectangle {
+        visible: can-scroll;
+        width: active ? Tokens.s-2 : Tokens.s-1 * 3 / 4;
+        x: parent.width - self.width - Tokens.s-1;
+        y: thumb-y;
+        height: thumb-h;
+        border-radius: self.width / 2;
+        background: Tokens.text-secondary.with-alpha(active ? 0.85 : 0.5);
+        animate width { duration: Tokens.dur-fast; }
+    }
+}

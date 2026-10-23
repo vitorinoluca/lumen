@@ -1,0 +1,6 @@
+// Idioma de los textos que arma Rust. `lang` cambia al elegir otro idioma y recalcula todo lo que usa `t`.
+export global I18n {
+    in property <int> lang;
+    pure callback translate(string, int) -> string;
+    public pure function t(s: string) -> string { return translate(s, lang); }
+}

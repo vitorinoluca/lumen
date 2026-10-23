@@ -1,0 +1,93 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { FocusRing } from "focus.slint";
+import { ButtonKind, ControlSize } from "types.slint";
+
+// Botón. Primario (acento, uno por pantalla), secundario, ghost y peligro.
+// Teclado: Tab para llegar, Enter o Espacio para activar.
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <string> icon;
+    in property <ButtonKind> kind: ButtonKind.secondary;
+    in property <ControlSize> size: ControlSize.md;
+    in property <bool> enabled: true;
+    out property <bool> hovered: ta.has-hover;
+    out property <bool> focused: fs.has-focus;
+    callback clicked;
+    public function focus-me() { fs.focus(); }
+
+    property <color> fg: kind == ButtonKind.primary ? Tokens.on-accent : (kind == ButtonKind.danger ? Tokens.danger : Tokens.text-primary);
+
+    height: size == ControlSize.sm ? Tokens.control-sm : (size == ControlSize.lg ? Tokens.control-lg : Tokens.control-md);
+    min-width: self.height;
+    opacity: enabled ? 1.0 : 0.4;
+    border-radius: Tokens.r-md;
+    border-width: (kind == ButtonKind.secondary || kind == ButtonKind.danger) ? Tokens.border-w : 0px;
+    border-color: kind == ButtonKind.danger ? Tokens.danger : Tokens.border-control;
+    background: kind == ButtonKind.primary
+        ? (ta.pressed ? Tokens.accent-active : (ta.has-hover ? Tokens.accent-hover : Tokens.accent))
+        : (kind == ButtonKind.danger
+            ? (ta.pressed ? Tokens.danger-subtle : (ta.has-hover ? Tokens.danger-subtle : transparent))
+            : (ta.pressed ? Tokens.state-pressed : (ta.has-hover ? Tokens.state-hover : transparent)));
+    animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+    accessible-role: button;
+    accessible-label: text;
+    accessible-enabled: enabled;
+    accessible-action-default => { if (enabled) { root.clicked(); } }
+
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") { root.clicked(); return accept; }
+            reject
+        }
+    }
+    HorizontalLayout {
+        padding-left: size == ControlSize.sm ? Tokens.s-3 : (size == ControlSize.lg ? Tokens.s-6 : Tokens.s-4);
+        padding-right: self.padding-left;
+        spacing: Tokens.s-2;
+        alignment: center;
+        if root.icon != "": VerticalLayout { alignment: center; Icon { kind: root.icon; tint: root.fg; } }
+        Text {
+            text: root.text;
+            font-size: size == ControlSize.sm ? Tokens.fs-caption : Tokens.fs-body;
+            font-weight: Tokens.fw-semibold;
+            color: root.fg;
+            vertical-alignment: center;
+        }
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+        clicked => { root.clicked(); }
+    }
+    FocusRing { active: fs.has-focus; }
+}
+
+// Botón cuadrado solo con ícono. Siempre lleva una etiqueta accesible (y un tooltip donde se use).
+export component IconButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> label;
+    in property <bool> enabled: true;
+    out property <bool> hovered: ta.has-hover;
+    callback clicked;
+    width: Tokens.control-md;
+    height: Tokens.control-md;
+    opacity: enabled ? 1.0 : 0.4;
+    border-radius: Tokens.r-md;
+    background: ta.pressed ? Tokens.state-pressed : (ta.has-hover ? Tokens.state-hover : transparent);
+    animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+    accessible-role: button;
+    accessible-label: label;
+    accessible-action-default => { if (enabled) { root.clicked(); } }
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") { root.clicked(); return accept; }
+            reject
+        }
+    }
+    Icon { kind: root.icon; tint: Tokens.text-primary; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; }
+    ta := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { root.clicked(); } }
+    FocusRing { active: fs.has-focus; }
+}

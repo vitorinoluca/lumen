@@ -1,0 +1,211 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { FocusRing } from "focus.slint";
+
+// Casilla (o círculo, si se elige una sola opción). No lleva texto: va dentro de una fila.
+export component Check inherits Rectangle {
+    in property <bool> checked;
+    in property <bool> radio: false;
+    in property <bool> enabled: true;
+    in property <string> label;
+    out property <bool> hovered: ta.has-hover;
+    callback toggled;
+    width: Tokens.icon-md;
+    height: Tokens.icon-md;
+    opacity: enabled ? 1.0 : 0.4;
+    border-radius: radio ? Tokens.icon-md / 2 : Tokens.r-sm;
+    border-width: Tokens.border-w;
+    border-color: checked ? Tokens.accent : (ta.has-hover ? Tokens.text-secondary : Tokens.border-control);
+    background: checked ? (ta.pressed ? Tokens.accent-active : Tokens.accent) : transparent;
+    animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+    accessible-role: radio-button;
+    accessible-label: label;
+    accessible-checkable: true;
+    accessible-checked: checked;
+    accessible-action-default => { if (enabled) { root.toggled(); } }
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(e) => {
+            if (e.text == " " || e.text == Key.Return) { root.toggled(); return accept; }
+            reject
+        }
+    }
+    if root.checked && !root.radio: Icon { kind: "check"; tint: Tokens.on-accent; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: Tokens.icon-sm - Tokens.s-1 / 2; height: self.width; }
+    if root.checked && root.radio: Rectangle { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: Tokens.s-2; height: Tokens.s-2; border-radius: Tokens.s-1; background: Tokens.on-accent; }
+    ta := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { root.toggled(); } }
+    FocusRing { active: fs.has-focus; radius: root.border-radius; }
+}
+
+// Interruptor para ajustes con efecto inmediato y reversible.
+export component Toggle inherits Rectangle {
+    in property <bool> on;
+    in property <bool> enabled: true;
+    in property <string> label;
+    out property <bool> hovered: ta.has-hover;
+    callback toggled;
+    width: Tokens.s-8 + Tokens.s-1;
+    height: Tokens.icon-md;
+    opacity: enabled ? 1.0 : 0.4;
+    border-radius: Tokens.icon-md / 2;
+    border-width: Tokens.border-w;
+    border-color: on ? Tokens.accent : Tokens.border-control;
+    background: on ? (ta.has-hover ? Tokens.accent-hover : Tokens.accent) : (ta.has-hover ? Tokens.state-hover : transparent);
+    animate background { duration: Tokens.dur-base; easing: Tokens.ease-standard; }
+    accessible-role: switch;
+    accessible-label: label;
+    accessible-checkable: true;
+    accessible-checked: on;
+    accessible-action-default => { if (enabled) { root.toggled(); } }
+    fs := FocusScope {
+        enabled: root.enabled;
+        key-pressed(e) => {
+            if (e.text == " " || e.text == Key.Return) { root.toggled(); return accept; }
+            reject
+        }
+    }
+    Rectangle {
+        width: Tokens.icon-sm - Tokens.s-1;
+        height: self.width;
+        y: (parent.height - self.height) / 2;
+        x: root.on ? parent.width - self.width - Tokens.s-1 - Tokens.border-w : Tokens.s-1;
+        border-radius: self.width / 2;
+        background: root.on ? Tokens.on-accent : Tokens.text-secondary;
+        animate x { duration: Tokens.dur-base; easing: Tokens.ease-standard; }
+    }
+    ta := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { root.toggled(); } }
+    FocusRing { active: fs.has-focus; radius: root.border-radius; }
+}
+
+// Campo de texto de una línea, con ícono opcional y botón para borrar.
+export component TextField inherits Rectangle {
+    in-out property <string> text;
+    in property <string> placeholder;
+    in property <string> icon;
+    in property <bool> enabled: true;
+    callback changed(string);
+    height: Tokens.control-md;
+    opacity: enabled ? 1.0 : 0.4;
+    border-radius: Tokens.r-md;
+    border-width: input.has-focus ? Tokens.focus-w : Tokens.border-w;
+    border-color: input.has-focus ? Tokens.focus-ring : Tokens.border-control;
+    background: Tokens.bg-elevated;
+    HorizontalLayout {
+        padding-left: Tokens.s-3;
+        padding-right: Tokens.s-2;
+        spacing: Tokens.s-2;
+        if root.icon != "": VerticalLayout { alignment: center; Icon { kind: root.icon; } }
+        Rectangle {
+            horizontal-stretch: 1;
+            if input.text == "": Text { width: parent.width; text: root.placeholder; color: Tokens.text-secondary; font-size: Tokens.fs-body; horizontal-alignment: left; vertical-alignment: center; }
+            input := TextInput {
+                width: parent.width;
+                height: parent.height;
+                enabled: root.enabled;
+                font-size: Tokens.fs-body;
+                color: Tokens.text-primary;
+                vertical-alignment: center;
+                single-line: true;
+                selection-background-color: Tokens.accent-subtle;
+                selection-foreground-color: Tokens.text-primary;
+                accessible-label: root.placeholder;
+                text <=> root.text;
+                edited => { root.changed(self.text); }
+            }
+        }
+        if root.text != "": VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: Tokens.icon-md;
+                height: Tokens.icon-md;
+                border-radius: Tokens.r-sm;
+                background: clear-ta.has-hover ? Tokens.state-hover : transparent;
+                accessible-role: button;
+                accessible-label: @tr("" => "Borrar");
+                Icon { kind: "x"; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; }
+                clear-ta := TouchArea { mouse-cursor: pointer; clicked => { root.text = ""; root.changed(""); } }
+            }
+        }
+    }
+}
+
+// Pestañas subrayadas para las secciones de una pantalla. Flechas izquierda y derecha cambian de pestaña.
+export component Tabs inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current;
+    callback picked(int);
+    height: Tokens.control-lg;
+    accessible-role: tab-list;
+    Rectangle { y: parent.height - Tokens.border-w; height: Tokens.border-w; background: Tokens.border-subtle; }
+    HorizontalLayout {
+        spacing: Tokens.s-6;
+        alignment: start;
+        for o[i] in options: Rectangle {
+            width: label.preferred-width;
+            accessible-role: tab;
+            accessible-label: o;
+            accessible-checkable: true;
+            accessible-checked: i == root.current;
+            accessible-action-default => { root.picked(i); }
+            fs := FocusScope {
+                key-pressed(e) => {
+                    if (e.text == Key.Return || e.text == " ") { root.picked(i); return accept; }
+                    if (e.text == Key.LeftArrow && i > 0) { root.picked(i - 1); return accept; }
+                    if (e.text == Key.RightArrow && i < root.options.length - 1) { root.picked(i + 1); return accept; }
+                    reject
+                }
+            }
+            label := Text {
+                text: o;
+                font-size: Tokens.fs-body;
+                font-weight: i == root.current ? Tokens.fw-semibold : Tokens.fw-regular;
+                color: i == root.current ? Tokens.text-primary : (ta.has-hover ? Tokens.text-primary : Tokens.text-secondary);
+                vertical-alignment: center;
+            }
+            Rectangle { y: parent.height - Tokens.focus-w; height: Tokens.focus-w; background: i == root.current ? Tokens.accent : transparent; }
+            ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(i); } }
+            FocusRing { active: fs.has-focus; radius: Tokens.r-sm; }
+        }
+    }
+}
+
+// Elegir una opción entre 2 o 3 cortas (tema, idioma, frecuencia).
+export component Segmented inherits Rectangle {
+    in property <[string]> options;
+    in property <int> current;
+    callback picked(int);
+    height: Tokens.control-md;
+    border-radius: Tokens.r-md;
+    border-width: Tokens.border-w;
+    border-color: Tokens.border-subtle;
+    background: Tokens.bg-base;
+    accessible-role: tab-list;
+    HorizontalLayout {
+        padding: Tokens.s-1 / 2;
+        spacing: Tokens.s-1 / 2;
+        for o[i] in options: Rectangle {
+            border-radius: Tokens.r-sm * 1.5;
+            background: i == root.current ? Tokens.bg-overlay : (ta.has-hover ? Tokens.state-hover : transparent);
+            animate background { duration: Tokens.dur-fast; easing: Tokens.ease-standard; }
+            accessible-role: tab;
+            accessible-label: o;
+            accessible-checkable: true;
+            accessible-checked: i == root.current;
+            accessible-action-default => { root.picked(i); }
+            fs := FocusScope {
+                key-pressed(e) => {
+                    if (e.text == Key.Return || e.text == " ") { root.picked(i); return accept; }
+                    if (e.text == Key.LeftArrow && i > 0) { root.picked(i - 1); return accept; }
+                    if (e.text == Key.RightArrow && i < root.options.length - 1) { root.picked(i + 1); return accept; }
+                    reject
+                }
+            }
+            HorizontalLayout {
+                padding-left: Tokens.s-3;
+                padding-right: Tokens.s-3;
+                Text { text: o; font-size: Tokens.fs-caption; font-weight: i == root.current ? Tokens.fw-semibold : Tokens.fw-regular; color: i == root.current ? Tokens.text-primary : Tokens.text-secondary; vertical-alignment: center; }
+            }
+            ta := TouchArea { mouse-cursor: pointer; clicked => { root.picked(i); } }
+            FocusRing { active: fs.has-focus; radius: parent.border-radius; }
+        }
+    }
+}

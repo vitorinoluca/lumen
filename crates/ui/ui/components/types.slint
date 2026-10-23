@@ -1,0 +1,25 @@
+// Tipos compartidos por los componentes.
+export enum ButtonKind { primary, secondary, ghost, danger }
+export enum ControlSize { sm, md, lg }
+// Tono de un estado: siempre va con ícono y texto, nunca solo color.
+export enum Tone { neutral, success, warning, danger, info, accent }
+// Una línea del bloque de impacto de un diálogo: qué, cuánto, y si es dato técnico (ruta, hash).
+export struct ImpactRow { label: string, value: string, mono: bool }
+
+// Filas que Rust llena desde el motor. Se exportan desde main.slint para que Rust las siga viendo igual.
+export struct Row { pid: int, name: string, cpu: string, mem: string, path: string, icon: image, has-icon: bool, initial: string }
+export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
+export struct SecRow { title: string, sub: string, icon: string, alert: bool }
+export struct FindingRow { title: string, detail: string, decoded: string, severity: int, can-disable: bool, can-restore: bool }
+export struct DiskCard { name: string, sub: string, fraction: float }
+export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
+export struct DiskRow { name: string, size: string }
+export struct DupRow { name: string, folder: string, copies: int, wasted: string }
+export struct SpaceRow { name: string, size: string, fraction: float }
+export struct CleanRow { name: string, desc: string, size: string }
+// Una opción de sección: `idx` apunta a la lista que guarda Rust. risk: 0 = seguro (verde), 1 = revisar (amarillo).
+export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool, icon: image, has-icon: bool }
+// Lo que se va a hacer, antes de aplicar.
+export struct PreviewRow { title: string, detail: string, undoable: bool }
+// Un cambio del historial.
+export struct HistRow { id: int, title: string, detail: string, applied: bool, undoable: bool }
