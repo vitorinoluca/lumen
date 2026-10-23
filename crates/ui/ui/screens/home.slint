@@ -1,0 +1,189 @@
+import { Tokens } from "../tokens.slint";
+import { Icon } from "../icons.slint";
+import { Button } from "../components/button.slint";
+import { Segmented } from "../components/controls.slint";
+import { MetricCard, ProgressBar, ProgressRing, Scroll, Skeleton } from "../components/display.slint";
+import { PageHeader, GroupTitle, Card } from "../components/page.slint";
+import { ButtonKind, ControlSize, DiskCard, Hw } from "../components/types.slint";
+import { I18n } from "../components/i18n.slint";
+
+// Un dato del equipo: nombre a la izquierda, valor y detalle a la derecha.
+component FactRow inherits Rectangle {
+    in property <string> key;
+    in property <string> value;
+    in property <string> sub;
+    in property <bool> divider: true;
+    height: Tokens.row-h;
+    if root.divider: Rectangle { x: Tokens.s-4; y: parent.height - Tokens.border-w; width: parent.width - 2 * Tokens.s-4; height: Tokens.border-w; background: Tokens.border-subtle; }
+    HorizontalLayout {
+        padding-left: Tokens.s-4;
+        padding-right: Tokens.s-4;
+        spacing: Tokens.s-4;
+        Text { text: root.key; width: Tokens.s-12 * 2; font-size: Tokens.fs-caption; color: Tokens.text-secondary; vertical-alignment: center; }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Tokens.s-1 / 2;
+            Text { text: I18n.t(root.value); font-size: Tokens.fs-body; color: Tokens.text-primary; overflow: elide; }
+            if root.sub != "": Text { text: I18n.t(root.sub); font-size: Tokens.fs-caption; color: Tokens.text-secondary; overflow: elide; }
+        }
+    }
+}
+
+// Inicio: el estado de la PC de un vistazo y una sola acción recomendada.
+// home-state: 0 sin analizar, 1 analizando, 2 listo, 3 aplicado.
+export component HomeScreen inherits Rectangle {
+    in property <float> cpu;
+    in property <float> ram;
+    in property <float> gpu;
+    in property <float> disk;
+    in property <string> ram-text;
+    in property <string> disk-text;
+    in property <string> net-text;
+    in property <Hw> hw;
+    in property <[DiskCard]> disks;
+    in property <int> home-state;
+    in property <string> home-free;
+    in property <int> home-startup;
+    in-out property <int> home-preset;
+    in property <int> home-count;
+    in property <string> home-desc;
+    in property <string> result;
+    in property <bool> busy;
+    callback analyze();
+    callback select(int);
+    callback apply();
+    property <bool> details;
+
+    VerticalLayout {
+        padding-left: Tokens.s-8;
+        padding-right: Tokens.s-8;
+        padding-top: Tokens.s-6;
+        padding-bottom: Tokens.s-4;
+        spacing: Tokens.s-6;
+        PageHeader { title: @tr("" => "Inicio"); sub: @tr("" => "El estado de tu PC de un vistazo. La memoria se actualiza sola."); }
+        Scroll {
+            vertical-stretch: 1;
+            content-h: body.preferred-height;
+            body := VerticalLayout {
+                alignment: start;
+                spacing: Tokens.s-6;
+
+                // Estado y acción recomendada.
+                Card {
+                    height: status.preferred-height;
+                    status := VerticalLayout {
+                        padding: Tokens.s-6;
+                        spacing: Tokens.s-4;
+                        HorizontalLayout {
+                            spacing: Tokens.s-4;
+                            VerticalLayout {
+                                alignment: center;
+                                if root.home-state == 1: ProgressRing { size: Tokens.s-12; }
+                                if root.home-state != 1: Icon {
+                                    kind: (root.home-state == 3 || (root.home-state == 2 && root.home-count == 0)) ? "circle-check" : (root.home-state == 2 ? "sparkles" : "activity");
+                                    tint: (root.home-state == 3 || (root.home-state == 2 && root.home-count == 0)) ? Tokens.success : Tokens.accent;
+                                    width: Tokens.icon-xl;
+                                    height: self.width;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: Tokens.s-1;
+                                Text {
+                                    text: root.home-state == 0 ? @tr("" => "Analizá tu PC")
+                                        : (root.home-state == 1 ? @tr("" => "Analizando tu PC…")
+                                        : (root.home-state == 2 ? (root.home-count == 0 ? @tr("" => "Todo en orden") : @tr("" => "Encontramos mejoras para tu PC")) : I18n.t(root.result)));
+                                    font-size: Tokens.fs-heading;
+                                    font-weight: Tokens.fw-semibold;
+                                    color: Tokens.text-primary;
+                                    wrap: word-wrap;
+                                }
+                                Text {
+                                    text: root.home-state == 0 ? @tr("" => "Revisa qué se puede liberar y mejorar. No cambia nada hasta que lo confirmes.")
+                                        : (root.home-state == 1 ? @tr("" => "Mirando temporales, cachés, programas de inicio y ajustes. Tarda unos segundos.")
+                                        : (root.home-state == 2 ? (root.home-count == 0 ? @tr("" => "No hay nada pendiente en este nivel.") : (root.home-count == 1 ? @tr("" => "1 ajuste. Antes de aplicar te mostramos qué se va a hacer.") : @tr("" => "{} ajustes. Antes de aplicar te mostramos qué se va a hacer.", root.home-count))) : ""));
+                                    font-size: Tokens.fs-body;
+                                    color: Tokens.text-secondary;
+                                    wrap: word-wrap;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 0;
+                                alignment: center;
+                                if root.home-state == 0: Button { kind: ButtonKind.primary; size: ControlSize.lg; text: @tr("" => "Analizar"); icon: "search"; clicked => { root.analyze(); } }
+                                if root.home-state == 2: Button { kind: ButtonKind.primary; size: ControlSize.lg; text: @tr("" => "Optimizar"); icon: "bolt"; enabled: root.home-count > 0 && !root.busy; clicked => { root.apply(); } }
+                                if root.home-state == 3: Button { size: ControlSize.lg; text: @tr("" => "Analizar de nuevo"); icon: "refresh"; clicked => { root.analyze(); } }
+                            }
+                        }
+                        if root.home-state == 1: ProgressBar { }
+                        if root.home-state == 2: VerticalLayout {
+                            spacing: Tokens.s-3;
+                            HorizontalLayout { alignment: start; Segmented { options: [@tr("" => "Mínimo"), @tr("" => "Recomendado"), @tr("" => "Avanzado")]; current: root.home-preset; picked(i) => { root.home-preset = i; root.select(i); } } }
+                            Text { text: I18n.t(root.home-desc); font-size: Tokens.fs-caption; color: Tokens.text-secondary; wrap: word-wrap; }
+                        }
+                    }
+                }
+
+                // Métricas.
+                HorizontalLayout {
+                    spacing: Tokens.s-3;
+                    MetricCard { label: @tr("" => "Se puede liberar"); value: root.home-state >= 2 ? root.home-free : "—"; caption: root.home-state >= 2 ? @tr("" => "Temporales y cachés") : @tr("" => "Analizá para saberlo"); }
+                    MetricCard { label: @tr("" => "Memoria en uso"); value: "\{Math.round(root.ram * 100)} %"; caption: root.ram-text; fraction: root.ram; }
+                    MetricCard { label: @tr("" => "Procesador"); value: "\{Math.round(root.cpu * 100)} %"; caption: root.hw.cpu; fraction: root.cpu; loading: root.hw.cpu == ""; }
+                    MetricCard { label: @tr("" => "Gráficos"); value: root.gpu >= 0 ? "\{Math.round(root.gpu * 100)} %" : "—"; caption: root.hw.gpu; fraction: root.gpu; loading: root.hw.gpu == ""; }
+                }
+
+                // Discos.
+                VerticalLayout {
+                    spacing: Tokens.s-2;
+                    GroupTitle { text: @tr("" => "Almacenamiento"); }
+                    Card {
+                        height: dl.preferred-height;
+                        dl := VerticalLayout {
+                            padding: Tokens.s-4;
+                            spacing: Tokens.s-4;
+                            if root.disks.length == 0: Skeleton { height: Tokens.s-10; }
+                            for d in root.disks: VerticalLayout {
+                                spacing: Tokens.s-2;
+                                Text { text: I18n.t(d.name); font-size: Tokens.fs-body; color: Tokens.text-primary; overflow: elide; }
+                                ProgressBar { value: d.fraction; }
+                                Text { text: I18n.t(d.sub); font-size: Tokens.fs-caption; color: Tokens.text-secondary; overflow: elide; }
+                            }
+                        }
+                    }
+                }
+
+                // Detalles del equipo: cerrados por defecto.
+                VerticalLayout {
+                    spacing: Tokens.s-2;
+                    Rectangle {
+                        height: Tokens.control-md;
+                        border-radius: Tokens.r-md;
+                        background: toggle-ta.has-hover ? Tokens.state-hover : transparent;
+                        accessible-role: button;
+                        accessible-label: @tr("" => "Detalles del equipo");
+                        accessible-action-default => { root.details = !root.details; }
+                        HorizontalLayout {
+                            spacing: Tokens.s-2;
+                            VerticalLayout { alignment: center; Icon { kind: root.details ? "chevron-down" : "chevron-right"; } }
+                            GroupTitle { text: @tr("" => "Detalles del equipo"); vertical-alignment: center; }
+                        }
+                        toggle-ta := TouchArea { mouse-cursor: pointer; clicked => { root.details = !root.details; } }
+                    }
+                    if root.details: Card {
+                        height: 5 * Tokens.row-h;
+                        VerticalLayout {
+                            FactRow { key: @tr("" => "Sistema"); value: root.hw.os; sub: root.hw.os-sub; }
+                            FactRow { key: @tr("" => "Procesador"); value: root.hw.cpu; sub: root.hw.cpu-sub; }
+                            FactRow { key: @tr("" => "Gráficos"); value: root.hw.gpu; sub: root.hw.gpu-sub; }
+                            FactRow { key: @tr("" => "Placa base"); value: root.hw.board; sub: root.hw.board-sub; }
+                            FactRow { key: @tr("" => "Red"); value: root.net-text; divider: false; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

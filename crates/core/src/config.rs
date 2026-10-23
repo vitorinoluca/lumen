@@ -1,4 +1,4 @@
-//! Configuración de la app: tema, frecuencia del panel e idioma.
+//! Configuración de la app: tema, frecuencia del panel, idioma y animaciones.
 //! Se guarda en `%APPDATA%\lumen\config.json`. Si el archivo falta o está dañado se usan los valores por defecto.
 use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::{Path, PathBuf}};
@@ -15,11 +15,13 @@ pub struct Config {
     pub refresh_secs: u64,
     /// "es" o "en".
     pub language: String,
+    /// Sin transiciones y con lo que gira o late quieto.
+    pub reduce_motion: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Config { theme: "auto".into(), refresh_secs: 1, language: "es".into() }
+        Config { theme: "dark".into(), refresh_secs: 1, language: "es".into(), reduce_motion: false }
     }
 }
 
@@ -83,7 +85,7 @@ mod tests {
     #[test]
     fn saves_and_loads_the_same_values() {
         let p = tmp("ida-y-vuelta");
-        let c = Config { theme: "dark".into(), refresh_secs: 5, language: "en".into() };
+        let c = Config { theme: "dark".into(), refresh_secs: 5, language: "en".into(), reduce_motion: true };
         c.save_to(&p).unwrap();
         assert_eq!(Config::load_from(&p), c);
         let _ = fs::remove_file(p);

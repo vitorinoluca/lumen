@@ -1,0 +1,156 @@
+import { Tokens } from "../tokens.slint";
+import { Button, IconButton } from "../components/button.slint";
+import { Check, Toggle, TextField, Tabs, Segmented } from "../components/controls.slint";
+import { Badge, InlineNotice, ProgressBar, ProgressRing, Skeleton, EmptyState, MetricCard, ListRow, SortHead, Tooltip, Scroll } from "../components/display.slint";
+import { ConfirmDialog, Toast } from "../components/overlay.slint";
+import { ButtonKind, ControlSize, Tone, ImpactRow } from "../components/types.slint";
+
+// Galería temporal de la etapa 3: todos los componentes y sus estados. Se borra en la etapa 7.
+component Section inherits VerticalLayout {
+    in property <string> title;
+    spacing: Tokens.s-3;
+    Text { text: root.title; font-size: Tokens.fs-heading; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; }
+    @children
+}
+
+export component Gallery inherits Rectangle {
+    background: Tokens.bg-surface;
+    property <bool> t1: true;
+    property <bool> t2;
+    property <bool> c1: true;
+    property <bool> c2;
+    property <int> tab: 0;
+    property <int> seg: 1;
+    property <string> field;
+    property <bool> dialog;
+    property <bool> toast;
+    property <int> sort-col: 0;
+    property <bool> asc;
+
+    Scroll {
+        content-h: 1760px;
+        VerticalLayout {
+            alignment: start;
+            padding: Tokens.s-8;
+            spacing: Tokens.s-8;
+            HorizontalLayout {
+                spacing: Tokens.s-4;
+                Text { text: "Galería de componentes"; font-size: Tokens.fs-title; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; vertical-alignment: center; horizontal-stretch: 1; }
+                Segmented { options: ["Windows", "Claro", "Oscuro"]; current: Tokens.mode; picked(i) => { Tokens.mode = i; } }
+                Toggle { on: Tokens.reduce-motion; label: "Reducir animaciones"; toggled => { Tokens.reduce-motion = !Tokens.reduce-motion; } }
+            }
+            Section {
+                title: "Botones (primario, secundario, ghost, peligro)";
+                HorizontalLayout { spacing: Tokens.s-3; alignment: start;
+                    Button { kind: ButtonKind.primary; text: "Analizar"; icon: "search"; }
+                    Button { text: "Cancelar"; }
+                    Button { kind: ButtonKind.ghost; text: "Ver detalles"; }
+                    Button { kind: ButtonKind.danger; text: "Cerrar proceso"; icon: "trash"; }
+                    Button { kind: ButtonKind.primary; text: "Deshabilitado"; enabled: false; }
+                }
+                HorizontalLayout { spacing: Tokens.s-3; alignment: start;
+                    Button { kind: ButtonKind.primary; size: ControlSize.sm; text: "Chico"; }
+                    Button { kind: ButtonKind.primary; size: ControlSize.md; text: "Mediano"; }
+                    Button { kind: ButtonKind.primary; size: ControlSize.lg; text: "Grande"; }
+                    IconButton { icon: "refresh"; label: "Actualizar"; }
+                    IconButton { icon: "gear"; label: "Configuración"; }
+                    Button { text: "Abrir diálogo"; clicked => { dialog = true; } }
+                    Button { text: "Mostrar aviso"; clicked => { toast = true; } }
+                }
+            }
+            Section {
+                title: "Casillas, interruptores y campo";
+                HorizontalLayout { spacing: Tokens.s-6; alignment: start;
+                    Check { checked: c1; toggled => { c1 = !c1; } }
+                    Check { checked: c2; toggled => { c2 = !c2; } }
+                    Check { checked: true; radio: true; }
+                    Check { checked: false; radio: true; }
+                    Check { checked: true; enabled: false; }
+                    Toggle { on: t1; toggled => { t1 = !t1; } }
+                    Toggle { on: t2; toggled => { t2 = !t2; } }
+                    Toggle { on: true; enabled: false; }
+                }
+                TextField { icon: "search"; placeholder: "Buscar programa o editor"; text <=> field; }
+                TextField { placeholder: "Deshabilitado"; enabled: false; }
+            }
+            Section {
+                title: "Pestañas y segmentado";
+                Tabs { options: ["Limpiar", "Duplicados", "Espacio"]; current: tab; picked(i) => { tab = i; } }
+                HorizontalLayout { alignment: start; Segmented { options: ["Mínimo", "Recomendado", "Avanzado"]; current: seg; picked(i) => { seg = i; } } }
+            }
+            Section {
+                title: "Estados (siempre con ícono y texto)";
+                HorizontalLayout { spacing: Tokens.s-2; alignment: start;
+                    Badge { text: "Seguro"; tone: Tone.success; }
+                    Badge { text: "Revisar"; tone: Tone.warning; }
+                    Badge { text: "Amenaza"; tone: Tone.danger; }
+                    Badge { text: "Info"; tone: Tone.info; }
+                    Badge { text: "Activo"; tone: Tone.accent; }
+                    Badge { text: "Deshecho"; }
+                }
+                InlineNotice { height: 48px; tone: Tone.warning; text: "Sin administrador: algunos cambios no se van a aplicar."; }
+                InlineNotice { height: 48px; tone: Tone.success; text: "Listo. Liberaste 4,2 GB."; }
+            }
+            Section {
+                title: "Progreso";
+                ProgressBar { value: 0.62; }
+                ProgressBar { }
+                HorizontalLayout { spacing: Tokens.s-6; alignment: start;
+                    ProgressRing { value: 0.64; }
+                    ProgressRing { }
+                    ProgressRing { size: 48px; value: 0.3; }
+                    ProgressRing { size: 48px; value: 1; }
+                }
+            }
+            Section {
+                title: "Tarjetas de métrica y cargando";
+                HorizontalLayout { spacing: Tokens.s-3;
+                    MetricCard { label: "Memoria en uso"; value: "45 %"; caption: "14,4 GB / 31,9 GB"; fraction: 0.45; }
+                    MetricCard { label: "Se puede liberar"; value: "4,2 GB"; caption: "Temporales, cachés y restos"; }
+                    MetricCard { loading: true; }
+                }
+            }
+            Section {
+                title: "Filas, tabla y vacío";
+                HorizontalLayout { spacing: Tokens.s-4; SortHead { width: 120px; text: "Nombre"; active: sort-col == 0; ascending: asc; clicked => { sort-col = 0; asc = !asc; } } SortHead { width: 80px; text: "Memoria"; align: right; active: sort-col == 1; ascending: asc; clicked => { sort-col = 1; asc = !asc; } } }
+                Rectangle {
+                    height: 3 * Tokens.row-h;
+                    background: Tokens.bg-elevated;
+                    border-radius: Tokens.r-lg;
+                    border-width: Tokens.border-w;
+                    border-color: Tokens.border-subtle;
+                    VerticalLayout {
+                        ListRow { icon: "broom"; title: "Archivos temporales"; desc: "Archivos que podés borrar sin riesgo"; value: "2,1 GB"; interactive: true; }
+                        ListRow { icon: "folder"; title: "Caché del navegador"; desc: "C:\\Users\\luca\\AppData\\Local\\Cache"; mono-desc: true; value: "1,4 GB"; interactive: true; }
+                        ListRow { icon: "history"; title: "Limpieza de ayer"; desc: "Deshecho"; divider: false; dim: true; Button { size: ControlSize.sm; text: "Deshacer"; } }
+                    }
+                }
+                Rectangle { height: 140px; EmptyState { icon: "circle-check"; title: "Tu disco está limpio"; sub: "No hay nada para liberar ahora."; Button { text: "Analizar de nuevo"; } } }
+                HorizontalLayout { spacing: Tokens.s-3; Skeleton { height: Tokens.s-10; } Skeleton { height: Tokens.s-10; } }
+                Rectangle {
+                    height: Tokens.control-md;
+                    hov := IconButton { icon: "info"; label: "Ayuda"; }
+                    Tooltip { text: "Esto es un tooltip: aparece a los 500 ms"; host-hover: hov.hovered; }
+                }
+            }
+        }
+    }
+
+    if root.dialog: ConfirmDialog {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        title: "¿Limpiar 4,2 GB?";
+        body: "Los archivos no se borran al instante: quedan 7 días en la reserva.";
+        impact: [
+            { label: "Se mueve", value: "1.204 archivos en 3 categorías", mono: false },
+            { label: "Ubicación", value: "C:\\Users\\luca\\AppData\\Local\\Temp", mono: true },
+            { label: "Deshacer", value: "Sí, desde Historial", mono: false },
+        ];
+        ok-text: "Limpiar";
+        ok => { root.dialog = false; }
+        cancel => { root.dialog = false; }
+    }
+    Toast { x: 0; y: 0; shown <=> root.toast; text: "Listo. Liberaste 4,2 GB."; action-text: "Deshacer"; }
+}

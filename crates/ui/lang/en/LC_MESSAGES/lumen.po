@@ -1350,3 +1350,66 @@ msgstr "Privacy, services almost nobody uses and the DNS cache. Everything marke
 
 msgid "Lo recomendado más efectos visuales, segundo plano y servicios que dependen de tu uso. Se puede deshacer, pero cambia cómo se ve y se comporta la PC."
 msgstr "The recommended plus visual effects, background apps and services that depend on how you use the PC. It can be undone, but it changes how the PC looks and behaves."
+
+msgid "Ajustes"
+msgstr "Tweaks"
+
+msgid "Revisión"
+msgstr "Scan"
+
+msgid "Mantenimiento"
+msgstr "Maintenance"
+
+msgid "Apariencia"
+msgstr "Appearance"
+
+msgid "Reducir animaciones"
+msgstr "Reduce motion"
+
+msgid "Quita las transiciones y deja quieto lo que gira o late."
+msgstr "Removes transitions and keeps spinners and pulses still."
+
+msgid "Datos"
+msgstr "Data"
+
+msgid "Atajos de teclado"
+msgstr "Keyboard shortcuts"
+
+msgid "Ir a una sección del menú"
+msgstr "Go to a menu section"
+
+msgid "Abrir la configuración"
+msgstr "Open settings"
+
+msgid "Volver a analizar esta pantalla"
+msgstr "Scan this screen again"
+
+msgid "Acción principal (primero muestra qué va a hacer)"
+msgstr "Main action (shows what it will do first)"
+
+msgid "Cerrar un cuadro de confirmación"
+msgstr "Close a confirmation dialog"
+
+msgid "Íconos Lucide (ISC) · Inter y JetBrains Mono (SIL OFL 1.1)"
+msgstr "Lucide icons (ISC) · Inter and JetBrains Mono (SIL OFL 1.1)"
+
+msgid "Cuando limpies o ajustes algo, va a aparecer acá con todo el detalle."
+msgstr "When you clean or tweak something, it will show up here with every detail."
+
+msgid "Borrar"
+msgstr "Clear"
+
+msgid "Todo en orden"
+msgstr "All good"
+
+msgid "Encontramos mejoras para tu PC"
+msgstr "We found ways to improve your PC"
+
+msgid "Mirando temporales, cachés, programas de inicio y ajustes. Tarda unos segundos."
+msgstr "Checking temp files, caches, startup apps and settings. Takes a few seconds."
+
+msgid "Detalles del equipo"
+msgstr "Device details"
+
+msgid "Temporales y cachés"
+msgstr "Temp files and caches"

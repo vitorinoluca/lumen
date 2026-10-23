@@ -296,10 +296,11 @@ fn main() {
     ui.set_cfg_theme(theme_index(&cfg.theme));
     ui.set_cfg_refresh(refresh_index(cfg.refresh_secs));
     ui.set_cfg_lang((cfg.language == "en") as i32);
+    ui.set_cfg_reduce(cfg.reduce_motion);
     ui.global::<I18n>().on_translate(|s, _| i18n::t(s.as_str()).into());
     apply_language(&ui, &cfg.language);
     ui.global::<Theme>().set_mode(theme_index(&cfg.theme));
-    ui.global::<Theme>().set_solid(hardware::windows_build() < 22621);
+    ui.global::<Theme>().set_solid(true);
     // La ventana recién existe con el bucle de eventos andando: el tema de la barra se aplica un instante después.
     {
         let (weak, mode) = (ui.as_weak(), theme_index(&cfg.theme));
@@ -672,6 +673,7 @@ fn main() {
                 theme: ["auto", "light", "dark"][ui.get_cfg_theme().clamp(0, 2) as usize].into(),
                 refresh_secs: lumen_core::config::REFRESH_CHOICES[ui.get_cfg_refresh().clamp(0, 2) as usize],
                 language: if ui.get_cfg_lang() == 1 { "en" } else { "es" }.into(),
+                reduce_motion: ui.get_cfg_reduce(),
             };
             let _ = cfg.save();
             interval.store(cfg.refresh_secs, Ordering::Relaxed);

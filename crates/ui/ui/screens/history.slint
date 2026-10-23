@@ -1,0 +1,54 @@
+import { Tokens } from "../tokens.slint";
+import { Button } from "../components/button.slint";
+import { Badge, EmptyState, ListRow, Scroll } from "../components/display.slint";
+import { Toast } from "../components/overlay.slint";
+import { PageHeader, Card } from "../components/page.slint";
+import { ButtonKind, ControlSize, HistRow, Tone } from "../components/types.slint";
+import { I18n } from "../components/i18n.slint";
+
+// Historial: todo lo que lumen cambió, con deshacer en cada cambio.
+export component HistoryScreen inherits Rectangle {
+    in property <[HistRow]> hist;
+    in property <string> status;
+    callback undo(int);
+    property <bool> toast-shown;
+    changed status => { root.toast-shown = root.status != ""; }
+
+    VerticalLayout {
+        padding-left: Tokens.s-8;
+        padding-right: Tokens.s-8;
+        padding-top: Tokens.s-6;
+        padding-bottom: Tokens.s-6;
+        spacing: Tokens.s-6;
+        PageHeader { title: @tr("" => "Historial"); sub: @tr("" => "Todo lo que lumen cambió en tu PC. Cada cambio se puede deshacer."); }
+        if root.hist.length == 0: EmptyState {
+            vertical-stretch: 1;
+            icon: "history";
+            title: @tr("" => "Todavía no hiciste ningún cambio con lumen.");
+            sub: @tr("" => "Cuando limpies o ajustes algo, va a aparecer acá con todo el detalle.");
+        }
+        if root.hist.length > 0: Card {
+            vertical-stretch: 1;
+            clip: true;
+            Scroll {
+                content-h: root.hist.length * Tokens.row-h;
+                VerticalLayout {
+                    alignment: start;
+                    for h in root.hist: ListRow {
+                        icon: h.applied ? "circle-check" : "undo";
+                        title: I18n.t(h.title);
+                        desc: I18n.t(h.detail);
+                        dim: !h.applied;
+                        HorizontalLayout {
+                            spacing: Tokens.s-3;
+                            VerticalLayout { alignment: center; if !h.applied: Badge { text: @tr("" => "Deshecho"); } }
+                            VerticalLayout { alignment: center; if h.applied && !h.undoable: Badge { text: @tr("" => "No se puede deshacer"); tone: Tone.warning; } }
+                            VerticalLayout { alignment: center; if h.applied && h.undoable: Button { size: ControlSize.sm; text: @tr("" => "Deshacer"); icon: "undo"; clicked => { root.undo(h.id); } } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Toast { x: 0; y: 0; shown <=> root.toast-shown; text: I18n.t(root.status); tone: Tone.success; }
+}

@@ -1,0 +1,112 @@
+import { Tokens } from "../tokens.slint";
+import { Segmented, Toggle } from "../components/controls.slint";
+import { Scroll } from "../components/display.slint";
+import { PageHeader, GroupTitle, Card, SettingRow } from "../components/page.slint";
+
+// Un atajo: qué hace y las teclas en una cajita con letra técnica.
+component ShortcutRow inherits Rectangle {
+    in property <string> keys;
+    in property <string> what;
+    in property <bool> divider: true;
+    height: Tokens.control-lg;
+    if root.divider: Rectangle { x: Tokens.s-4; y: parent.height - Tokens.border-w; width: parent.width - 2 * Tokens.s-4; height: Tokens.border-w; background: Tokens.border-subtle; }
+    HorizontalLayout {
+        padding-left: Tokens.s-4;
+        padding-right: Tokens.s-4;
+        spacing: Tokens.s-4;
+        Text { text: root.what; horizontal-stretch: 1; font-size: Tokens.fs-body; color: Tokens.text-primary; vertical-alignment: center; }
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                height: Tokens.s-6;
+                width: k.preferred-width + 2 * Tokens.s-2;
+                border-radius: Tokens.r-sm;
+                background: Tokens.bg-base;
+                border-width: Tokens.border-w;
+                border-color: Tokens.border-subtle;
+                k := Text { text: root.keys; font-family: "JetBrains Mono"; font-size: Tokens.fs-caption; color: Tokens.text-primary; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
+    }
+}
+
+// Configuración: apariencia, datos y atajos. Se guarda sola en cada cambio.
+export component SettingsScreen inherits Rectangle {
+    in property <string> app-version;
+    in-out property <int> theme;
+    in-out property <int> refresh;
+    in-out property <int> lang;
+    in-out property <bool> reduce;
+    callback changed;
+
+    VerticalLayout {
+        padding-left: Tokens.s-8;
+        padding-right: Tokens.s-8;
+        padding-top: Tokens.s-6;
+        padding-bottom: Tokens.s-4;
+        spacing: Tokens.s-6;
+        PageHeader { title: @tr("" => "Configuración"); sub: @tr("" => "Se guarda sola y se recuerda la próxima vez que abras lumen."); }
+        Scroll {
+            vertical-stretch: 1;
+            content-h: body.preferred-height;
+            body := VerticalLayout {
+                alignment: start;
+                spacing: Tokens.s-6;
+                VerticalLayout {
+                    spacing: Tokens.s-2;
+                    GroupTitle { text: @tr("" => "Apariencia"); }
+                    Card {
+                        height: 3 * (Tokens.s-12 + Tokens.s-6);
+                        VerticalLayout {
+                            SettingRow {
+                                title: @tr("" => "Tema");
+                                desc: @tr("" => "Claro, oscuro o el mismo que usa Windows.");
+                                Segmented { options: [@tr("" => "Automático"), @tr("" => "Claro"), @tr("" => "Oscuro")]; current: root.theme; picked(i) => { root.theme = i; root.changed(); } }
+                            }
+                            SettingRow {
+                                title: @tr("" => "Reducir animaciones");
+                                desc: @tr("" => "Quita las transiciones y deja quieto lo que gira o late.");
+                                Toggle { on: root.reduce; label: @tr("" => "Reducir animaciones"); toggled => { root.reduce = !root.reduce; root.changed(); } }
+                            }
+                            SettingRow {
+                                divider: false;
+                                title: @tr("" => "Idioma");
+                                desc: @tr("" => "El idioma de todos los textos de lumen.");
+                                Segmented { options: ["Español", "English"]; current: root.lang; picked(i) => { root.lang = i; root.changed(); } }
+                            }
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: Tokens.s-2;
+                    GroupTitle { text: @tr("" => "Datos"); }
+                    Card {
+                        height: Tokens.s-12 + Tokens.s-6;
+                        SettingRow {
+                            divider: false;
+                            title: @tr("" => "Actualización del panel");
+                            desc: @tr("" => "Cada cuánto se renuevan el uso del procesador, la memoria y la red.");
+                            Segmented { options: [@tr("" => "1 segundo"), @tr("" => "2 segundos"), @tr("" => "5 segundos")]; current: root.refresh; picked(i) => { root.refresh = i; root.changed(); } }
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: Tokens.s-2;
+                    GroupTitle { text: @tr("" => "Atajos de teclado"); }
+                    Card {
+                        height: 5 * Tokens.control-lg;
+                        VerticalLayout {
+                            ShortcutRow { keys: "Ctrl + 1 … 8"; what: @tr("" => "Ir a una sección del menú"); }
+                            ShortcutRow { keys: "Ctrl + ,"; what: @tr("" => "Abrir la configuración"); }
+                            ShortcutRow { keys: "F5"; what: @tr("" => "Volver a analizar esta pantalla"); }
+                            ShortcutRow { keys: "Ctrl + Enter"; what: @tr("" => "Acción principal (primero muestra qué va a hacer)"); }
+                            ShortcutRow { keys: "Esc"; what: @tr("" => "Cerrar un cuadro de confirmación"); divider: false; }
+                        }
+                    }
+                }
+                Text { text: @tr("" => "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen", root.app-version); font-size: Tokens.fs-caption; color: Tokens.text-secondary; }
+                Text { text: @tr("" => "Íconos Lucide (ISC) · Inter y JetBrains Mono (SIL OFL 1.1)"); font-size: Tokens.fs-caption; color: Tokens.text-secondary; }
+            }
+        }
+    }
+}

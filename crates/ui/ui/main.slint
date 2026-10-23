@@ -1,101 +1,42 @@
-import { Palette } from "std-widgets.slint";
+import { Tokens } from "tokens.slint";
+import { Icon } from "icons.slint";
+import { Gallery } from "screens/gallery.slint";
+import { NavItem } from "components/nav.slint";
+import { Tabs } from "components/controls.slint";
+import { ConfirmDialog } from "components/overlay.slint";
+import { Row, Hw, SecRow, FindingRow, DiskCard, AppRow, DiskRow, DupRow, SpaceRow, CleanRow, OptionRow, PreviewRow, HistRow } from "components/types.slint";
+import { I18n } from "components/i18n.slint";
+import { SettingsScreen } from "screens/settings.slint";
+import { HistoryScreen } from "screens/history.slint";
+import { HomeScreen } from "screens/home.slint";
+export { Row, Hw, SecRow, FindingRow, DiskCard, AppRow, DiskRow, DupRow, SpaceRow, CleanRow, OptionRow, PreviewRow, HistRow, I18n }
+import "fonts/Inter-lumen.ttf";
+import "fonts/JetBrainsMono-lumen.ttf";
 
-export struct Row { pid: int, name: string, cpu: string, mem: string, path: string, icon: image, has-icon: bool, initial: string }
-export struct Hw { os: string, os-sub: string, cpu: string, cpu-sub: string, ram: string, gpu: string, gpu-sub: string, board: string, board-sub: string }
-export struct SecRow { title: string, sub: string, icon: string, alert: bool }
-export struct FindingRow { title: string, detail: string, decoded: string, severity: int, can-disable: bool, can-restore: bool }
-export struct DiskCard { name: string, sub: string, fraction: float }
-export struct AppRow { name: string, detail: string, size: string, icon: image, has-icon: bool, initial: string }
-export struct DiskRow { name: string, size: string }
-export struct DupRow { name: string, folder: string, copies: int, wasted: string }
-export struct SpaceRow { name: string, size: string, fraction: float }
-export struct CleanRow { name: string, desc: string, size: string }
-// Una opción de sección: `idx` apunta a la lista que guarda Rust. risk: 0 = seguro (verde), 1 = revisar (amarillo).
-export struct OptionRow { idx: int, title: string, desc: string, risk: int, checked: bool, done: bool, group: int, header: bool, icon: image, has-icon: bool }
-// Lo que se va a hacer, antes de aplicar.
-export struct PreviewRow { title: string, detail: string, undoable: bool }
-// Un cambio del historial.
-export struct HistRow { id: int, title: string, detail: string, applied: bool, undoable: bool }
-
-// Lo que se ve es el material de Windows (Mica) a través de la ventana: nada de fondos sólidos.
-// Las superficies son capas translúcidas (blanco o negro con poca opacidad) y el texto, el mismo color con alfa.
-// Un solo acento. Tamaños: 12 / 14 / 28 (títulos) / 32 (cifras).
+// Puente hacia el viejo nombre `Theme`: Rust sigue usando `mode` y `solid`, y los componentes
+// aún no migrados leen los mismos colores desde `Tokens`. Se borra en la etapa 7.
 export global Theme {
-    // 0 = como Windows, 1 = claro, 2 = oscuro
-    in-out property <int> mode: 0;
-    // Sin Mica (Windows 10 o 11 viejo) la ventana no puede ser transparente: se pinta un fondo sólido.
-    in-out property <bool> solid: false;
-    out property <bool> dark: mode == 2 || (mode == 0 && Palette.color-scheme == ColorScheme.dark);
-    out property <color> text: dark ? #f5f5f7 : #1a1a1c;
-    out property <color> muted: dark ? #ffffff9e : #0000009e;
-    out property <color> faint: dark ? #ffffff5c : #00000066;
-    // La hoja donde vive el contenido, y las piezas que se apoyan encima.
-    out property <color> sheet: dark ? #ffffff0a : #ffffff80;
-    out property <color> raised: dark ? #ffffff0f : #ffffffb3;
-    out property <color> hover: dark ? #ffffff14 : #0000000b;
-    out property <color> pressed: dark ? #ffffff1f : #00000014;
-    out property <color> chosen: dark ? #ffffff24 : #ffffffe6;
-    out property <color> line: dark ? #ffffff17 : #0000001a;
-    out property <color> accent: dark ? #62c9b2 : #1d7a65;
-    out property <color> on-accent: dark ? #04211b : #ffffff;
-    out property <color> good: dark ? #6fd69f : #1a7f4b;
-    out property <color> warn: dark ? #f2c35c : #9a6700;
-    out property <color> danger: dark ? #ff8f85 : #c42b1c;
-    // Lo único opaco: los diálogos, para que el texto se lea siempre.
-    out property <color> pop: dark ? #2a2a2e : #fbfbfb;
-    out property <color> backdrop: dark ? #1c1c1f : #f3f3f5;
-    out property <length> radius: 6px;
-}
-
-// Íconos de línea (viewbox 24x24), mismo trazo en todos.
-component Icon inherits Path {
-    in property <string> kind;
-    in property <color> tint: Theme.muted;
-    width: 16px;
-    height: 16px;
-    viewbox-width: 24;
-    viewbox-height: 24;
-    stroke: tint;
-    stroke-width: 1.6px;
-    stroke-line-cap: round;
-    stroke-line-join: round;
-    commands:
-        kind == "home" ? "M3 11 L12 3 L21 11 M5 9.5 V20 H19 V9.5" :
-        kind == "list" ? "M4 6 H20 M4 12 H20 M4 18 H13" :
-        kind == "power" ? "M12 3 V12 M6.3 6.8 A8 8 0 1 0 17.7 6.8" :
-        kind == "disk" ? "M4 14 H20 V19 H4 Z M4 14 L7 5 H17 L20 14 M16 16.5 H16.5" :
-        kind == "sliders" ? "M4 7 H20 M4 12 H20 M4 17 H20 M9 5 V9 M15 10 V14 M8 15 V19" :
-        kind == "bolt" ? "M13 3 L5 14 H12 L11 21 L19 10 H12 Z" :
-        kind == "box" ? "M3 7 L12 3 L21 7 V17 L12 21 L3 17 Z M3 7 L12 11 L21 7 M12 11 V21" :
-        kind == "chip" ? "M7 7 H17 V17 H7 Z M10 3 V7 M14 3 V7 M10 17 V21 M14 17 V21 M3 10 H7 M3 14 H7 M17 10 H21 M17 14 H21" :
-        kind == "memory" ? "M3 8 H21 V16 H3 Z M7 8 V16 M11 8 V16 M15 8 V16 M6 19 V16 M18 19 V16" :
-        kind == "monitor" ? "M3 5 H21 V15 H3 Z M9 19 H15 M12 15 V19" :
-        kind == "board" ? "M4 4 H20 V20 H4 Z M8 8 H12 V12 H8 Z M15 8 V16 M8 16 H12" :
-        kind == "windows" ? "M3 5 L11 4 V11 H3 Z M13 3.8 L21 3 V11 H13 Z M3 13 H11 V20 L3 19 Z M13 13 H21 V21 L13 20 Z" :
-        kind == "gear" ? "M12 9 A3 3 0 1 0 12 15 A3 3 0 1 0 12 9 M12 3 V5 M12 19 V21 M3 12 H5 M19 12 H21 M5.6 5.6 L7 7 M17 17 L18.4 18.4 M5.6 18.4 L7 17 M17 7 L18.4 5.6" :
-        kind == "search" ? "M11 4 A7 7 0 1 0 11 18 A7 7 0 1 0 11 4 M16 16 L21 21" :
-        kind == "game" ? "M6 8 H18 A4 4 0 0 1 22 12 V14 A2.5 2.5 0 0 1 17.5 15 L16 13 H8 L6.5 15 A2.5 2.5 0 0 1 2 14 V12 A4 4 0 0 1 6 8 Z M8 10 V12 M7 11 H9 M15.5 10.5 H15.6 M17.5 12 H17.6" :
-        kind == "battery" ? "M3 8 H19 V16 H3 Z M21 11 V13 M6 11 V13 M9 11 V13" :
-        kind == "megaphone" ? "M4 10 V14 H7 L14 18 V6 L7 10 Z M17 9 C18.5 10.5 18.5 13.5 17 15" :
-        kind == "bulb" ? "M9 18 H15 M10 21 H14 M12 3 A6 6 0 0 0 8.5 14 C9 15 9 16 9 17 H15 C15 16 15 15 15.5 14 A6 6 0 0 0 12 3 Z" :
-        kind == "bell" ? "M6 16 V11 A6 6 0 0 1 18 11 V16 L20 18 H4 Z M10 21 H14" :
-        kind == "cloud" ? "M7 18 A4 4 0 0 1 6.5 10 A6 6 0 0 1 18 9 A4.5 4.5 0 0 1 17.5 18 Z" :
-        kind == "print" ? "M7 9 V4 H17 V9 M7 17 H4 V10 H20 V17 H17 M7 14 H17 V21 H7 Z" :
-        kind == "bluetooth" ? "M7 7 L17 17 L12 22 V2 L17 7 L7 17" :
-        kind == "map" ? "M3 6 L9 4 L15 6 L21 4 V18 L15 20 L9 18 L3 20 Z M9 4 V18 M15 6 V20" :
-        kind == "refresh" ? "M20 12 A8 8 0 1 1 17.7 6.3 M20 4 V9 H15" :
-        kind == "globe" ? "M12 3 A9 9 0 1 0 12 21 A9 9 0 1 0 12 3 M3 12 H21 M12 3 C8 8 8 16 12 21 M12 3 C16 8 16 16 12 21" :
-        kind == "wrench" ? "M14.5 5.5 A4.5 4.5 0 0 0 19 12 L9 21 L4 16 L12 6.5 A4.5 4.5 0 0 1 14.5 5.5 Z" :
-        kind == "clock" ? "M12 4 A8 8 0 1 0 12 20 A8 8 0 1 0 12 4 M12 8 V12 L15 14" :
-        kind == "eye" ? "M2 12 C5 6 19 6 22 12 C19 18 5 18 2 12 Z M12 9.5 A2.5 2.5 0 1 0 12 14.5 A2.5 2.5 0 1 0 12 9.5" :
-        "M12 3 L20 6 V12 C20 17 16 20 12 21 C8 20 4 17 4 12 V6 Z"; // escudo
-}
-
-// Idioma de los textos que arma Rust. `lang` cambia al elegir otro idioma y recalcula todo lo que usa `t`.
-export global I18n {
-    in property <int> lang;
-    pure callback translate(string, int) -> string;
-    public pure function t(s: string) -> string { return translate(s, lang); }
+    in-out property <int> mode <=> Tokens.mode;
+    // Siempre sólido: sin Mica (decisión D1). Rust ya no lo cambia.
+    in-out property <bool> solid: true;
+    out property <bool> dark: Tokens.dark;
+    out property <color> text: Tokens.text-primary;
+    out property <color> muted: Tokens.text-secondary;
+    out property <color> faint: Tokens.text-disabled;
+    out property <color> sheet: Tokens.bg-surface;
+    out property <color> raised: Tokens.bg-elevated;
+    out property <color> hover: Tokens.state-hover;
+    out property <color> pressed: Tokens.state-pressed;
+    out property <color> chosen: Tokens.bg-overlay;
+    out property <color> line: Tokens.border-subtle;
+    out property <color> accent: Tokens.accent;
+    out property <color> on-accent: Tokens.on-accent;
+    out property <color> good: Tokens.success;
+    out property <color> warn: Tokens.warning;
+    out property <color> danger: Tokens.danger;
+    out property <color> pop: Tokens.bg-overlay;
+    out property <color> backdrop: Tokens.bg-base;
+    out property <length> radius: Tokens.r-md;
 }
 
 // Tres jerarquías: principal (acento relleno), normal (relleno sutil) y destructiva (rojo suave). Sin bordes.
@@ -172,21 +113,6 @@ component RiskTag inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-}
-
-// Entrada del menú lateral: sin caja, solo una marca de acento a la izquierda cuando está activa.
-component NavItem inherits Rectangle {
-    in property <string> text;
-    in property <string> icon;
-    in property <bool> active;
-    callback clicked;
-    height: 36px;
-    border-radius: Theme.radius;
-    background: active ? Theme.hover : (ta.has-hover ? Theme.hover.with-alpha(0.5) : transparent);
-    Rectangle { x: 0; y: 10px; width: 3px; height: 16px; border-radius: 1.5px; background: active ? Theme.accent : transparent; }
-    Icon { x: 16px; y: 10px; kind: root.icon; tint: root.active ? Theme.accent : Theme.muted; }
-    Text { x: 44px; text: root.text; font-size: 14px; color: root.active ? Theme.text : Theme.muted; vertical-alignment: center; }
-    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 // Título grande y una línea que explica la pantalla.
@@ -306,41 +232,6 @@ component Scroll inherits Rectangle {
         border-radius: self.width / 2;
         background: Theme.muted.with-alpha(active ? 0.85 : 0.5);
         animate width { duration: 90ms; }
-    }
-}
-
-// Diálogo de confirmación centrado, con el resto de la ventana atenuado.
-component Confirm inherits Rectangle {
-    in property <string> title;
-    in property <string> body;
-    in property <string> ok-text;
-    in property <bool> danger: false;
-    callback ok();
-    callback cancel();
-    background: Theme.dark ? #00000090 : #00000050;
-    TouchArea { }  // evita que los clics lleguen a lo que está debajo
-    Rectangle {
-        width: min(420px, parent.width - 48px);
-        height: box.preferred-height;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        background: Theme.pop;
-        border-width: 1px;
-        border-color: Theme.line;
-        border-radius: 12px;
-        box := VerticalLayout {
-            padding: 24px;
-            spacing: 8px;
-            Text { text: root.title; font-size: 14px; font-weight: 600; color: Theme.text; wrap: word-wrap; }
-            Text { text: root.body; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-            Rectangle { height: 12px; }
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
-                Btn { text: @tr("" => "Cancelar"); clicked => { root.cancel(); } }
-                Btn { text: root.ok-text; strong: !root.danger; danger: root.danger; clicked => { root.ok(); } }
-            }
-        }
     }
 }
 
@@ -548,28 +439,6 @@ component Segmented inherits Rectangle {
     }
 }
 
-// Una fila de configuración: qué es a la izquierda y el control a la derecha. Dentro de una tarjeta.
-component ConfigRow inherits Rectangle {
-    in property <string> title;
-    in property <string> desc;
-    in property <bool> last: false;
-    height: 72px;
-    if !root.last: Rectangle { x: 20px; y: parent.height - 1px; width: parent.width - 40px; height: 1px; background: Theme.line; }
-    HorizontalLayout {
-        padding-left: 20px;
-        padding-right: 20px;
-        spacing: 16px;
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            spacing: 2px;
-            Text { text: root.title; font-size: 14px; color: Theme.text; }
-            Text { text: root.desc; font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-        }
-        VerticalLayout { alignment: center; @children }
-    }
-}
-
 // Ícono de un programa; si no se pudo sacar, la inicial en un cuadrito.
 component AppIcon inherits Rectangle {
     in property <image> img;
@@ -613,69 +482,6 @@ component Busy inherits Rectangle {
     }
 }
 
-// Aire entre grupos del menú.
-component Gap inherits Rectangle {
-    height: 16px;
-}
-
-// Cifra grande del panel: qué es, cuánto, una barra fina y un detalle.
-component Metric inherits Rectangle {
-    in property <string> label;
-    in property <string> value;
-    in property <string> caption;
-    in property <float> fraction: -1;
-    height: 120px;
-    // Todas las tarjetas de una fila miden lo mismo, sea cual sea el texto que lleven.
-    preferred-width: 0px;
-    horizontal-stretch: 1;
-    background: Theme.raised;
-    border-radius: 10px;
-    VerticalLayout {
-        padding: 16px;
-        spacing: 4px;
-        Label { text: root.label; }
-        Text { text: root.value; font-size: 32px; font-weight: 300; color: Theme.text; }
-        Rectangle { height: 2px; }
-        Bar { value: root.fraction; opacity: root.fraction >= 0 ? 1.0 : 0.0; }
-        Text { text: root.caption; font-size: 12px; color: Theme.muted; overflow: elide; }
-    }
-}
-
-// Un disco: nombre, barra de uso y cuánto queda.
-component Meter inherits Rectangle {
-    in property <string> title;
-    in property <string> sub;
-    in property <float> fraction;
-    height: 64px;
-    VerticalLayout {
-        alignment: center;
-        spacing: 6px;
-        Text { text: I18n.t(root.title); font-size: 14px; color: Theme.text; overflow: elide; }
-        Bar { value: root.fraction; }
-        Text { text: I18n.t(root.sub); font-size: 12px; color: Theme.muted; overflow: elide; }
-    }
-}
-
-// Dato del equipo: nombre a la izquierda, valor y detalle a la derecha.
-component Fact inherits Rectangle {
-    in property <string> key;
-    in property <string> value;
-    in property <string> sub;
-    height: 52px;
-    Rectangle { y: parent.height - 1px; height: 1px; background: Theme.line; }
-    HorizontalLayout {
-        spacing: 16px;
-        Text { text: root.key; width: 110px; font-size: 12px; color: Theme.muted; vertical-alignment: center; }
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            spacing: 1px;
-            Text { text: I18n.t(root.value); font-size: 14px; color: Theme.text; overflow: elide; }
-            if root.sub != "": Text { text: I18n.t(root.sub); font-size: 12px; color: Theme.muted; overflow: elide; }
-        }
-    }
-}
-
 // Tarjeta de Seguridad: ícono, título y detalle.
 component Info inherits Rectangle {
     in property <string> icon;
@@ -703,13 +509,12 @@ component Info inherits Rectangle {
 export component Main inherits Window {
     title: "lumen";
     icon: @image-url("../assets/icon.png");
-    preferred-width: 980px;
-    preferred-height: 740px;
-    min-width: 720px;
-    min-height: 640px;
-    // Transparente: Rust le pone el material de Windows (Mica) por detrás.
-    background: Theme.solid ? Theme.backdrop : transparent;
-    default-font-family: "Segoe UI Variable Text";
+    preferred-width: 1000px;
+    preferred-height: 700px;
+    min-width: 760px;
+    min-height: 560px;
+    background: Tokens.bg-base;
+    default-font-family: "Inter Variable";
 
     in property <float> cpu;
     in property <float> ram;
@@ -722,6 +527,7 @@ export component Main inherits Window {
     in-out property <int> cfg-theme: 0;
     in-out property <int> cfg-refresh: 0;
     in-out property <int> cfg-lang: 0;
+    in-out property <bool> cfg-reduce <=> Tokens.reduce-motion;
     in property <string> app-version;
     callback config-changed();
     in property <Hw> hw;
@@ -792,6 +598,37 @@ export component Main inherits Window {
     in-out property <int> sort-by: 0;
     property <[string]> pages: [@tr("" => "Panel"), @tr("" => "Procesos"), @tr("" => "Arranque"), @tr("" => "Disco"), @tr("" => "Privacidad"), @tr("" => "Servicios"), @tr("" => "Perfiles"), @tr("" => "Programas"), @tr("" => "Seguridad"), @tr("" => "Configuración")];
 
+    // Navegación: el menú tiene 7 secciones + Configuración; cada una abre una o varias páginas (`page`).
+    // 0 Inicio, 1 Limpieza, 2 Rendimiento, 3 Programas, 4 Seguridad, 5 Mantenimiento, 6 Historial, 7 Configuración, 8 galería.
+    property <bool> compact: self.width < Tokens.nav-compact-below;
+    property <int> section: page == 0 ? 0 : (page == 3 ? 1 : ((page == 10 || page == 1 || page == 12) ? 2 : (page == 7 ? 3 : ((page == 8 || page == 11) ? 4 : ((page == 13 || page == 14) ? 5 : (page == 15 ? 6 : (page == 9 ? 7 : 8)))))));
+    property <bool> has-tabs: section == 2 || section == 4 || section == 5;
+    property <length> tabs-h: has-tabs ? Tokens.control-lg + Tokens.s-4 : 0px;
+    property <[string]> tab-names: section == 2 ? [@tr("" => "Ajustes"), @tr("" => "Procesos"), @tr("" => "Red")] : (section == 4 ? [@tr("" => "Revisión"), @tr("" => "Privacidad")] : [@tr("" => "Reparación"), @tr("" => "Actualizaciones")]);
+    property <int> tab-current: page == 1 ? 1 : ((page == 11 || page == 14) ? 1 : (page == 12 ? 2 : 0));
+    property <bool> modal-open: confirm-app >= 0 || kill-pid >= 0 || sec-confirm >= 0 || sc-preview;
+    function go(sec: int) {
+        sc-result = "";
+        page = [0, 3, 10, 7, 8, 13, 15, 9][sec];
+    }
+    function pick-tab(i: int) {
+        sc-result = "";
+        page = section == 2 ? [10, 1, 12][i] : (section == 4 ? [8, 11][i] : [13, 14][i]);
+    }
+    // F5: volver a analizar lo de la pantalla actual.
+    function reanalyze() {
+        if (page == 0) { if (home-state != 1) { home-analyze(); } }
+        else if (page == 8) { if (!behavior-busy) { scan-behavior(); } }
+        else if (page == 3 && disk-tab == 1) { if (dup-phase == 0) { dup-scan(); } }
+        else if (page == 3 && disk-tab == 2) { scan-map(); }
+        else { opened(); }
+    }
+    // Ctrl+Enter: la acción principal, que siempre abre primero la vista previa.
+    function primary() {
+        if (page == 0 && home-state == 2 && home-count > 0 && !sc-busy) { home-apply(); }
+        else if (page >= 10 && page <= 14 && sc-selected > 0 && !sc-busy) { sc-apply(); }
+    }
+
     callback sort(int);
     callback kill(int);
     callback opened();
@@ -830,137 +667,109 @@ export component Main inherits Window {
     callback scan-map();
     changed page => { opened(); }
 
-    HorizontalLayout {
-        // Menú: sin fondo propio, se ve el material de la ventana.
-        VerticalLayout {
-            width: 208px;
-            padding-left: 12px;
-            padding-right: 12px;
-            padding-top: 8px;
-            padding-bottom: 12px;
-            VerticalLayout {
-                vertical-stretch: 1;
-                spacing: 2px;
-                alignment: start;
-                HorizontalLayout {
-                    height: 44px;
-                    padding-left: 16px;
-                    spacing: 10px;
-                    Rectangle { width: 8px; VerticalLayout { alignment: center; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.accent; } } }
-                    Text { text: "lumen"; font-size: 14px; font-weight: 600; color: Theme.text; vertical-alignment: center; }
-                }
-                NavItem { text: @tr("" => "Inicio"); icon: "home"; active: page == 0; clicked => { page = 0; } }
-                NavItem { text: @tr("" => "Limpieza"); icon: "disk"; active: page == 3; clicked => { page = 3; } }
-                NavItem { text: @tr("" => "Rendimiento"); icon: "bolt"; active: page == 10; clicked => { sc-result = ""; page = 10; } }
-                NavItem { text: @tr("" => "Privacidad"); icon: "eye"; active: page == 11; clicked => { sc-result = ""; page = 11; } }
-                NavItem { text: @tr("" => "Red"); icon: "globe"; active: page == 12; clicked => { sc-result = ""; page = 12; } }
-                NavItem { text: @tr("" => "Reparación"); icon: "wrench"; active: page == 13; clicked => { sc-result = ""; page = 13; } }
-                NavItem { text: @tr("" => "Actualizaciones"); icon: "refresh"; active: page == 14; clicked => { sc-result = ""; page = 14; } }
-                NavItem { text: @tr("" => "Historial"); icon: "clock"; active: page == 15; clicked => { page = 15; } }
-                Gap { }
-                NavItem { text: @tr("" => "Procesos"); icon: "list"; active: page == 1; clicked => { page = 1; } }
-                NavItem { text: @tr("" => "Programas"); icon: "box"; active: page == 7; clicked => { page = 7; } }
-                NavItem { text: @tr("" => "Seguridad"); icon: "shield"; active: page == 8; clicked => { page = 8; } }
+    fs := FocusScope {
+        width: root.width;
+        height: root.height;
+        init => { self.focus(); }
+        key-pressed(e) => {
+            if (modal-open) { return reject; }
+            if (e.modifiers.control && e.modifiers.shift && e.text.to-lowercase() == "g") { page = 99; return accept; }
+            if (e.modifiers.control && e.text == ",") { go(7); return accept; }
+            if (e.modifiers.control && (e.text == "1" || e.text == "2" || e.text == "3" || e.text == "4" || e.text == "5" || e.text == "6" || e.text == "7" || e.text == "8")) {
+                go(e.text.to-float() - 1);
+                return accept;
             }
-            NavItem { text: @tr("" => "Configuración"); icon: "gear"; active: page == 9; clicked => { page = 9; } }
+            if (e.modifiers.control && (e.text == Key.Return || e.text == "\n")) { primary(); return accept; }
+            if (e.text == Key.F5) { reanalyze(); return accept; }
+            reject
         }
 
-        // Hoja de contenido: una capa translúcida con las esquinas redondeadas apoyada sobre el material.
-        VerticalLayout {
-            padding-right: 8px;
-            padding-bottom: 8px;
-            sheet := Rectangle {
-                background: Theme.sheet;
-                border-radius: 10px;
-                border-width: 1px;
-                border-color: Theme.line;
-                // Sin `clip`: un recorte redondeado sobre un fondo translúcido rompe el repintado parcial (queda más claro).
+    // Sin layout en la raíz: el ancho de la ventana no puede depender del menú (el menú depende del ancho).
+    Rectangle {
+        // Menú lateral: 7 secciones arriba y Configuración abajo. Bajo 880 px queda solo con íconos.
+        nav := Rectangle {
+            x: 0;
+            y: 0;
+            height: parent.height;
+            width: root.compact ? Tokens.nav-w-compact : Tokens.nav-w;
+            background: Tokens.bg-base;
+            animate width { duration: Tokens.dur-base; easing: Tokens.ease-standard; }
+            VerticalLayout {
+                padding: Tokens.s-3;
+                spacing: Tokens.s-1;
+                HorizontalLayout {
+                    height: Tokens.control-lg;
+                    padding-left: Tokens.s-3;
+                    spacing: Tokens.s-2;
+                    alignment: root.compact ? center : start;
+                    VerticalLayout { alignment: center; Rectangle { width: Tokens.s-2; height: Tokens.s-2; border-radius: Tokens.s-1; background: Tokens.accent; } }
+                    if !root.compact: Text { text: "lumen"; font-size: Tokens.fs-body; font-weight: Tokens.fw-semibold; color: Tokens.text-primary; vertical-alignment: center; }
+                }
+                NavItem { compact: root.compact; text: @tr("" => "Inicio"); icon: "home"; active: section == 0; clicked => { go(0); } }
+                NavItem { compact: root.compact; text: @tr("" => "Limpieza"); icon: "broom"; active: section == 1; clicked => { go(1); } }
+                NavItem { compact: root.compact; text: @tr("" => "Rendimiento"); icon: "bolt"; active: section == 2; clicked => { go(2); } }
+                NavItem { compact: root.compact; text: @tr("" => "Programas"); icon: "box"; active: section == 3; clicked => { go(3); } }
+                NavItem { compact: root.compact; text: @tr("" => "Seguridad"); icon: "shield"; active: section == 4; clicked => { go(4); } }
+                NavItem { compact: root.compact; text: @tr("" => "Mantenimiento"); icon: "wrench"; active: section == 5; clicked => { go(5); } }
+                NavItem { compact: root.compact; text: @tr("" => "Historial"); icon: "history"; active: section == 6; clicked => { go(6); } }
+                Rectangle { vertical-stretch: 1; }
+                NavItem { compact: root.compact; text: @tr("" => "Configuración"); icon: "gear"; active: section == 7; clicked => { go(7); } }
+            }
+        }
 
-                if page == 0: Page {
-                    width: parent.width;
-                    height: parent.height;
-                    Head { title: @tr("" => "Inicio"); sub: @tr("" => "El estado de tu PC de un vistazo. La memoria se actualiza sola."); }
-                    Scroll {
-                        vertical-stretch: 1;
-                        content-h: 778px + disks.length * 64px;
-                        VerticalLayout {
-                            alignment: start;
-                            // Estado de la PC y el análisis: tres cifras, el botón Analizar y los presets.
-                            HorizontalLayout {
-                                spacing: 12px;
-                                height: 120px;
-                                Metric { label: @tr("" => "Se puede liberar"); value: home-state >= 2 ? home-free : "—"; caption: home-state >= 2 ? @tr("" => "Temporales, cachés y restos") : @tr("" => "Analizá para saberlo"); }
-                                Metric { label: @tr("" => "Apps al iniciar"); value: home-state >= 2 ? "\{home-startup}" : "—"; caption: home-state >= 2 ? @tr("" => "arrancan con Windows") : @tr("" => "Analizá para saberlo"); }
-                                Metric { label: @tr("" => "Memoria en uso"); value: "\{Math.round(ram * 100)} %"; caption: ram-text; fraction: ram; }
-                            }
-                            Rectangle { height: 16px; }
-                            Rectangle {
-                                height: 134px;
-                                if home-state == 0: HorizontalLayout {
-                                    spacing: 16px;
-                                    VerticalLayout {
-                                        horizontal-stretch: 1;
-                                        alignment: center;
-                                        spacing: 2px;
-                                        Text { text: @tr("" => "Analizá tu PC"); font-size: 14px; color: Theme.text; }
-                                        Text { text: @tr("" => "Revisa qué se puede liberar y mejorar. No cambia nada hasta que lo confirmes."); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                                    }
-                                    VerticalLayout { alignment: center; horizontal-stretch: 0; Btn { height: 38px; pad: 28px; font: 14px; strong: true; text: @tr("" => "Analizar"); clicked => { home-analyze(); } } }
-                                }
-                                if home-state == 1: VerticalLayout {
-                                    alignment: center;
-                                    spacing: 10px;
-                                    Text { text: @tr("" => "Analizando tu PC…"); font-size: 14px; color: Theme.muted; horizontal-alignment: center; }
-                                    HorizontalLayout { alignment: center; Busy { width: 260px; } }
-                                }
-                                if home-state == 2: VerticalLayout {
-                                    spacing: 10px;
-                                    HorizontalLayout { alignment: start; Segmented { options: [@tr("" => "Mínimo"), @tr("" => "Recomendado"), @tr("" => "Avanzado")]; current: home-preset; picked(i) => { home-preset = i; home-select(i); } } }
-                                    Text { height: 32px; text: I18n.t(home-desc); font-size: 12px; color: Theme.muted; wrap: word-wrap; }
-                                    HorizontalLayout {
-                                        spacing: 16px;
-                                        Text {
-                                            horizontal-stretch: 1;
-                                            text: home-count == 0 ? @tr("" => "No hay nada pendiente en este nivel.") : (home-count == 1 ? @tr("" => "1 ajuste. Antes de aplicar te mostramos qué se va a hacer.") : @tr("" => "{} ajustes. Antes de aplicar te mostramos qué se va a hacer.", home-count));
-                                            font-size: 12px;
-                                            color: Theme.muted;
-                                            wrap: word-wrap;
-                                            vertical-alignment: center;
-                                        }
-                                        Btn { height: 38px; pad: 28px; font: 14px; strong: true; enabled: home-count > 0 && !sc-busy; text: @tr("" => "Optimizar"); clicked => { home-apply(); } }
-                                    }
-                                }
-                                if home-state == 3: VerticalLayout {
-                                    alignment: center;
-                                    spacing: 12px;
-                                    Text { text: I18n.t(sc-result); font-size: 14px; color: Theme.accent; wrap: word-wrap; }
-                                    HorizontalLayout { alignment: start; Btn { text: @tr("" => "Analizar de nuevo"); clicked => { home-analyze(); } } }
-                                }
-                            }
-                            Rectangle { height: 28px; }
-                            HorizontalLayout {
-                                spacing: 12px;
-                                height: 120px;
-                                Metric { label: @tr("" => "Procesador"); value: "\{Math.round(cpu * 100)} %"; caption: hw.cpu; fraction: cpu; }
-                                Metric { label: @tr("" => "Gráficos"); value: gpu >= 0 ? "\{Math.round(gpu * 100)} %" : "—"; caption: hw.gpu; fraction: gpu; }
-                            }
-                            Rectangle { height: 28px; }
-                            Label { height: 28px; text: @tr("" => "Almacenamiento"); }
-                            for d in disks: Meter { title: d.name; sub: d.sub; fraction: d.fraction; }
-                            Rectangle { height: 20px; }
-                            Label { height: 28px; text: @tr("" => "Equipo"); }
-                            Fact { key: @tr("" => "Sistema"); value: hw.os; sub: hw.os-sub; }
-                            Fact { key: @tr("" => "Procesador"); value: hw.cpu; sub: hw.cpu-sub; }
-                            Fact { key: @tr("" => "Gráficos"); value: hw.gpu; sub: hw.gpu-sub; }
-                            Fact { key: @tr("" => "Placa base"); value: hw.board; sub: hw.board-sub; }
-                            Fact { key: @tr("" => "Red"); value: net-text; }
-                        }
-                    }
+        // Contenido: la superficie va de borde a borde, con una línea fina contra el menú.
+        sheet := Rectangle {
+            x: nav.width;
+            y: 0;
+            width: parent.width - nav.width;
+            height: parent.height;
+            background: Tokens.bg-surface;
+            Rectangle { x: 0; width: Tokens.border-w; background: Tokens.border-subtle; }
+
+            // Pestañas de la sección (Rendimiento, Seguridad, Mantenimiento), alineadas con el contenido.
+            if root.has-tabs: Tabs {
+                x: (parent.width - min(parent.width, Tokens.content-max)) / 2 + Tokens.s-8;
+                y: Tokens.s-4;
+                width: min(parent.width, Tokens.content-max) - 2 * Tokens.s-8;
+                options: root.tab-names;
+                current: root.tab-current;
+                picked(i) => { root.pick-tab(i); }
+            }
+
+                if page == 99: Gallery { width: parent.width; height: parent.height; }
+
+                if page == 0: HomeScreen {
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
+                    cpu: root.cpu;
+                    ram: root.ram;
+                    gpu: root.gpu;
+                    disk: root.disk;
+                    ram-text: root.ram-text;
+                    disk-text: root.disk-text;
+                    net-text: root.net-text;
+                    hw: root.hw;
+                    disks: root.disks;
+                    home-state: root.home-state;
+                    home-free: root.home-free;
+                    home-startup: root.home-startup;
+                    home-preset <=> root.home-preset;
+                    home-count: root.home-count;
+                    home-desc: root.home-desc;
+                    result: root.sc-result;
+                    busy: root.sc-busy;
+                    analyze => { root.home-analyze(); }
+                    select(i) => { root.home-select(i); }
+                    apply => { root.home-apply(); }
                 }
 
                 if page == 1: Page {
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
                     Head { title: @tr("" => "{} procesos", procs.length); sub: sort-by == 0 ? @tr("" => "Ordenados por uso de CPU. Tocá un proceso para cerrarlo.") : (sort-by == 1 ? @tr("" => "Ordenados por memoria. Tocá un proceso para cerrarlo.") : @tr("" => "Ordenados por nombre. Tocá un proceso para cerrarlo.")); }
                     // Tabla: tocar el título de una columna la ordena.
                     HorizontalLayout {
@@ -1006,8 +815,10 @@ export component Main inherits Window {
                 }
 
 if page == 3: Page {
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
                     Head { title: @tr("" => "Limpieza"); sub: @tr("" => "Lo que sobra en tu disco: temporales, cachés, restos de Windows Update y archivos repetidos."); }
                     HorizontalLayout {
                         alignment: start;
@@ -1215,8 +1026,10 @@ if page == 3: Page {
                 }
 
                 if page == 7: Page {
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
                     Head { title: @tr("" => "{} programas", apps.length); sub: @tr("" => "Abre el desinstalador de cada programa y después te muestra lo que quedó. Orden: {}.", I18n.t(apps-sort-label)); }
                     HorizontalLayout {
                         spacing: 8px;
@@ -1272,8 +1085,10 @@ if page == 3: Page {
                 }
 
                 if page == 8: Page {
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
                     Head { title: @tr("" => "Seguridad"); sub: @tr("" => "Revisa Windows Defender, lo que arranca solo, las conexiones, los procesos y los drivers. No reemplaza a un antivirus."); }
 
                     // Antes del primer análisis: solo el botón, grande y en el centro.
@@ -1339,8 +1154,10 @@ if page == 3: Page {
 
 // Sección con opciones: casillas con explicación y riesgo, y un solo botón principal.
                 if page >= 10 && page <= 14: Page {
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
                     Head { title: I18n.t(sc-title); sub: I18n.t(sc-sub); }
                     if sc-loading: VerticalLayout {
                         vertical-stretch: 1;
@@ -1398,85 +1215,32 @@ if page == 3: Page {
                     }
                 }
 
-                // Historial: todo lo que lumen cambió, con deshacer en cada cambio.
-                if page == 15: Page {
-                    width: parent.width;
-                    height: parent.height;
-                    Head { title: @tr("" => "Historial"); sub: @tr("" => "Todo lo que lumen cambió en tu PC. Cada cambio se puede deshacer."); }
-                    if hist-status != "": Text { text: I18n.t(hist-status); font-size: 12px; color: Theme.accent; wrap: word-wrap; }
-                    if hist.length == 0: VerticalLayout {
-                        vertical-stretch: 1;
-                        alignment: center;
-                        Text { text: @tr("" => "Todavía no hiciste ningún cambio con lumen."); font-size: 14px; color: Theme.muted; horizontal-alignment: center; }
-                    }
-                    if hist.length > 0: Scroll {
-                        vertical-stretch: 1;
-                        content-h: hist.length * 66px;
-                        VerticalLayout {
-                            alignment: start;
-                            for h in hist: Rectangle {
-                                height: 66px;
-                                Rectangle {
-                                    height: 60px;
-                                    border-radius: 8px;
-                                    background: Theme.raised;
-                                    HorizontalLayout {
-                                        spacing: 16px;
-                                        padding-left: 16px;
-                                        padding-right: 16px;
-                                        VerticalLayout {
-                                            horizontal-stretch: 1;
-                                            alignment: center;
-                                            spacing: 2px;
-                                            opacity: h.applied ? 1.0 : 0.5;
-                                            Text { text: I18n.t(h.title); font-size: 14px; color: Theme.text; overflow: elide; }
-                                            Text { text: I18n.t(h.detail); font-size: 12px; color: Theme.muted; overflow: elide; }
-                                        }
-                                        if !h.applied: Text { text: @tr("" => "Deshecho"); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
-                                        if h.applied && !h.undoable: Text { text: @tr("" => "No se puede deshacer"); font-size: 12px; color: Theme.faint; vertical-alignment: center; }
-                                        if h.applied && h.undoable: VerticalLayout { alignment: center; Btn { height: 28px; text: @tr("" => "Deshacer"); clicked => { hist-undo(h.id); } } }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if page == 15: HistoryScreen {
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
+                    hist: root.hist;
+                    status: root.hist-status;
+                    undo(id) => { root.hist-undo(id); }
                 }
 
-                if page == 9: Page {
-                    width: parent.width;
-                    height: parent.height;
-                    Head { title: @tr("" => "Configuración"); sub: @tr("" => "Se guarda sola y se recuerda la próxima vez que abras lumen."); }
-                    Rectangle {
-                        height: 216px;
-                        background: Theme.raised;
-                        border-radius: 10px;
-                        VerticalLayout {
-                            ConfigRow {
-                                title: @tr("" => "Tema");
-                                desc: @tr("" => "Claro, oscuro o el mismo que usa Windows.");
-                                Segmented { options: [@tr("" => "Automático"), @tr("" => "Claro"), @tr("" => "Oscuro")]; current: cfg-theme; picked(i) => { cfg-theme = i; config-changed(); } }
-                            }
-                            ConfigRow {
-                                title: @tr("" => "Actualización del panel");
-                                desc: @tr("" => "Cada cuánto se renuevan el uso del procesador, la memoria y la red.");
-                                Segmented { options: [@tr("" => "1 segundo"), @tr("" => "2 segundos"), @tr("" => "5 segundos")]; current: cfg-refresh; picked(i) => { cfg-refresh = i; config-changed(); } }
-                            }
-                            ConfigRow {
-                                last: true;
-                                title: @tr("" => "Idioma");
-                                desc: @tr("" => "El idioma de todos los textos de lumen.");
-                                Segmented { options: ["Español", "English"]; current: cfg-lang; picked(i) => { cfg-lang = i; config-changed(); } }
-                            }
-                        }
-                    }
-                    Rectangle { vertical-stretch: 1; }
-                    Text { text: @tr("" => "lumen {} · Licencia MIT · github.com/vitorinoluca/lumen", app-version); font-size: 12px; color: Theme.faint; }
+                if page == 9: SettingsScreen {
+                    x: (parent.width - self.width) / 2;
+                    y: root.tabs-h;
+                    width: min(parent.width, Tokens.content-max);
+                    height: parent.height - root.tabs-h;
+                    app-version: root.app-version;
+                    theme <=> root.cfg-theme;
+                    refresh <=> root.cfg-refresh;
+                    lang <=> root.cfg-lang;
+                    reduce <=> root.cfg-reduce;
+                    changed => { root.config-changed(); }
                 }
             }
-        }
     }
 
-    if confirm-app >= 0: Confirm {
+    if confirm-app >= 0: ConfirmDialog {
         x: 0;
         y: 0;
         width: root.width;
@@ -1488,7 +1252,7 @@ if page == 3: Page {
         ok => { uninstall(confirm-app); confirm-app = -1; }
         cancel => { confirm-app = -1; }
     }
-    if kill-pid >= 0: Confirm {
+    if kill-pid >= 0: ConfirmDialog {
         x: 0;
         y: 0;
         width: root.width;
@@ -1500,7 +1264,7 @@ if page == 3: Page {
         ok => { kill(kill-pid); kill-pid = -1; }
         cancel => { kill-pid = -1; }
     }
-    if sec-confirm >= 0: Confirm {
+    if sec-confirm >= 0: ConfirmDialog {
         x: 0;
         y: 0;
         width: root.width;
@@ -1525,5 +1289,6 @@ if page == 3: Page {
         ok-text: sc-button;
         ok => { sc-preview = false; sc-run(); }
         cancel => { sc-preview = false; }
+    }
     }
 }
